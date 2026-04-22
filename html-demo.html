@@ -1,0 +1,750 @@
+<!--
+  DOCTYPE 声明：告知浏览器使用 HTML5 标准解析本文档，必须放在第一行
+  没有 DOCTYPE 浏览器会进入"怪异模式"，导致样式渲染不一致
+-->
+<!DOCTYPE html>
+
+<!--
+  <html> 根元素：整个页面的最外层容器，所有内容都嵌套在其中
+  lang="zh-CN" 声明页面语言为简体中文，有助于搜索引擎和屏幕阅读器正确处理内容
+-->
+<html lang="zh-CN">
+
+<!--
+  <head> 区域：页面元信息，不会显示在页面上
+  用于配置字符集、视口、SEO 描述、引入外部 CSS/JS 等
+-->
+<head>
+  <!--
+    字符编码声明：UTF-8 支持全球绝大多数字符（含中文、日文、emoji 等）
+    必须放在 <head> 最前面，确保浏览器在读取任何文本前就知道编码方式
+  -->
+  <meta charset="UTF-8" />
+
+  <!--
+    视口（viewport）设置：控制页面在移动端的缩放行为
+    width=device-width  → 页面宽度等于设备屏幕宽度（不做缩放）
+    initial-scale=1.0   → 初始缩放比例为 1:1（不放大也不缩小）
+    缺少此标签时，手机浏览器会把页面当成桌面网页渲染，文字极小
+  -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!--
+    页面描述：供搜索引擎在搜索结果摘要中展示
+    不影响页面显示，但对 SEO 很重要；建议控制在 150 字符以内
+  -->
+  <meta name="description" content="HTML 常见标签示例页面" />
+
+  <!--
+    <title>：显示在浏览器标签页、书签和搜索结果标题中
+    每个页面必须有且只有一个 <title>，对 SEO 权重很高
+  -->
+  <title>HTML 常见标签示例</title>
+
+  <!--
+    <style> 内嵌样式表：将 CSS 直接写在 HTML 文件内部
+    适合小型页面或示例；大型项目推荐用 <link rel="stylesheet"> 引入外部 .css 文件
+  -->
+  <style>
+    /*
+      body 选择器：作用于整个页面的 <body> 元素
+      所有子元素都会继承 font-family、line-height、color 等可继承属性
+    */
+    body {
+      /* 字体栈：优先使用"微软雅黑"，没有则降级到 Arial，最后回退到系统通用无衬线字体 */
+      font-family: "Microsoft YaHei", Arial, sans-serif;
+
+      /* 限制内容最大宽度为 800px，防止在大屏上行长过长影响阅读 */
+      max-width: 800px;
+
+      /*
+        水平居中技巧：左右 margin 设为 auto，配合 max-width 使内容块居中
+        上下 margin 为 0，垂直方向不额外留白
+      */
+      margin: 0 auto;
+
+      /* 内边距：让内容不贴边，四周留 24px 空间 */
+      padding: 24px;
+
+      /* 行高 1.8：字号的 1.8 倍，增加行间距，提升正文可读性 */
+      line-height: 1.8;
+
+      /* 深灰色文字（#333 比纯黑 #000 更柔和，对比度适中） */
+      color: #333;
+
+      /* 浅灰色背景，与卡片的白色背景形成对比，突出内容区域 */
+      background: #f9f9f9;
+    }
+
+    /*
+      section 选择器：为每个内容分区添加卡片样式
+      将每个主题块视觉上隔离，让页面层次更清晰
+    */
+    section {
+      background: #fff;          /* 白色卡片背景，与页面灰色背景区分 */
+      border: 1px solid #e0e0e0; /* 浅灰色边框，细描卡片轮廓 */
+      border-radius: 8px;        /* 圆角，现代卡片风格 */
+      padding: 20px 28px;        /* 上下 20px、左右 28px 内边距，内容不贴边 */
+      margin-bottom: 24px;       /* 卡片之间保持 24px 间距 */
+    }
+
+    /*
+      h2 选择器：二级标题样式
+      border-bottom 下划线 + 颜色变化，形成视觉分隔线，突出章节标题
+    */
+    h2 {
+      border-bottom: 2px solid #4a90e2; /* 2px 蓝色下边框，作为标题装饰线 */
+      padding-bottom: 6px;              /* 文字与下划线之间留 6px 间距 */
+      color: #4a90e2;                   /* 标题文字与下划线同色，视觉统一 */
+    }
+
+    /*
+      code 选择器：行内代码片段样式
+      通过背景色 + 圆角让代码和普通文字视觉区分
+    */
+    code {
+      background: #f0f0f0;  /* 浅灰色背景，模拟代码高亮底色 */
+      padding: 2px 6px;     /* 上下 2px、左右 6px，让背景色不紧贴文字 */
+      border-radius: 4px;   /* 小圆角，外观更精致 */
+      font-size: 0.9em;     /* 相对父元素缩小到 90%，代码字体略小更协调 */
+    }
+
+    /*
+      table 选择器：表格基础样式
+      border-collapse: collapse 将相邻单元格的边框合并为一条线，消除双线
+    */
+    table {
+      border-collapse: collapse; /* 合并边框：相邻单元格共用同一条边框线 */
+      width: 100%;               /* 表格占满父容器宽度 */
+    }
+
+    /*
+      th, td 选择器：同时设置表头单元格和普通单元格
+      逗号分隔表示"多选择器"，两者共享相同规则
+    */
+    th, td {
+      border: 1px solid #ccc;  /* 浅灰色 1px 边框，勾勒单元格轮廓 */
+      padding: 8px 14px;       /* 单元格内边距，让内容不紧贴边框 */
+      text-align: left;        /* 文字左对齐（默认 th 居中，覆盖为左对齐保持一致） */
+    }
+
+    /* th 选择器：仅作用于表头单元格，蓝色背景 + 白色文字以区分表头和数据行 */
+    th {
+      background: #4a90e2; /* 蓝色背景，与页面主色调统一 */
+      color: #fff;         /* 白色文字，与蓝色背景形成高对比度 */
+    }
+
+    /*
+      tr:nth-child(even) 伪类选择器：选中所有偶数行（第 2、4、6... 行）
+      斑马纹效果：奇偶行交替背景色，提升表格的行间可读性
+    */
+    tr:nth-child(even) {
+      background: #f5f8ff; /* 极浅的蓝色，与白色奇数行区分 */
+    }
+
+    /* fieldset：表单分组容器的边框样式，替换浏览器默认的较丑边框 */
+    fieldset {
+      border: 1px solid #ccc; /* 统一的浅灰色边框 */
+      border-radius: 6px;     /* 圆角与 section 风格保持一致 */
+      padding: 12px 20px;     /* 内边距，让表单内容不贴边 */
+    }
+
+    /* legend：fieldset 的标题，浮在边框上方 */
+    legend {
+      padding: 0 8px;      /* 左右 8px 内边距，让标题与左右边框有空隙感 */
+      font-weight: bold;   /* 加粗，突出分组标题 */
+      color: #4a90e2;      /* 蓝色，与页面主色调保持一致 */
+    }
+  </style>
+</head>
+
+<!--
+  <body> 区域：页面所有可见内容都写在这里
+  浏览器会把 <body> 内的标签渲染成用户看到的网页
+-->
+<body>
+
+  <!-- ==================== 标题标签 h1~h6 ==================== -->
+  <!--
+    <section>：HTML5 语义化标签，表示页面中一个有主题的内容分区
+    比 <div> 更具语义，有助于搜索引擎理解页面结构层次
+  -->
+  <section>
+    <!--
+      标题标签 h1~h6：共 6 个级别，数字越小字体越大、权重越高
+      h1 通常作为页面唯一的主标题，对 SEO 极其重要
+      h2~h6 用于层级化组织内容，不要跳级使用（如从 h2 直接跳到 h4）
+      &lt; 和 &gt; 是 HTML 字符实体，用于在页面上显示 < 和 >
+    -->
+    <h1>一级标题 &lt;h1&gt;</h1>
+    <h2>二级标题 &lt;h2&gt;</h2>
+    <h3>三级标题 &lt;h3&gt;</h3>
+    <h4>四级标题 &lt;h4&gt;</h4>
+    <h5>五级标题 &lt;h5&gt;</h5>
+    <h6>六级标题 &lt;h6&gt;</h6>
+    <p>标题标签共 6 级，<code>h1</code> 最大，<code>h6</code> 最小。每页通常只有一个 <code>h1</code>，作为页面主标题。</p>
+  </section>
+
+  <!-- ==================== 文本标签 ==================== -->
+  <section>
+    <h2>文本 / 内联标签</h2>
+
+    <!--
+      <p>：段落标签，块级元素，浏览器会在段落前后自动添加上下间距
+      <br />：强制换行，自闭合标签（斜杠写法兼容 XHTML），不产生新段落、不增加额外间距
+    -->
+    <p>
+      这是一个段落 <code>&lt;p&gt;</code>。段落之间会自动产生间距。<br />
+      <code>&lt;br /&gt;</code> 是强制换行，不产生新段落。
+    </p>
+
+    <p>
+      <!-- <strong>：语义上表示"重要"内容，默认渲染为粗体；比 <b>（纯样式加粗）更推荐 -->
+      <strong>strong：加粗强调（重要内容）</strong><br />
+      <!-- <em>：语义上表示"语气强调"，默认渲染为斜体；比 <i>（纯样式斜体）更推荐 -->
+      <em>em：斜体强调（语气强调）</em><br />
+      <!-- <mark>：高亮标注，默认黄色背景，常用于搜索结果关键词高亮 -->
+      <mark>mark：高亮文本</mark><br />
+      <!-- <del>：表示已删除的内容，渲染为删除线；语义上表示"此内容已废弃" -->
+      <del>del：删除线（已删除内容）</del><br />
+      <!-- <ins>：表示新插入的内容，渲染为下划线；常与 <del> 配合展示修改对比 -->
+      <ins>ins：下划线（新增内容）</ins><br />
+      <!--
+        <sup>：上标（superscript），用于数学指数、脚注编号等
+        <sub>：下标（subscript），用于化学分子式、数学下标等
+        &nbsp; 是不换行空格（non-breaking space），防止相邻内容自动折行
+      -->
+      上标：E=mc<sup>2</sup> &nbsp;&nbsp; 下标：H<sub>2</sub>O<br />
+      <!-- <code>：行内代码，默认使用等宽字体（monospace），用于展示短代码片段或变量名 -->
+      <code>code：行内代码片段</code><br />
+      <!-- <small>：小一号的辅助文字，常用于版权声明、免责说明、注释等次要信息 -->
+      <small>small：小号辅助文字</small>
+    </p>
+
+    <!--
+      <hr />：水平分割线，自闭合标签，块级元素
+      语义上表示内容"主题转换"，视觉上渲染为一条横线
+    -->
+    <hr />
+    <p><code>&lt;hr /&gt;</code> 是水平分割线，用于分隔内容区块。</p>
+
+    <!--
+      <pre>：预格式化文本（preformatted text），保留源码中的空格、Tab 和换行
+      默认使用等宽字体渲染；常与 <code> 嵌套使用来展示多行代码块
+    -->
+    <pre><code>pre + code：展示多行代码，
+  缩进和换行都会被保留。
+console.log("Hello, HTML!");</code></pre>
+
+    <!--
+      <blockquote>：块级引用标签，用于引用来自其他来源的较长段落
+      cite 属性指定引用来源的 URL（不显示在页面上，供语义/工具使用）
+      浏览器默认会对 blockquote 内容添加左侧缩进
+    -->
+    <blockquote cite="https://example.com">
+      blockquote：用于引用他人的话或段落，浏览器会自动缩进。
+    </blockquote>
+  </section>
+
+  <!-- ==================== 链接与图片 ==================== -->
+  <section>
+    <!--
+      &amp; 是 HTML 字符实体，用于在页面中显示 & 号
+      直接写 & 可能引发解析歧义，规范写法应使用 &amp;
+    -->
+    <h2>链接 &amp; 图片</h2>
+
+    <!--
+      <a>：锚点标签（anchor），用于创建超链接，内联元素
+      href（hypertext reference）：目标链接地址，可以是：
+        - 绝对 URL（https://...）
+        - 相对路径（./page.html）
+        - 锚点（#id）
+        - mailto:、tel: 等协议
+      target="_blank"：在新标签页打开链接（不离开当前页面）
+      rel="noopener"：配合 target="_blank" 使用，防止新页面通过 window.opener
+        访问当前页面（安全最佳实践，防止"钓鱼"攻击）
+    -->
+    <p>
+      <a href="https://developer.mozilla.org" target="_blank" rel="noopener">
+        MDN Web Docs（在新标签页打开）
+      </a>
+      — <code>href</code> 指定目标地址，<code>target="_blank"</code> 在新标签页打开。
+    </p>
+
+    <!--
+      锚点链接：href 以 # 开头，后跟目标元素的 id 值
+      点击后页面会滚动到对应 id 的元素位置（页内导航）
+      目标元素需设置对应的 id 属性，如 <section id="form-section">
+    -->
+    <p>
+      <a href="#form-section">点击跳转到表单区域（锚点链接）</a>
+      — <code>href="#id"</code> 跳转到同页面指定元素。
+    </p>
+
+    <!--
+      <img>：图片标签，自闭合标签（void element，无需闭合标签）
+      src（source）：图片文件路径或 URL，必填属性
+      alt（alternative text）：替代文字，图片加载失败时显示，同时供屏幕阅读器
+        朗读给视障用户——是无障碍访问（accessibility）的重要属性，不应省略
+      width / height：指定图片显示尺寸（px），提前声明可防止页面加载时布局抖动（CLS）
+    -->
+    <p>
+      <img
+        src="https://via.placeholder.com/300x120/4a90e2/ffffff?text=HTML+Image"
+        alt="示例图片"
+        width="300"
+        height="120"
+      />
+      <br />
+      <code>src</code> 图片地址，<code>alt</code> 图片无法显示时的替代文字（也供屏幕阅读器使用），
+      <code>width/height</code> 设置尺寸。
+    </p>
+  </section>
+
+  <!-- ==================== 列表 ==================== -->
+  <section>
+    <h2>列表</h2>
+
+    <!--
+      <ul>：无序列表（unordered list），列表项无编号，默认显示实心圆点（•）
+      适用于顺序不重要的并列项目，如功能列表、导航菜单等
+      <li>：列表项（list item），必须是 <ul> 或 <ol> 的直接子元素
+    -->
+    <p><strong>无序列表 <code>&lt;ul&gt;</code>（项目符号）：</strong></p>
+    <ul>
+      <li>HTML — 结构</li>
+      <li>CSS — 样式</li>
+      <li>JavaScript — 交互</li>
+    </ul>
+
+    <!--
+      <ol>：有序列表（ordered list），列表项自动编号（默认 1、2、3...）
+      适用于顺序有意义的步骤说明、排名等场景
+      可通过 type 属性修改编号样式：type="A"（大写字母）、type="i"（小写罗马数字）等
+      start 属性可指定起始编号：<ol start="5"> 从 5 开始
+    -->
+    <p><strong>有序列表 <code>&lt;ol&gt;</code>（编号）：</strong></p>
+    <ol>
+      <li>打开编辑器</li>
+      <li>编写 HTML</li>
+      <li>在浏览器中预览</li>
+    </ol>
+
+    <!--
+      <dl>：定义列表（description list），用于术语与描述的配对展示
+      <dt>：定义术语（definition term），被解释的词条
+      <dd>：定义描述（definition description），对 <dt> 的解释说明，默认有左缩进
+      适合词汇表、FAQ（问答）、元数据展示等场景
+    -->
+    <p><strong>定义列表 <code>&lt;dl&gt;</code>（术语 + 描述）：</strong></p>
+    <dl>
+      <dt><strong>HTML</strong></dt>
+      <dd>超文本标记语言，定义页面结构。</dd>
+      <dt><strong>CSS</strong></dt>
+      <dd>层叠样式表，控制页面外观。</dd>
+    </dl>
+  </section>
+
+  <!-- ==================== 表格 ==================== -->
+  <section>
+    <h2>表格 &lt;table&gt;</h2>
+    <!--
+      <table>：表格容器，所有表格相关标签都嵌套在其中
+      HTML 表格由行（<tr>）和单元格（<th>/<td>）组成
+      推荐将表格分为三个语义区：<thead>（表头）、<tbody>（主体）、<tfoot>（页脚）
+      这样做有助于屏幕阅读器理解表格结构，打印时表头可重复出现在每页顶部
+    -->
+    <table>
+      <!--
+        <thead>：表格头部区域，包含列标题行
+        浏览器打印时，thead 内容会在每一页顶部重复显示
+      -->
+      <thead>
+        <!--
+          <tr>：表格行（table row），每一行数据写在一个 <tr> 中
+        -->
+        <tr>
+          <!--
+            <th>：表头单元格（table header），默认加粗且居中显示
+            语义上表示该列/行的标题，有助于屏幕阅读器识别表格含义
+            scope 属性可指定 "col"（列标题）或 "row"（行标题）增强语义
+          -->
+          <th>姓名</th>
+          <th>年龄</th>
+          <th>职位</th>
+        </tr>
+      </thead>
+      <!--
+        <tbody>：表格主体，包含实际数据行
+        即使不手动写 <tbody>，浏览器也会自动补充，但显式声明更规范
+      -->
+      <tbody>
+        <tr>
+          <!--
+            <td>：普通数据单元格（table data），默认左对齐、无加粗
+          -->
+          <td>张三</td>
+          <td>28</td>
+          <td>前端工程师</td>
+        </tr>
+        <tr>
+          <td>李四</td>
+          <td>32</td>
+          <td>产品经理</td>
+        </tr>
+        <tr>
+          <!--
+            colspan：横向合并单元格，值为合并的列数
+            colspan="2" 表示此单元格占据 2 列的宽度
+            rowspan：纵向合并单元格，值为合并的行数（此处未使用）
+          -->
+          <td colspan="2">合并单元格（colspan="2"）</td>
+          <td>UI 设计师</td>
+        </tr>
+      </tbody>
+      <!--
+        <tfoot>：表格页脚，通常用于汇总行、合计行等
+        浏览器打印长表格时，tfoot 内容会在每页底部重复显示
+      -->
+      <tfoot>
+        <tr>
+          <!-- colspan="3" 让页脚单元格横跨所有 3 列，形成完整底部说明行 -->
+          <td colspan="3">共 3 条记录</td>
+        </tr>
+      </tfoot>
+    </table>
+  </section>
+
+  <!-- ==================== 表单 ==================== -->
+  <!--
+    id="form-section"：为该 section 设置唯一标识，用于页面内锚点跳转
+    页面上方的 <a href="#form-section"> 链接即跳转至此处
+  -->
+  <section id="form-section">
+    <h2>表单 &lt;form&gt;</h2>
+    <p><code>action</code> 指定提交地址，<code>method</code> 指定提交方式（get / post）。</p>
+
+    <!--
+      <form>：表单容器，定义一个用户数据采集区域
+      action="#"：表单提交的目标 URL，# 表示提交到当前页面（示例用）
+      method="post"：提交方式
+        - GET：数据附在 URL 后（?key=value），适合搜索、过滤等无副作用请求，有长度限制
+        - POST：数据放在请求体中，适合登录、注册等含敏感数据或大量数据的提交
+    -->
+    <form action="#" method="post">
+      <!--
+        <fieldset>：将表单中的相关控件分组，用边框框起来
+        适合将一个大表单拆分成多个逻辑分区（如"基本信息"、"联系方式"）
+        <legend>：fieldset 的分组标题，显示在边框的左上角
+      -->
+      <fieldset>
+        <legend>基本信息</legend>
+
+        <!--
+          <label>：为表单控件提供文字说明，点击 label 可激活对应控件
+          for 属性值必须与目标 input 的 id 相同，建立关联（提升可用性和无障碍性）
+          <input type="text">：单行文本输入框
+            name：提交时的字段名，服务器端通过此名称获取值
+            placeholder：占位提示文字，用户开始输入后消失
+            required：HTML5 原生验证属性，提交前若为空则阻止提交并提示错误
+        -->
+        <p>
+          <label for="username">用户名：</label>
+          <input type="text" id="username" name="username" placeholder="请输入用户名" required />
+        </p>
+
+        <!--
+          type="password"：密码输入框，输入内容显示为 ● 遮蔽，不可被复制
+          注意：密码框只是视觉遮蔽，数据传输安全需依赖 HTTPS
+        -->
+        <p>
+          <label for="password">密码：</label>
+          <input type="password" id="password" name="password" placeholder="请输入密码" />
+        </p>
+
+        <!--
+          type="email"：邮箱输入框，提交时浏览器会自动验证格式（包含 @ 和域名）
+          移动端会弹出含 @ 符号的专用键盘
+        -->
+        <p>
+          <label for="email">邮箱：</label>
+          <input type="email" id="email" name="email" placeholder="example@mail.com" />
+        </p>
+
+        <!--
+          type="number"：数字输入框，只允许输入数字，移动端弹出数字键盘
+          min / max：限制输入范围，超出范围提交时浏览器会报错
+          value：控件的初始默认值
+        -->
+        <p>
+          <label for="age">年龄：</label>
+          <input type="number" id="age" name="age" min="1" max="120" value="18" />
+        </p>
+
+        <!--
+          type="date"：日期选择器，浏览器会渲染日历组件
+          提交值格式为 YYYY-MM-DD（如 2026-04-22）
+        -->
+        <p>
+          <label for="birthday">生日：</label>
+          <input type="date" id="birthday" name="birthday" />
+        </p>
+
+        <!--
+          type="radio"：单选框，同一组选项的 name 必须相同
+          相同 name 的 radio 互斥（只能选一个）
+          value：选中后提交给服务器的值
+          checked：布尔属性，表示该选项默认选中
+          将 <label> 包裹 <input> 可让点击文字也能选中单选框（无需 for/id）
+        -->
+        <p>
+          性别：
+          <label><input type="radio" name="gender" value="male" checked /> 男</label>
+          <label><input type="radio" name="gender" value="female" /> 女</label>
+        </p>
+
+        <!--
+          type="checkbox"：复选框，允许同时选中多个选项
+          相同 name 的 checkbox 提交时会生成数组（如 hobby=reading&hobby=coding）
+          checked：默认勾选状态
+        -->
+        <p>
+          爱好：
+          <label><input type="checkbox" name="hobby" value="reading" /> 阅读</label>
+          <label><input type="checkbox" name="hobby" value="coding" checked /> 编程</label>
+          <label><input type="checkbox" name="hobby" value="gaming" /> 游戏</label>
+        </p>
+
+        <!--
+          <select>：下拉选择框
+          <option>：每一个可选项，value 是提交值，标签内文字是显示文本
+          <optgroup>：对选项进行分组，label 属性为分组标题（不可被选中）
+          selected：默认选中某个 option
+        -->
+        <p>
+          <label for="city">城市：</label>
+          <select id="city" name="city">
+            <option value="">-- 请选择 --</option>
+            <optgroup label="华北">
+              <option value="beijing">北京</option>
+              <option value="tianjin">天津</option>
+            </optgroup>
+            <optgroup label="华东">
+              <option value="shanghai" selected>上海</option>
+              <option value="hangzhou">杭州</option>
+            </optgroup>
+          </select>
+        </p>
+
+        <!--
+          type="range"：范围滑块，拖动选择数值范围内的值
+          min / max：滑块最小值和最大值
+          value：滑块初始位置对应的值
+          通常配合 JavaScript 实时显示当前值
+        -->
+        <p>
+          <label for="score">评分（1-10）：</label>
+          <input type="range" id="score" name="score" min="1" max="10" value="7" />
+        </p>
+
+        <!--
+          type="file"：文件上传控件，点击后弹出系统文件选择对话框
+          accept：限制可选文件类型，"image/*" 表示仅允许所有图片格式
+          若需上传文件，form 必须添加 enctype="multipart/form-data" 属性
+        -->
+        <p>
+          <label for="avatar">上传头像：</label>
+          <input type="file" id="avatar" name="avatar" accept="image/*" />
+        </p>
+
+        <!--
+          <textarea>：多行文本输入区域
+          rows：显示的行数（影响控件初始高度）
+          cols：显示的列数（影响控件初始宽度）
+          注意：<textarea> 不是自闭合标签，必须有闭合标签 </textarea>
+          标签之间不应有空白，否则会成为默认值显示在文本框中
+        -->
+        <p>
+          <label for="bio">个人简介：</label><br />
+          <textarea id="bio" name="bio" rows="4" cols="50" placeholder="请介绍一下自己..."></textarea>
+        </p>
+
+        <!--
+          type="hidden"：隐藏字段，不在页面上显示，但会随表单一起提交
+          常用于传递 CSRF token、页面来源标识、用户 ID 等服务端需要但不让用户修改的数据
+        -->
+        <input type="hidden" name="source" value="html-demo" />
+
+        <!--
+          <button>：按钮标签，比 <input type="button"> 更灵活（内部可放图标等 HTML 内容）
+          type="submit"：点击后触发表单提交，将数据发送到 action 指定地址
+          type="reset"：点击后将所有表单控件恢复到初始默认值（慎用，用户误点会丢失填写内容）
+        -->
+        <p>
+          <button type="submit">提交表单</button>
+          <button type="reset">重置</button>
+        </p>
+      </fieldset>
+    </form>
+  </section>
+
+  <!-- ==================== 语义化布局标签 ==================== -->
+  <section>
+    <h2>语义化布局标签</h2>
+    <p>HTML5 提供了一批语义化标签，让页面结构更清晰，有利于 SEO 和无障碍访问：</p>
+    <ul>
+      <li><code>&lt;header&gt;</code> — 页眉 / 区块头部</li>
+      <li><code>&lt;nav&gt;</code> — 导航区域</li>
+      <li><code>&lt;main&gt;</code> — 页面主体内容（每页唯一）</li>
+      <li><code>&lt;article&gt;</code> — 独立内容（如博客文章）</li>
+      <li><code>&lt;section&gt;</code> — 有主题的内容分区</li>
+      <li><code>&lt;aside&gt;</code> — 侧边栏 / 附加内容</li>
+      <li><code>&lt;footer&gt;</code> — 页脚</li>
+      <li><code>&lt;div&gt;</code> — 无语义的通用块级容器（无更合适标签时使用）</li>
+      <li><code>&lt;span&gt;</code> — 无语义的通用内联容器</li>
+    </ul>
+
+    <p>结构示例（伪代码）：</p>
+    <pre><code>&lt;header&gt;网站 Logo + 导航&lt;/header&gt;
+&lt;main&gt;
+  &lt;article&gt;文章正文&lt;/article&gt;
+  &lt;aside&gt;相关推荐&lt;/aside&gt;
+&lt;/main&gt;
+&lt;footer&gt;版权信息&lt;/footer&gt;</code></pre>
+  </section>
+
+  <!-- ==================== 多媒体 ==================== -->
+  <section>
+    <h2>多媒体</h2>
+
+    <!--
+      <audio>：HTML5 音频播放器，支持 mp3、ogg、wav 等格式
+      controls：布尔属性，显示浏览器内置的播放控制栏（播放/暂停/音量/进度条）
+               省略则音频不可见，需用 JavaScript 控制
+      autoplay：自动播放（多数浏览器禁止无交互时自动播放，需配合 muted 才能生效）
+      loop：循环播放
+      <source>：为媒体元素指定文件路径和类型，可写多个 <source> 实现格式降级
+      type：MIME 类型，帮助浏览器判断是否能播放，支持则加载，否则尝试下一个 <source>
+      标签体内的文字是降级内容，仅在浏览器不支持 <audio> 时显示
+    -->
+    <p>
+      <strong>音频 <code>&lt;audio&gt;</code>：</strong><br />
+      <audio controls>
+        <source src="demo.mp3" type="audio/mpeg" />
+        您的浏览器不支持 audio 标签。
+      </audio>
+    </p>
+
+    <!--
+      <video>：HTML5 视频播放器，支持 mp4、webm、ogg 等格式
+      controls：显示播放控制栏
+      width / height：视频播放器的显示尺寸（像素），建议指定以防布局抖动
+      poster：视频加载前显示的封面图片路径，类似视频缩略图
+      <source> 同样可写多个，浏览器从上往下找第一个支持的格式播放
+    -->
+    <p>
+      <strong>视频 <code>&lt;video&gt;</code>：</strong><br />
+      <video controls width="320" height="180" poster="poster.jpg">
+        <source src="demo.mp4" type="video/mp4" />
+        您的浏览器不支持 video 标签。
+      </video>
+    </p>
+
+    <!--
+      <iframe>：内嵌框架，在当前页面中嵌入另一个独立的 HTML 页面或外部网址
+      src：被嵌入页面的 URL
+      width / height：iframe 显示区域的尺寸
+      title：描述 iframe 内容，供屏幕阅读器使用（无障碍必填属性）
+      style：内联样式，此处添加边框和圆角（不推荐在生产环境使用内联样式）
+      安全注意：嵌入第三方页面时，对方需在响应头允许被 iframe 加载（X-Frame-Options）
+               沙箱属性 sandbox 可限制 iframe 内脚本执行、表单提交等权限
+    -->
+    <p>
+      <strong>内嵌框架 <code>&lt;iframe&gt;</code>：</strong><br />
+      <iframe
+        src="https://example.com"
+        width="100%"
+        height="150"
+        title="示例 iframe"
+        style="border:1px solid #ccc; border-radius:4px;"
+      ></iframe>
+    </p>
+  </section>
+
+  <!-- ==================== 其他实用标签 ==================== -->
+  <section>
+    <h2>其他实用标签</h2>
+
+    <!--
+      <details>：折叠/展开组件，HTML5 原生实现手风琴效果，无需 JavaScript
+      默认折叠状态；添加 open 属性（<details open>）可默认展开
+      <summary>：<details> 的可见标题/摘要，点击 summary 切换展开/折叠状态
+      summary 之外的内容（如 <p>）在折叠时隐藏，展开后显示
+    -->
+    <details>
+      <summary>点击展开：什么是 HTML？</summary>
+      <p>
+        HTML（HyperText Markup Language）是构建网页的标准标记语言。
+        它使用"标签"描述页面结构，浏览器解析这些标签并渲染成可视化页面。
+      </p>
+    </details>
+
+    <!--
+      <abbr>：缩写标签（abbreviation），为缩写词提供完整说明
+      title 属性：鼠标悬停时显示完整词汇的 tooltip
+      浏览器通常会为 <abbr> 添加虚线下划线，提示用户可悬停查看说明
+    -->
+    <p>
+      鼠标悬停在缩写上可看到全称：
+      <abbr title="HyperText Markup Language">HTML</abbr>、
+      <abbr title="Cascading Style Sheets">CSS</abbr>、
+      <abbr title="JavaScript">JS</abbr>
+    </p>
+
+    <!--
+      <time>：语义化时间标签，供机器（搜索引擎、日历应用）读取精确时间
+      datetime 属性：符合 ISO 8601 标准的机器可读时间格式（YYYY-MM-DD 或含时区的完整时间戳）
+      标签内的文字是人类可读的显示文本，可以是任意格式
+      例：<time datetime="2026-04-22T09:00:00+08:00"> 代表北京时间早上 9 点
+    -->
+    <p>
+      发布时间：<time datetime="2026-04-22">2026 年 4 月 22 日</time>
+    </p>
+
+    <!--
+      <progress>：任务进度条，表示某项工作的完成程度
+      value：当前进度值
+      max：最大值（完成时的值），默认为 1
+      标签体文字（如"60%"）是降级内容，供不支持该标签的浏览器显示
+      注意：<progress> 表示"已完成多少"，不表示度量值（度量用 <meter>）
+    -->
+    <p>
+      学习进度：<progress value="60" max="100">60%</progress> 60%
+    </p>
+
+    <!--
+      <meter>：标量度量值，表示某个范围内的已知值（如磁盘使用率、评分）
+      value：当前值
+      min / max：值的范围边界
+      low：低于此值视为"偏低"区间
+      high：高于此值视为"偏高"区间
+      optimum：最优值，浏览器根据 optimum 与 low/high 的关系决定颜色
+               （如 optimum 在低区间，则值越低越绿；当前值在高区间则显示红/黄色警示）
+    -->
+    <p>
+      硬盘使用率：<meter value="70" min="0" max="100" low="30" high="80" optimum="20">70%</meter> 70%
+    </p>
+  </section>
+
+  <!--
+    <footer>：语义化页脚标签，通常包含版权声明、联系方式、备案号、友情链接等
+    style 内联样式：仅用于示例，生产环境建议统一在 CSS 文件中管理样式
+    &copy; 是版权符号 © 的 HTML 字符实体
+  -->
+  <footer style="text-align:center; color:#999; font-size:0.85em; padding: 16px 0;">
+    <p>HTML 示例文件 &copy; 2026 — 用于学习常见 HTML 标签</p>
+  </footer>
+
+</body>
+</html>
