@@ -43,7 +43,7 @@
 
   <!--
     <style> 内嵌样式表：将 CSS 直接写在 HTML 文件内部
-    适合小型页面或示例；大型项目推荐用 <link rel="stylesheet"> 引入外部 .css 文件
+    适合小型页面或示例；大型项目推荐用 <link rel="stylesheet" href="xxxxx.css"> 引入外部 .css 文件
   -->
   <style>
     /*
@@ -164,12 +164,37 @@
 -->
 <body>
 
+  <!-- 目录导航 -->
+  <!--
+    目录导航区域：使用内联样式覆盖 section 默认样式
+    background: #f0f8ff → 极浅蓝色背景，突出显示导航区块，与页面其他白色卡片区分
+    border-color: #4a90e2 → 蓝色边框，与页面主色调统一，增强视觉识别度
+  -->
+  <section style="background: #f0f8ff; border-color: #4a90e2;">
+    <h2>目录导航</h2>
+    <!--
+      style="list-style-type: none"：移除默认的项目符号（实心圆点 •）
+      style="padding-left: 0"：移除列表项默认的左内边距，让列表项与容器左边缘对齐
+    -->
+    <ul style="list-style-type: none; padding-left: 0;">
+      <li><a href="#headings">标题标签 h1~h6</a></li>
+      <li><a href="#text">文本 / 内联标签</a></li>
+      <li><a href="#links-images">链接 &amp; 图片</a></li>
+      <li><a href="#lists">列表</a></li>
+      <li><a href="#tables">表格 &lt;table&gt;</a></li>
+      <li><a href="#form-section">表单 &lt;form&gt;</a></li>
+      <li><a href="#semantic">语义化布局标签</a></li>
+      <li><a href="#multimedia">多媒体</a></li>
+      <li><a href="#other">其他实用标签</a></li>
+    </ul>
+  </section>
+
   <!-- ==================== 标题标签 h1~h6 ==================== -->
   <!--
     <section>：HTML5 语义化标签，表示页面中一个有主题的内容分区
     比 <div> 更具语义，有助于搜索引擎理解页面结构层次
   -->
-  <section>
+  <section id="headings">
     <!--
       标题标签 h1~h6：共 6 个级别，数字越小字体越大、权重越高
       h1 通常作为页面唯一的主标题，对 SEO 极其重要
@@ -186,7 +211,7 @@
   </section>
 
   <!-- ==================== 文本标签 ==================== -->
-  <section>
+  <section id="text">
     <h2>文本 / 内联标签</h2>
 
     <!--
@@ -247,7 +272,7 @@ console.log("Hello, HTML!");</code></pre>
   </section>
 
   <!-- ==================== 链接与图片 ==================== -->
-  <section>
+  <section id="links-images">
     <!--
       &amp; 是 HTML 字符实体，用于在页面中显示 & 号
       直接写 & 可能引发解析歧义，规范写法应使用 &amp;
@@ -307,7 +332,7 @@ console.log("Hello, HTML!");</code></pre>
   </section>
 
   <!-- ==================== 列表 ==================== -->
-  <section>
+  <section id="lists">
     <h2>列表</h2>
 
     <!--
@@ -351,7 +376,7 @@ console.log("Hello, HTML!");</code></pre>
   </section>
 
   <!-- ==================== 表格 ==================== -->
-  <section>
+  <section id="tables">
     <h2>表格 &lt;table&gt;</h2>
     <!--
       <table>：表格容器，所有表格相关标签都嵌套在其中
@@ -594,7 +619,7 @@ console.log("Hello, HTML!");</code></pre>
   </section>
 
   <!-- ==================== 语义化布局标签 ==================== -->
-  <section>
+  <section id="semantic">
     <h2>语义化布局标签</h2>
     <p>HTML5 提供了一批语义化标签，让页面结构更清晰，有利于 SEO 和无障碍访问：</p>
     <ul>
@@ -619,7 +644,7 @@ console.log("Hello, HTML!");</code></pre>
   </section>
 
   <!-- ==================== 多媒体 ==================== -->
-  <section>
+  <section id="multimedia">
     <h2>多媒体</h2>
 
     <!--
@@ -677,7 +702,7 @@ console.log("Hello, HTML!");</code></pre>
   </section>
 
   <!-- ==================== 其他实用标签 ==================== -->
-  <section>
+  <section id="other">
     <h2>其他实用标签</h2>
 
     <!--
