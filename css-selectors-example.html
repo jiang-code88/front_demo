@@ -310,6 +310,54 @@
             background-color: #ffeb3b;
             color: #333;
         }
+        
+        /* 选择器优先级示例 */
+        /* 类型选择器 - 只应用于.priority-demo内的div */
+        .priority-demo div {
+            background-color: gray;
+            color: white;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        
+        /* 类选择器 - 只应用于.priority-demo内的.box */
+        .priority-demo .box {
+            background-color: green;
+            color: white;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        
+        /* ID选择器 - 只应用于#unique */
+        #unique {
+            background-color: blue;
+            color: white;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        
+        /* !important示例 - 只应用于.important-example */
+        .important-example {
+            background-color: red !important;
+            color: yellow !important;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        
+        /* 继承示例 - 只应用于.inheritance-demo内的元素 */
+        .inheritance-demo .parent {
+            color: blue;
+            border: 2px solid red;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+        
+        .inheritance-demo .child {
+            padding: 10px;
+            border-radius: 4px;
+            /* 没有设置border，所以不会继承父元素的border */
+        }
     </style>
 </head>
 <body>
@@ -324,6 +372,7 @@
             <li><a href="#attribute-selectors">属性选择器</a></li>
             <li><a href="#pseudo-class-selectors">伪类选择器</a></li>
             <li><a href="#pseudo-element-selectors">伪元素</a></li>
+            <li><a href="#specificity">选择器优先级（特异性）</a></li>
         </ul>
     </div>
     
@@ -549,6 +598,81 @@
                 <h3>这是一个h3元素，文字颜色为橙色，字体为斜体</h3>
                 <p>这是一个p元素，文字颜色为橙色，字体为斜体</p>
                 <div>这是一个div元素，无特殊样式</div>
+            </div>
+        </div>
+    </section>
+    
+    <!-- 选择器优先级（特异性） -->
+    <section id="specificity">
+        <h2>选择器优先级（特异性）</h2>
+        
+        <div class="example">
+            <h3>特异性计算表</h3>
+            <p>选择器的特异性由以下权重组成：</p>
+            <div class="example-demo">
+                <table border="1" style="width: 100%; border-collapse: collapse;">
+                    <tr>
+                        <th>选择器类型</th>
+                        <th>权重值</th>
+                        <th>示例</th>
+                    </tr>
+                    <tr>
+                        <td>内联样式</td>
+                        <td>1000</td>
+                        <td>style="color: red;"</td>
+                    </tr>
+                    <tr>
+                        <td>ID选择器</td>
+                        <td>100</td>
+                        <td>#unique</td>
+                    </tr>
+                    <tr>
+                        <td>类选择器、属性选择器、伪类</td>
+                        <td>10</td>
+                        <td>.box, [type="text"], :hover</td>
+                    </tr>
+                    <tr>
+                        <td>类型选择器、伪元素</td>
+                        <td>1</td>
+                        <td>div, ::before</td>
+                    </tr>
+                    <tr>
+                        <td>通配符</td>
+                        <td>0</td>
+                        <td>*</td>
+                    </tr>
+                </table>
+                <p style="margin-top: 10px;"><strong>!important</strong> 具有最高优先级，应谨慎使用。</p>
+            </div>
+        </div>
+        
+        <div class="example">
+            <h3>优先级测试</h3>
+            <p>以下元素同时应用了类型选择器、类选择器、ID选择器和内联样式，最终生效的是内联样式（最高优先级）。</p>
+            <div class="example-demo priority-demo">
+                <div id="unique" class="box" style="background-color: yellow; color: black;">这是一个测试元素</div>
+                <p>解释：内联样式 > ID选择器 > 类选择器 > 类型选择器</p>
+            </div>
+        </div>
+        
+        <div class="example">
+            <h3>!important 示例</h3>
+            <p>即使有内联样式，!important 仍然具有最高优先级。</p>
+            <div class="example-demo">
+                <div class="important-example" style="background-color: blue; color: white;">这是一个测试元素</div>
+                <p>解释：.important-example 类中使用了 !important，所以背景色为红色，文字为黄色。</p>
+            </div>
+        </div>
+        
+        <div class="example">
+            <h3>继承 vs 非继承</h3>
+            <p>某些CSS属性会从父元素继承，而某些不会。</p>
+            <div class="example-demo inheritance-demo">
+                <div class="parent">
+                    父元素（设置了颜色和边框）
+                    <div class="child">子元素（继承了颜色，但没有继承边框）</div>
+                </div>
+                <p>解释：color 属性是可继承的，border 属性是不可继承的。</p>
             </div>
         </div>
     </section>
