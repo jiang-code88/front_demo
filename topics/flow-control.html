@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>流程控制：if...else、switch、循环</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f4f4f4;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 30px;
+            padding: 20px 0;
+            border-bottom: 3px solid #3498db;
+        }
+        
+        .section {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        h2 {
+            color: #3498db;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #ecf0f1;
+        }
+        
+        h3 {
+            color: #2c3e50;
+            margin: 15px 0 10px 0;
+        }
+        
+        .code-block {
+            background: #f8f9fa;
+            border-left: 4px solid #3498db;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+        }
+        
+        .result {
+            background: #e8f4f8;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+            border: 1px solid #b8e0f0;
+        }
+        
+        .result-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #2c3e50;
+        }
+        
+        .explanation {
+            background: #f9f9f9;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+            border: 1px solid #e0e0e0;
+        }
+        
+        .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 10px 20px;
+            background: #3498db;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            transition: background 0.3s ease;
+        }
+        
+        .back-link:hover {
+            background: #2980b9;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>流程控制：if...else、switch、循环</h1>
+        
+        <div class="section">
+            <h2>1. if...else 语句</h2>
+            <div class="code-block">
+// if...else
+const score = 85;
+if (score >= 90) {
+  console.log("优秀");
+} else if (score >= 80) {
+  console.log("良好");
+} else if (score >= 60) {
+  console.log("及格");
+} else {
+  console.log("不及格");
+}
+            </div>
+            <div class="result">
+                <div class="result-title">执行结果：</div>
+                <div id="if-result"></div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>2. switch 语句</h2>
+            <div class="code-block">
+// switch
+const day = 3;
+switch (day) {
+  case 1:
+    console.log("星期一");
+    break;
+  case 2:
+    console.log("星期二");
+    break;
+  case 3:
+    console.log("星期三");
+    break;
+  default:
+    console.log("其他天");
+}
+            </div>
+            <div class="result">
+                <div class="result-title">执行结果：</div>
+                <div id="switch-result"></div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>3. for 循环</h2>
+            <div class="code-block">
+// for 循环
+for (let i = 0; i < 5; i++) {
+  console.log("for 循环 i:", i);
+}
+            </div>
+            <div class="result">
+                <div class="result-title">执行结果：</div>
+                <div id="for-result"></div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>4. while 循环</h2>
+            <div class="code-block">
+// while 循环
+let j = 0;
+while (j < 3) {
+  console.log("while 循环 j:", j);
+  j++;
+}
+            </div>
+            <div class="result">
+                <div class="result-title">执行结果：</div>
+                <div id="while-result"></div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>5. do...while 循环</h2>
+            <div class="code-block">
+// do...while 循环
+let k = 0;
+do {
+  console.log("do...while 循环 k:", k);
+  k++;
+} while (k < 3);
+            </div>
+            <div class="result">
+                <div class="result-title">执行结果：</div>
+                <div id="dowhile-result"></div>
+            </div>
+            <div class="explanation">
+                <h3>do...while 与 while 的区别：</h3>
+                <ul>
+                    <li>do...while 循环至少执行一次循环体</li>
+                    <li>while 循环只有在条件为真时才执行循环体</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>6. for...of 循环</h2>
+            <div class="code-block">
+// for...of 循环 (遍历可迭代对象)
+const arr2 = [1, 2, 3];
+for (const item of arr2) {
+  console.log("for...of 循环 item:", item);
+}
+            </div>
+            <div class="result">
+                <div class="result-title">执行结果：</div>
+                <div id="forof-result"></div>
+            </div>
+            <div class="explanation">
+                <h3>for...of 循环的特点：</h3>
+                <ul>
+                    <li>用于遍历可迭代对象（数组、字符串、Map、Set 等）</li>
+                    <li>直接获取值，而不是索引</li>
+                    <li>不能直接遍历对象的属性</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>7. for...in 循环</h2>
+            <div class="code-block">
+// for...in 循环 (遍历对象属性)
+const obj3 = { name: "张三", age: 20 };
+for (const key in obj3) {
+  console.log("for...in 循环 key:", key, "value:", obj3[key]);
+}
+            </div>
+            <div class="result">
+                <div class="result-title">执行结果：</div>
+                <div id="forin-result"></div>
+            </div>
+            <div class="explanation">
+                <h3>for...in 循环的特点：</h3>
+                <ul>
+                    <li>用于遍历对象的可枚举属性</li>
+                    <li>获取的是属性名，需要通过属性名访问属性值</li>
+                    <li>会遍历原型链上的属性</li>
+                </ul>
+            </div>
+        </div>
+        
+        <a href="../index.html" class="back-link">返回首页</a>
+    </div>
+    
+    <script>
+        // 执行 if...else 相关代码
+        (function() {
+            const resultDiv = document.getElementById('if-result');
+            const score = 85;
+            if (score >= 90) {
+                resultDiv.innerHTML += "优秀<br>";
+            } else if (score >= 80) {
+                resultDiv.innerHTML += "良好<br>";
+            } else if (score >= 60) {
+                resultDiv.innerHTML += "及格<br>";
+            } else {
+                resultDiv.innerHTML += "不及格<br>";
+            }
+        })();
+        
+        // 执行 switch 相关代码
+        (function() {
+            const resultDiv = document.getElementById('switch-result');
+            const day = 3;
+            switch (day) {
+                case 1:
+                    resultDiv.innerHTML += "星期一<br>";
+                    break;
+                case 2:
+                    resultDiv.innerHTML += "星期二<br>";
+                    break;
+                case 3:
+                    resultDiv.innerHTML += "星期三<br>";
+                    break;
+                default:
+                    resultDiv.innerHTML += "其他天<br>";
+            }
+        })();
+        
+        // 执行 for 循环相关代码
+        (function() {
+            const resultDiv = document.getElementById('for-result');
+            for (let i = 0; i < 5; i++) {
+                resultDiv.innerHTML += "for 循环 i: " + i + "<br>";
+            }
+        })();
+        
+        // 执行 while 循环相关代码
+        (function() {
+            const resultDiv = document.getElementById('while-result');
+            let j = 0;
+            while (j < 3) {
+                resultDiv.innerHTML += "while 循环 j: " + j + "<br>";
+                j++;
+            }
+        })();
+        
+        // 执行 do...while 循环相关代码
+        (function() {
+            const resultDiv = document.getElementById('dowhile-result');
+            let k = 0;
+            do {
+                resultDiv.innerHTML += "do...while 循环 k: " + k + "<br>";
+                k++;
+            } while (k < 3);
+        })();
+        
+        // 执行 for...of 循环相关代码
+        (function() {
+            const resultDiv = document.getElementById('forof-result');
+            const arr2 = [1, 2, 3];
+            for (const item of arr2) {
+                resultDiv.innerHTML += "for...of 循环 item: " + item + "<br>";
+            }
+        })();
+        
+        // 执行 for...in 循环相关代码
+        (function() {
+            const resultDiv = document.getElementById('forin-result');
+            const obj3 = { name: "张三", age: 20 };
+            for (const key in obj3) {
+                resultDiv.innerHTML += "for...in 循环 key: " + key + " value: " + obj3[key] + "<br>";
+            }
+        })();
+    </script>
+</body>
+</html>

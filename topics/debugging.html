@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>基础调试：console 对象、debugger 语句</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f4f4f4;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 30px;
+            padding: 20px 0;
+            border-bottom: 3px solid #3498db;
+        }
+        
+        .section {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        h2 {
+            color: #3498db;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #ecf0f1;
+        }
+        
+        h3 {
+            color: #2c3e50;
+            margin: 15px 0 10px 0;
+        }
+        
+        .code-block {
+            background: #f8f9fa;
+            border-left: 4px solid #3498db;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+        }
+        
+        .result {
+            background: #e8f4f8;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+            border: 1px solid #b8e0f0;
+        }
+        
+        .result-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #2c3e50;
+        }
+        
+        .explanation {
+            background: #f9f9f9;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+            border: 1px solid #e0e0e0;
+        }
+        
+        .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 10px 20px;
+            background: #3498db;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            transition: background 0.3s ease;
+        }
+        
+        .back-link:hover {
+            background: #2980b9;
+        }
+        
+        .warning {
+            background: #fff3cd;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>基础调试：console 对象、debugger 语句</h1>
+        
+        <div class="section">
+            <h2>1. console 对象的基本方法</h2>
+            <div class="code-block">
+// console 对象
+console.log("console.log: 普通日志");
+console.warn("console.warn: 警告日志");
+console.error("console.error: 错误日志");
+console.info("console.info: 信息日志");
+            </div>
+            <div class="result">
+                <div class="result-title">执行结果：</div>
+                <div id="console-basic-result"></div>
+                <div class="warning">
+                    提示：请打开浏览器的开发者工具（F12）查看控制台输出
+                </div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>2. console.table() 方法</h2>
+            <div class="code-block">
+// console.table
+const users = [
+  { name: "张三", age: 20 },
+  { name: "李四", age: 25 }
+];
+console.table(users);
+            </div>
+            <div class="result">
+                <div class="result-title">执行结果：</div>
+                <div id="console-table-result"></div>
+                <div class="warning">
+                    提示：请打开浏览器的开发者工具（F12）查看控制台输出的表格
+                </div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>3. console.group() 方法</h2>
+            <div class="code-block">
+// console.group
+console.group("分组开始");
+console.log("分组内的日志 1");
+console.log("分组内的日志 2");
+console.groupEnd();
+            </div>
+            <div class="result">
+                <div class="result-title">执行结果：</div>
+                <div id="console-group-result"></div>
+                <div class="warning">
+                    提示：请打开浏览器的开发者工具（F12）查看控制台输出的分组
+                </div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>4. debugger 语句</h2>
+            <div class="code-block">
+// debugger 语句 (执行到这里会暂停)
+// debugger;
+            </div>
+            <div class="explanation">
+                <h3>debugger 语句的作用：</h3>
+                <ul>
+                    <li>当执行到 debugger 语句时，浏览器会暂停代码执行</li>
+                    <li>可以在暂停时查看变量值、调用栈等信息</li>
+                    <li>需要在浏览器的开发者工具中使用</li>
+                    <li>注释掉的 debugger 语句不会执行</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>5. 其他常用的 console 方法</h2>
+            <div class="explanation">
+                <h3>常用的 console 方法：</h3>
+                <ul>
+                    <li><code>console.clear()</code>：清空控制台</li>
+                    <li><code>console.time(label)</code>：开始计时</li>
+                    <li><code>console.timeEnd(label)</code>：结束计时并输出时间</li>
+                    <li><code>console.trace()</code>：输出调用栈</li>
+                    <li><code>console.assert(condition, message)</code>：当条件为假时输出错误信息</li>
+                </ul>
+            </div>
+        </div>
+        
+        <a href="../index.html" class="back-link">返回首页</a>
+    </div>
+    
+    <script>
+        // 执行 console 基本方法相关代码
+        (function() {
+            const resultDiv = document.getElementById('console-basic-result');
+            resultDiv.innerHTML += "这些日志会在浏览器控制台中显示<br>";
+            console.log("console.log: 普通日志");
+            console.warn("console.warn: 警告日志");
+            console.error("console.error: 错误日志");
+            console.info("console.info: 信息日志");
+        })();
+        
+        // 执行 console.table 相关代码
+        (function() {
+            const resultDiv = document.getElementById('console-table-result');
+            resultDiv.innerHTML += "表格会在浏览器控制台中显示<br>";
+            const users = [
+                { name: "张三", age: 20 },
+                { name: "李四", age: 25 }
+            ];
+            console.table(users);
+        })();
+        
+        // 执行 console.group 相关代码
+        (function() {
+            const resultDiv = document.getElementById('console-group-result');
+            resultDiv.innerHTML += "分组会在浏览器控制台中显示<br>";
+            console.group("分组开始");
+            console.log("分组内的日志 1");
+            console.log("分组内的日志 2");
+            console.groupEnd();
+        })();
+    </script>
+</body>
+</html>

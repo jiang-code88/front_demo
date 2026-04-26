@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>变量提升与暂时性死区</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f4f4f4;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 30px;
+            padding: 20px 0;
+            border-bottom: 3px solid #3498db;
+        }
+        
+        .section {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        h2 {
+            color: #3498db;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #ecf0f1;
+        }
+        
+        h3 {
+            color: #2c3e50;
+            margin: 15px 0 10px 0;
+        }
+        
+        .code-block {
+            background: #f8f9fa;
+            border-left: 4px solid #3498db;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+        }
+        
+        .result {
+            background: #e8f4f8;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+            border: 1px solid #b8e0f0;
+        }
+        
+        .result-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #2c3e50;
+        }
+        
+        .explanation {
+            background: #f9f9f9;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+            border: 1px solid #e0e0e0;
+        }
+        
+        .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 10px 20px;
+            background: #3498db;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            transition: background 0.3s ease;
+        }
+        
+        .back-link:hover {
+            background: #2980b9;
+        }
+        
+        .warning {
+            background: #fff3cd;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>变量提升与暂时性死区</h1>
+        
+        <div class="section">
+            <h2>1. var 变量提升</h2>
+            <div class="code-block">
+// var 变量提升
+console.log("var 变量提升:", varVar); // undefined (变量提升，但未赋值)
+var varVar = "var 变量";
+console.log("var 变量赋值后:", varVar); // var 变量
+            </div>
+            <div class="result">
+                <div class="result-title">执行结果：</div>
+                <div id="var-hoisting-result"></div>
+            </div>
+            <div class="explanation">
+                <h3>var 变量提升的特点：</h3>
+                <ul>
+                    <li>变量声明会被提升到作用域的顶部</li>
+                    <li>变量赋值不会被提升</li>
+                    <li>在赋值前访问变量会返回 undefined</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>2. let 和 const 的暂时性死区</h2>
+            <div class="code-block">
+// let 和 const 不会变量提升，存在暂时性死区
+// console.log("let 变量提升:", letVar); // 会报错，暂时性死区
+let letVar = "let 变量";
+console.log("let 变量赋值后:", letVar); // let 变量
+            </div>
+            <div class="result">
+                <div class="result-title">执行结果：</div>
+                <div id="let-const-result"></div>
+            </div>
+            <div class="explanation">
+                <h3>暂时性死区的特点：</h3>
+                <ul>
+                    <li>let 和 const 声明的变量不会被提升</li>
+                    <li>在变量声明之前的区域称为暂时性死区</li>
+                    <li>在暂时性死区内访问变量会抛出错误</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>3. 函数声明的提升</h2>
+            <div class="code-block">
+// 函数声明会变量提升
+console.log("函数声明提升:", hoistedFunc()); // 函数被提升
+function hoistedFunc() {
+  return "函数被提升";
+}
+            </div>
+            <div class="result">
+                <div class="result-title">执行结果：</div>
+                <div id="function-hoisting-result"></div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>4. 函数表达式不会提升</h2>
+            <div class="code-block">
+// 函数表达式不会变量提升
+// console.log("函数表达式提升:", nonHoistedFunc()); // 会报错，nonHoistedFunc 是 undefined
+const nonHoistedFunc = function() {
+  return "函数表达式";
+};
+console.log("函数表达式赋值后:", nonHoistedFunc()); // 函数表达式
+            </div>
+            <div class="result">
+                <div class="result-title">执行结果：</div>
+                <div id="function-expression-result"></div>
+            </div>
+            <div class="explanation">
+                <h3>函数表达式的特点：</h3>
+                <ul>
+                    <li>函数表达式不会被提升</li>
+                    <li>在赋值前访问函数表达式会返回 undefined</li>
+                    <li>箭头函数也是函数表达式的一种，同样不会被提升</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>5. 变量提升与暂时性死区总结</h2>
+            <div class="explanation">
+                <h3>变量提升规则：</h3>
+                <ul>
+                    <li><code>var</code> 声明的变量会被提升，赋值不会被提升</li>
+                    <li><code>let</code> 和 <code>const</code> 声明的变量不会被提升，存在暂时性死区</li>
+                    <li>函数声明会被提升，函数表达式不会被提升</li>
+                </ul>
+                <h3>最佳实践：</h3>
+                <ul>
+                    <li>使用 <code>let</code> 和 <code>const</code> 代替 <code>var</code></li>
+                    <li>在作用域的顶部声明所有变量</li>
+                    <li>避免在变量声明前访问变量</li>
+                </ul>
+            </div>
+        </div>
+        
+        <a href="../index.html" class="back-link">返回首页</a>
+    </div>
+    
+    <script>
+        // 执行 var 变量提升相关代码
+        (function() {
+            const resultDiv = document.getElementById('var-hoisting-result');
+            // var 变量提升
+            resultDiv.innerHTML += "var 变量提升: " + (typeof varVar === 'undefined' ? 'undefined' : varVar) + "<br>";
+            var varVar = "var 变量";
+            resultDiv.innerHTML += "var 变量赋值后: " + varVar + "<br>";
+        })();
+        
+        // 执行 let 和 const 相关代码
+        (function() {
+            const resultDiv = document.getElementById('let-const-result');
+            // let 和 const 不会变量提升，存在暂时性死区
+            // console.log("let 变量提升:", letVar); // 会报错，暂时性死区
+            let letVar = "let 变量";
+            resultDiv.innerHTML += "let 变量赋值后: " + letVar + "<br>";
+        })();
+        
+        // 执行函数声明提升相关代码
+        (function() {
+            const resultDiv = document.getElementById('function-hoisting-result');
+            // 函数声明会变量提升
+            resultDiv.innerHTML += "函数声明提升: " + hoistedFunc() + "<br>";
+            function hoistedFunc() {
+                return "函数被提升";
+            }
+        })();
+        
+        // 执行函数表达式相关代码
+        (function() {
+            const resultDiv = document.getElementById('function-expression-result');
+            // 函数表达式不会变量提升
+            // console.log("函数表达式提升:", nonHoistedFunc()); // 会报错，nonHoistedFunc 是 undefined
+            const nonHoistedFunc = function() {
+                return "函数表达式";
+            };
+            resultDiv.innerHTML += "函数表达式赋值后: " + nonHoistedFunc() + "<br>";
+        })();
+    </script>
+</body>
+</html>

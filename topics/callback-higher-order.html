@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>回调函数与高阶函数</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f4f4f4;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 30px;
+            padding: 20px 0;
+            border-bottom: 3px solid #3498db;
+        }
+        
+        .section {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        h2 {
+            color: #3498db;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #ecf0f1;
+        }
+        
+        h3 {
+            color: #2c3e50;
+            margin: 15px 0 10px 0;
+        }
+        
+        .code-block {
+            background: #f8f9fa;
+            border-left: 4px solid #3498db;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+        }
+        
+        .result {
+            background: #e8f4f8;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+            border: 1px solid #b8e0f0;
+        }
+        
+        .result-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #2c3e50;
+        }
+        
+        .explanation {
+            background: #f9f9f9;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+            border: 1px solid #e0e0e0;
+        }
+        
+        .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 10px 20px;
+            background: #3498db;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            transition: background 0.3s ease;
+        }
+        
+        .back-link:hover {
+            background: #2980b9;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>回调函数与高阶函数</h1>
+        
+        <div class="section">
+            <h2>1. 回调函数</h2>
+            <div class="code-block">
+// 回调函数
+function fetchData(callback) {
+  setTimeout(() => {
+    const data = "获取的数据";
+    callback(data);
+  }, 1000);
+}
+
+console.log("开始获取数据...");
+fetchData(function(data) {
+  console.log("回调函数接收到数据:", data);
+});
+            </div>
+            <div class="result">
+                <div class="result-title">执行结果：</div>
+                <div id="callback-result"></div>
+            </div>
+            <div class="explanation">
+                <h3>回调函数的概念：</h3>
+                <ul>
+                    <li>回调函数是作为参数传递给另一个函数的函数</li>
+                    <li>当某个操作完成后，会调用这个回调函数</li>
+                    <li>常用于异步操作，如网络请求、定时器等</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>2. 高阶函数</h2>
+            <div class="code-block">
+// 高阶函数
+function higherOrderFunction(func) {
+  return function() {
+    console.log("高阶函数执行前");
+    const result = func.apply(this, arguments);
+    console.log("高阶函数执行后");
+    return result;
+  };
+}
+
+const enhancedAdd = higherOrderFunction(add);
+console.log("高阶函数增强的 add(3, 4):", enhancedAdd(3, 4));
+            </div>
+            <div class="result">
+                <div class="result-title">执行结果：</div>
+                <div id="higher-order-result"></div>
+            </div>
+            <div class="explanation">
+                <h3>高阶函数的概念：</h3>
+                <ul>
+                    <li>高阶函数是接收函数作为参数，或返回函数的函数</li>
+                    <li>可以用于函数增强、函数组合等</li>
+                    <li>常见的高阶函数有 map、filter、reduce 等</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>3. 高阶函数的实际应用</h2>
+            <div class="explanation">
+                <h3>常见的高阶函数：</h3>
+                <ul>
+                    <li><code>map()</code>：对数组中的每个元素执行函数，返回新数组</li>
+                    <li><code>filter()</code>：过滤数组中的元素，返回符合条件的新数组</li>
+                    <li><code>reduce()</code>：将数组中的元素累积为一个值</li>
+                    <li><code>forEach()</code>：对数组中的每个元素执行函数</li>
+                    <li><code>sort()</code>：排序数组，可接受比较函数</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>4. 回调函数与高阶函数的关系</h2>
+            <div class="explanation">
+                <h3>回调函数与高阶函数的关系：</h3>
+                <ul>
+                    <li>回调函数是作为参数传递给高阶函数的函数</li>
+                    <li>高阶函数可以使用回调函数来处理数据</li>
+                    <li>两者结合使用可以实现更灵活的函数式编程</li>
+                </ul>
+            </div>
+        </div>
+        
+        <a href="../index.html" class="back-link">返回首页</a>
+    </div>
+    
+    <script>
+        // 执行回调函数相关代码
+        (function() {
+            const resultDiv = document.getElementById('callback-result');
+            function fetchData(callback) {
+                setTimeout(() => {
+                    const data = "获取的数据";
+                    callback(data);
+                }, 1000);
+            }
+            
+            resultDiv.innerHTML += "开始获取数据...<br>";
+            fetchData(function(data) {
+                resultDiv.innerHTML += "回调函数接收到数据: " + data + "<br>";
+            });
+        })();
+        
+        // 执行高阶函数相关代码
+        (function() {
+            const resultDiv = document.getElementById('higher-order-result');
+            function add(a, b) {
+                return a + b;
+            }
+            
+            function higherOrderFunction(func) {
+                return function() {
+                    resultDiv.innerHTML += "高阶函数执行前<br>";
+                    const result = func.apply(this, arguments);
+                    resultDiv.innerHTML += "高阶函数执行后<br>";
+                    return result;
+                };
+            }
+            
+            const enhancedAdd = higherOrderFunction(add);
+            resultDiv.innerHTML += "高阶函数增强的 add(3, 4): " + enhancedAdd(3, 4) + "<br>";
+        })();
+    </script>
+</body>
+</html>

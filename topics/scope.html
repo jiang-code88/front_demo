@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>作用域与作用域链</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f4f4f4;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 30px;
+            padding: 20px 0;
+            border-bottom: 3px solid #3498db;
+        }
+        
+        .section {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        h2 {
+            color: #3498db;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #ecf0f1;
+        }
+        
+        h3 {
+            color: #2c3e50;
+            margin: 15px 0 10px 0;
+        }
+        
+        .code-block {
+            background: #f8f9fa;
+            border-left: 4px solid #3498db;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+        }
+        
+        .result {
+            background: #e8f4f8;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+            border: 1px solid #b8e0f0;
+        }
+        
+        .result-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #2c3e50;
+        }
+        
+        .explanation {
+            background: #f9f9f9;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+            border: 1px solid #e0e0e0;
+        }
+        
+        .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 10px 20px;
+            background: #3498db;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            transition: background 0.3s ease;
+        }
+        
+        .back-link:hover {
+            background: #2980b9;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>作用域与作用域链</h1>
+        
+        <div class="section">
+            <h2>1. 全局作用域</h2>
+            <div class="code-block">
+// 全局作用域
+const globalVar = "全局变量";
+console.log("全局作用域中的 globalVar:", globalVar);
+            </div>
+            <div class="result">
+                <div class="result-title">执行结果：</div>
+                <div id="global-scope-result"></div>
+            </div>
+            <div class="explanation">
+                <h3>全局作用域的特点：</h3>
+                <ul>
+                    <li>在代码的任何地方都可以访问</li>
+                    <li>使用 var 声明的变量会成为全局对象的属性</li>
+                    <li>在浏览器环境中，全局对象是 window</li>
+                    <li>全局作用域的变量会在页面关闭时才被销毁</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>2. 函数作用域</h2>
+            <div class="code-block">
+function outer() {
+  // 函数作用域
+  const outerVar = "外部函数变量";
+  
+  function inner() {
+    // 函数作用域
+    const innerVar = "内部函数变量";
+    console.log("内部函数访问:", globalVar, outerVar, innerVar);
+  }
+  
+  inner();
+  // console.log(innerVar); // 会报错，innerVar 只在 inner 函数内有效
+}
+
+outer();
+// console.log(outerVar); // 会报错，outerVar 只在 outer 函数内有效
+            </div>
+            <div class="result">
+                <div class="result-title">执行结果：</div>
+                <div id="function-scope-result"></div>
+            </div>
+            <div class="explanation">
+                <h3>函数作用域的特点：</h3>
+                <ul>
+                    <li>在函数内部声明的变量，只在函数内部有效</li>
+                    <li>函数内部可以访问外部作用域的变量</li>
+                    <li>函数外部不能访问函数内部的变量</li>
+                    <li>函数作用域会在函数执行完毕后被销毁</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>3. 块级作用域</h2>
+            <div class="code-block">
+// 块级作用域
+if (true) {
+  const blockVar = "块级变量";
+  console.log("块内访问 blockVar:", blockVar);
+}
+// console.log(blockVar); // 会报错，blockVar 只在块内有效
+            </div>
+            <div class="result">
+                <div class="result-title">执行结果：</div>
+                <div id="block-scope-result"></div>
+            </div>
+            <div class="explanation">
+                <h3>块级作用域的特点：</h3>
+                <ul>
+                    <li>使用 let 和 const 声明的变量，在块级作用域内有效</li>
+                    <li>块级作用域包括 if、for、while、switch 等语句块</li>
+                    <li>块级作用域会在代码块执行完毕后被销毁</li>
+                    <li>var 声明的变量没有块级作用域，只有函数作用域</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>4. 作用域链</h2>
+            <div class="explanation">
+                <h3>作用域链的概念：</h3>
+                <ul>
+                    <li>当在一个作用域中访问变量时，会先在当前作用域中查找</li>
+                    <li>如果找不到，会向上查找父级作用域</li>
+                    <li>一直查找到全局作用域</li>
+                    <li>如果全局作用域中也找不到，会返回 undefined</li>
+                    <li>这种由内向外查找变量的链条，称为作用域链</li>
+                </ul>
+                <h3>作用域链的示例：</h3>
+                <ul>
+                    <li>内部函数可以访问外部函数的变量</li>
+                    <li>外部函数不能访问内部函数的变量</li>
+                    <li>多个嵌套函数形成一条作用域链</li>
+                </ul>
+            </div>
+        </div>
+        
+        <a href="../index.html" class="back-link">返回首页</a>
+    </div>
+    
+    <script>
+        // 全局作用域变量
+        const globalVar = "全局变量";
+        
+        // 执行全局作用域相关代码
+        (function() {
+            const resultDiv = document.getElementById('global-scope-result');
+            resultDiv.innerHTML += "全局作用域中的 globalVar: " + globalVar + "<br>";
+        })();
+        
+        // 执行函数作用域相关代码
+        (function() {
+            const resultDiv = document.getElementById('function-scope-result');
+            function outer() {
+                // 函数作用域
+                const outerVar = "外部函数变量";
+                
+                function inner() {
+                    // 函数作用域
+                    const innerVar = "内部函数变量";
+                    resultDiv.innerHTML += "内部函数访问: " + globalVar + ", " + outerVar + ", " + innerVar + "<br>";
+                }
+                
+                inner();
+                // console.log(innerVar); // 会报错，innerVar 只在 inner 函数内有效
+            }
+            
+            outer();
+            // console.log(outerVar); // 会报错，outerVar 只在 outer 函数内有效
+        })();
+        
+        // 执行块级作用域相关代码
+        (function() {
+            const resultDiv = document.getElementById('block-scope-result');
+            if (true) {
+                const blockVar = "块级变量";
+                resultDiv.innerHTML += "块内访问 blockVar: " + blockVar + "<br>";
+            }
+            // console.log(blockVar); // 会报错，blockVar 只在块内有效
+        })();
+    </script>
+</body>
+</html>

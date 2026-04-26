@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>类型判断：typeof、instanceof、Object.prototype.toString</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f4f4f4;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 30px;
+            padding: 20px 0;
+            border-bottom: 3px solid #3498db;
+        }
+        
+        .section {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        h2 {
+            color: #3498db;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #ecf0f1;
+        }
+        
+        h3 {
+            color: #2c3e50;
+            margin: 15px 0 10px 0;
+        }
+        
+        .code-block {
+            background: #f8f9fa;
+            border-left: 4px solid #3498db;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+        }
+        
+        .result {
+            background: #e8f4f8;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+            border: 1px solid #b8e0f0;
+        }
+        
+        .result-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #2c3e50;
+        }
+        
+        .explanation {
+            background: #f9f9f9;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+            border: 1px solid #e0e0e0;
+        }
+        
+        .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 10px 20px;
+            background: #3498db;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            transition: background 0.3s ease;
+        }
+        
+        .back-link:hover {
+            background: #2980b9;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+        
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        
+        th {
+            background-color: #f2f2f2;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>类型判断：typeof、instanceof、Object.prototype.toString</h1>
+        
+        <div class="section">
+            <h2>1. typeof 操作符</h2>
+            <div class="code-block">
+console.log("typeof 'Hello':", typeof "Hello"); // string
+console.log("typeof 123:", typeof 123); // number
+console.log("typeof true:", typeof true); // boolean
+console.log("typeof null:", typeof null); // object (历史遗留问题)
+console.log("typeof undefined:", typeof undefined); // undefined
+console.log("typeof Symbol():", typeof Symbol()); // symbol
+console.log("typeof 123n:", typeof 123n); // bigint
+console.log("typeof []:", typeof []); // object
+console.log("typeof {}:", typeof {}); // object
+console.log("typeof function():", typeof function() {}); // function
+            </div>
+            <div class="result">
+                <div class="result-title">执行结果：</div>
+                <div id="typeof-result"></div>
+            </div>
+            <div class="explanation">
+                <h3>typeof 的特点：</h3>
+                <ul>
+                    <li>返回一个字符串，表示操作数的类型</li>
+                    <li>对于基本类型，除了 null 外，都能正确返回类型</li>
+                    <li>对于引用类型，除了 function 外，都返回 "object"</li>
+                    <li>null 返回 "object" 是历史遗留问题</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>2. instanceof 操作符</h2>
+            <div class="code-block">
+console.log("[] instanceof Array:", [] instanceof Array); // true
+console.log("{} instanceof Object:", {} instanceof Object); // true
+console.log("function() {} instanceof Function:", function() {} instanceof Function); // true
+            </div>
+            <div class="result">
+                <div class="result-title">执行结果：</div>
+                <div id="instanceof-result"></div>
+            </div>
+            <div class="explanation">
+                <h3>instanceof 的特点：</h3>
+                <ul>
+                    <li>检查对象是否是某个构造函数的实例</li>
+                    <li>基于原型链进行判断</li>
+                    <li>只能用于对象，不能用于基本类型</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>3. Object.prototype.toString 方法</h2>
+            <div class="code-block">
+console.log(Object.prototype.toString.call("Hello")); // [object String]
+console.log(Object.prototype.toString.call(123)); // [object Number]
+console.log(Object.prototype.toString.call(true)); // [object Boolean]
+console.log(Object.prototype.toString.call(null)); // [object Null]
+console.log(Object.prototype.toString.call(undefined)); // [object Undefined]
+console.log(Object.prototype.toString.call(Symbol())); // [object Symbol]
+console.log(Object.prototype.toString.call(123n)); // [object BigInt]
+console.log(Object.prototype.toString.call([])); // [object Array]
+console.log(Object.prototype.toString.call({})); // [object Object]
+console.log(Object.prototype.toString.call(function() {})); // [object Function]
+            </div>
+            <div class="result">
+                <div class="result-title">执行结果：</div>
+                <div id="tostring-result"></div>
+            </div>
+            <div class="explanation">
+                <h3>Object.prototype.toString 的特点：</h3>
+                <ul>
+                    <li>返回一个格式为 "[object Type]" 的字符串</li>
+                    <li>能正确识别所有类型，包括 null 和 undefined</li>
+                    <li>需要使用 call 方法来调用，以确保 this 指向正确</li>
+                    <li>是最准确的类型判断方法</li>
+                </ul>
+            </div>
+        </div>
+        
+        <a href="../index.html" class="back-link">返回首页</a>
+    </div>
+    
+    <script>
+        // 执行 typeof 相关代码
+        (function() {
+            const resultDiv = document.getElementById('typeof-result');
+            resultDiv.innerHTML += "typeof 'Hello': " + typeof "Hello" + "<br>";
+            resultDiv.innerHTML += "typeof 123: " + typeof 123 + "<br>";
+            resultDiv.innerHTML += "typeof true: " + typeof true + "<br>";
+            resultDiv.innerHTML += "typeof null: " + typeof null + "<br>";
+            resultDiv.innerHTML += "typeof undefined: " + typeof undefined + "<br>";
+            resultDiv.innerHTML += "typeof Symbol(): " + typeof Symbol() + "<br>";
+            resultDiv.innerHTML += "typeof 123n: " + typeof 123n + "<br>";
+            resultDiv.innerHTML += "typeof []: " + typeof [] + "<br>";
+            resultDiv.innerHTML += "typeof {}: " + typeof {} + "<br>";
+            resultDiv.innerHTML += "typeof function(): " + typeof function() {} + "<br>";
+        })();
+        
+        // 执行 instanceof 相关代码
+        (function() {
+            const resultDiv = document.getElementById('instanceof-result');
+            resultDiv.innerHTML += "[] instanceof Array: " + ([] instanceof Array) + "<br>";
+            resultDiv.innerHTML += "{} instanceof Object: " + ({} instanceof Object) + "<br>";
+            resultDiv.innerHTML += "function() {} instanceof Function: " + (function() {} instanceof Function) + "<br>";
+        })();
+        
+        // 执行 Object.prototype.toString 相关代码
+        (function() {
+            const resultDiv = document.getElementById('tostring-result');
+            resultDiv.innerHTML += Object.prototype.toString.call("Hello") + "<br>";
+            resultDiv.innerHTML += Object.prototype.toString.call(123) + "<br>";
+            resultDiv.innerHTML += Object.prototype.toString.call(true) + "<br>";
+            resultDiv.innerHTML += Object.prototype.toString.call(null) + "<br>";
+            resultDiv.innerHTML += Object.prototype.toString.call(undefined) + "<br>";
+            resultDiv.innerHTML += Object.prototype.toString.call(Symbol()) + "<br>";
+            resultDiv.innerHTML += Object.prototype.toString.call(123n) + "<br>";
+            resultDiv.innerHTML += Object.prototype.toString.call([]) + "<br>";
+            resultDiv.innerHTML += Object.prototype.toString.call({}) + "<br>";
+            resultDiv.innerHTML += Object.prototype.toString.call(function() {}) + "<br>";
+        })();
+    </script>
+</body>
+</html>

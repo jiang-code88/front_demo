@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>函数声明、函数表达式、箭头函数的区别</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f4f4f4;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 30px;
+            padding: 20px 0;
+            border-bottom: 3px solid #3498db;
+        }
+        
+        .section {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        h2 {
+            color: #3498db;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #ecf0f1;
+        }
+        
+        h3 {
+            color: #2c3e50;
+            margin: 15px 0 10px 0;
+        }
+        
+        .code-block {
+            background: #f8f9fa;
+            border-left: 4px solid #3498db;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+        }
+        
+        .result {
+            background: #e8f4f8;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+            border: 1px solid #b8e0f0;
+        }
+        
+        .result-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #2c3e50;
+        }
+        
+        .explanation {
+            background: #f9f9f9;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+            border: 1px solid #e0e0e0;
+        }
+        
+        .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 10px 20px;
+            background: #3498db;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            transition: background 0.3s ease;
+        }
+        
+        .back-link:hover {
+            background: #2980b9;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+        
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        
+        th {
+            background-color: #f2f2f2;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>函数声明、函数表达式、箭头函数的区别</h1>
+        
+        <div class="section">
+            <h2>1. 函数声明</h2>
+            <div class="code-block">
+// 函数声明
+function add(a, b) {
+  return a + b;
+}
+console.log("函数声明 add(1, 2):", add(1, 2)); // 3
+            </div>
+            <div class="result">
+                <div class="result-title">执行结果：</div>
+                <div id="function-declaration-result"></div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>2. 函数表达式</h2>
+            <div class="code-block">
+// 函数表达式
+const subtract = function(a, b) {
+  return a - b;
+};
+console.log("函数表达式 subtract(5, 2):", subtract(5, 2)); // 3
+            </div>
+            <div class="result">
+                <div class="result-title">执行结果：</div>
+                <div id="function-expression-result"></div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>3. 箭头函数</h2>
+            <div class="code-block">
+// 箭头函数
+const multiply = (a, b) => a * b;
+console.log("箭头函数 multiply(3, 4):", multiply(3, 4)); // 12
+            </div>
+            <div class="result">
+                <div class="result-title">执行结果：</div>
+                <div id="arrow-function-result"></div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>4. 箭头函数与 this 指向</h2>
+            <div class="code-block">
+// 箭头函数与 this 指向
+const obj4 = {
+  name: "张三",
+  sayName1: function() {
+    console.log("函数声明 this.name:", this.name); // 张三
+  },
+  sayName2: () => {
+    console.log("箭头函数 this.name:", this.name); // undefined (指向全局对象)
+  }
+};
+obj4.sayName1();
+obj4.sayName2();
+            </div>
+            <div class="result">
+                <div class="result-title">执行结果：</div>
+                <div id="this-result"></div>
+            </div>
+            <div class="explanation">
+                <h3>箭头函数的 this 指向特点：</h3>
+                <ul>
+                    <li>箭头函数没有自己的 this，它会继承外层作用域的 this</li>
+                    <li>箭头函数的 this 在定义时就确定了，不会在调用时改变</li>
+                    <li>箭头函数不能作为构造函数使用</li>
+                    <li>箭头函数没有 arguments 对象</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>5. 三种函数的区别对比</h2>
+            <table>
+                <tr>
+                    <th>特性</th>
+                    <th>函数声明</th>
+                    <th>函数表达式</th>
+                    <th>箭头函数</th>
+                </tr>
+                <tr>
+                    <td>语法</td>
+                    <td>function name() {}</td>
+                    <td>const name = function() {}</td>
+                    <td>const name = () => {}</td>
+                </tr>
+                <tr>
+                    <td>变量提升</td>
+                    <td>是</td>
+                    <td>否</td>
+                    <td>否</td>
+                </tr>
+                <tr>
+                    <td>this 指向</td>
+                    <td>调用时确定</td>
+                    <td>调用时确定</td>
+                    <td>定义时确定（继承外层作用域）</td>
+                </tr>
+                <tr>
+                    <td>arguments 对象</td>
+                    <td>有</td>
+                    <td>有</td>
+                    <td>无</td>
+                </tr>
+                <tr>
+                    <td>构造函数</td>
+                    <td>可以</td>
+                    <td>可以</td>
+                    <td>不可以</td>
+                </tr>
+                <tr>
+                    <td>简写形式</td>
+                    <td>无</td>
+                    <td>无</td>
+                    <td>有（单参数、单表达式）</td>
+                </tr>
+            </table>
+        </div>
+        
+        <a href="../index.html" class="back-link">返回首页</a>
+    </div>
+    
+    <script>
+        // 执行函数声明相关代码
+        (function() {
+            const resultDiv = document.getElementById('function-declaration-result');
+            function add(a, b) {
+                return a + b;
+            }
+            resultDiv.innerHTML += "函数声明 add(1, 2): " + add(1, 2) + "<br>";
+        })();
+        
+        // 执行函数表达式相关代码
+        (function() {
+            const resultDiv = document.getElementById('function-expression-result');
+            const subtract = function(a, b) {
+                return a - b;
+            };
+            resultDiv.innerHTML += "函数表达式 subtract(5, 2): " + subtract(5, 2) + "<br>";
+        })();
+        
+        // 执行箭头函数相关代码
+        (function() {
+            const resultDiv = document.getElementById('arrow-function-result');
+            const multiply = (a, b) => a * b;
+            resultDiv.innerHTML += "箭头函数 multiply(3, 4): " + multiply(3, 4) + "<br>";
+        })();
+        
+        // 执行 this 指向相关代码
+        (function() {
+            const resultDiv = document.getElementById('this-result');
+            const obj4 = {
+                name: "张三",
+                sayName1: function() {
+                    resultDiv.innerHTML += "函数声明 this.name: " + this.name + "<br>";
+                },
+                sayName2: () => {
+                    resultDiv.innerHTML += "箭头函数 this.name: " + (this.name || "undefined") + "<br>";
+                }
+            };
+            obj4.sayName1();
+            obj4.sayName2();
+        })();
+    </script>
+</body>
+</html>

@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>显式与隐式类型转换</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f4f4f4;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 30px;
+            padding: 20px 0;
+            border-bottom: 3px solid #3498db;
+        }
+        
+        .section {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        h2 {
+            color: #3498db;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #ecf0f1;
+        }
+        
+        h3 {
+            color: #2c3e50;
+            margin: 15px 0 10px 0;
+        }
+        
+        .code-block {
+            background: #f8f9fa;
+            border-left: 4px solid #3498db;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+        }
+        
+        .result {
+            background: #e8f4f8;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+            border: 1px solid #b8e0f0;
+        }
+        
+        .result-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #2c3e50;
+        }
+        
+        .explanation {
+            background: #f9f9f9;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+            border: 1px solid #e0e0e0;
+        }
+        
+        .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 10px 20px;
+            background: #3498db;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            transition: background 0.3s ease;
+        }
+        
+        .back-link:hover {
+            background: #2980b9;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+        
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        
+        th {
+            background-color: #f2f2f2;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>显式与隐式类型转换</h1>
+        
+        <div class="section">
+            <h2>1. 显式类型转换</h2>
+            <div class="code-block">
+// 显式类型转换
+console.log("Number('123'):", Number('123')); // 123
+console.log("String(123):", String(123)); // "123"
+console.log("Boolean(0):", Boolean(0)); // false
+console.log("Boolean(''):", Boolean('')); // false
+console.log("Boolean(null):", Boolean(null)); // false
+console.log("Boolean(undefined):", Boolean(undefined)); // false
+console.log("Boolean(NaN):", Boolean(NaN)); // false
+console.log("Boolean(1):", Boolean(1)); // true
+console.log("Boolean('Hello'):", Boolean('Hello')); // true
+            </div>
+            <div class="result">
+                <div class="result-title">执行结果：</div>
+                <div id="explicit-result"></div>
+            </div>
+            <div class="explanation">
+                <h3>显式类型转换的方法：</h3>
+                <ul>
+                    <li><code>Number()</code>：转换为数字类型</li>
+                    <li><code>String()</code>：转换为字符串类型</li>
+                    <li><code>Boolean()</code>：转换为布尔类型</li>
+                    <li><code>parseInt()</code>：解析字符串为整数</li>
+                    <li><code>parseFloat()</code>：解析字符串为浮点数</li>
+                    <li><code>toString()</code>：对象转换为字符串</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>2. 隐式类型转换</h2>
+            <div class="code-block">
+// 隐式类型转换
+console.log("'1' + 2:", '1' + 2); // "12" (字符串拼接)
+console.log("1 + '2':", 1 + '2'); // "12" (字符串拼接)
+console.log("1 - '2':", 1 - '2'); // -1 (减法会转换为数字)
+console.log("'123' * 2:", '123' * 2); // 246 (乘法会转换为数字)
+console.log("+'123':", +'123'); // 123 (一元加号转换为数字)
+console.log("!'Hello':", !'Hello'); // false (非运算转换为布尔值)
+console.log("!!'Hello':", !!'Hello'); // true (双重非运算转换为布尔值)
+            </div>
+            <div class="result">
+                <div class="result-title">执行结果：</div>
+                <div id="implicit-result"></div>
+            </div>
+            <div class="explanation">
+                <h3>隐式类型转换的场景：</h3>
+                <ul>
+                    <li>字符串拼接：当使用 <code>+</code> 运算符且其中一个操作数是字符串时，会将另一个操作数转换为字符串</li>
+                    <li>算术运算：当使用算术运算符时，会将操作数转换为数字</li>
+                    <li>比较运算：会根据需要转换操作数的类型</li>
+                    <li>逻辑运算：会将操作数转换为布尔值</li>
+                    <li>一元运算符：<code>+</code> 会转换为数字，<code>!</code> 会转换为布尔值</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>3. 真值与假值</h2>
+            <div class="explanation">
+                <h3>JavaScript 中的假值：</h3>
+                <ul>
+                    <li><code>false</code></li>
+                    <li><code>0</code> 和 <code>-0</code></li>
+                    <li><code>''</code> (空字符串)</li>
+                    <li><code>null</code></li>
+                    <li><code>undefined</code></li>
+                    <li><code>NaN</code></li>
+                </ul>
+                <h3>JavaScript 中的真值：</h3>
+                <ul>
+                    <li>除了上述假值以外的所有值</li>
+                    <li>包括非空字符串、非零数字、对象、数组等</li>
+                </ul>
+            </div>
+        </div>
+        
+        <a href="../index.html" class="back-link">返回首页</a>
+    </div>
+    
+    <script>
+        // 执行显式类型转换相关代码
+        (function() {
+            const resultDiv = document.getElementById('explicit-result');
+            resultDiv.innerHTML += "Number('123'): " + Number('123') + "<br>";
+            resultDiv.innerHTML += "String(123): " + String(123) + "<br>";
+            resultDiv.innerHTML += "Boolean(0): " + Boolean(0) + "<br>";
+            resultDiv.innerHTML += "Boolean(''): " + Boolean('') + "<br>";
+            resultDiv.innerHTML += "Boolean(null): " + Boolean(null) + "<br>";
+            resultDiv.innerHTML += "Boolean(undefined): " + Boolean(undefined) + "<br>";
+            resultDiv.innerHTML += "Boolean(NaN): " + Boolean(NaN) + "<br>";
+            resultDiv.innerHTML += "Boolean(1): " + Boolean(1) + "<br>";
+            resultDiv.innerHTML += "Boolean('Hello'): " + Boolean('Hello') + "<br>";
+        })();
+        
+        // 执行隐式类型转换相关代码
+        (function() {
+            const resultDiv = document.getElementById('implicit-result');
+            resultDiv.innerHTML += "'1' + 2: " + ('1' + 2) + "<br>";
+            resultDiv.innerHTML += "1 + '2': " + (1 + '2') + "<br>";
+            resultDiv.innerHTML += "1 - '2': " + (1 - '2') + "<br>";
+            resultDiv.innerHTML += "'123' * 2: " + ('123' * 2) + "<br>";
+            resultDiv.innerHTML += "+'123': " + (+'123') + "<br>";
+            resultDiv.innerHTML += "!'Hello': " + (!'Hello') + "<br>";
+            resultDiv.innerHTML += "!!'Hello': " + (!!'Hello') + "<br>";
+        })();
+    </script>
+</body>
+</html>

@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>立即调用函数表达式（IIFE）</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f4f4f4;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 30px;
+            padding: 20px 0;
+            border-bottom: 3px solid #3498db;
+        }
+        
+        .section {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        h2 {
+            color: #3498db;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #ecf0f1;
+        }
+        
+        h3 {
+            color: #2c3e50;
+            margin: 15px 0 10px 0;
+        }
+        
+        .code-block {
+            background: #f8f9fa;
+            border-left: 4px solid #3498db;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+        }
+        
+        .result {
+            background: #e8f4f8;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+            border: 1px solid #b8e0f0;
+        }
+        
+        .result-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #2c3e50;
+        }
+        
+        .explanation {
+            background: #f9f9f9;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+            border: 1px solid #e0e0e0;
+        }
+        
+        .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 10px 20px;
+            background: #3498db;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            transition: background 0.3s ease;
+        }
+        
+        .back-link:hover {
+            background: #2980b9;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>立即调用函数表达式（IIFE）</h1>
+        
+        <div class="section">
+            <h2>1. 基本 IIFE</h2>
+            <div class="code-block">
+// 基本 IIFE
+(function() {
+  const privateVar = "私有变量";
+  console.log("IIFE 内部:", privateVar);
+})();
+// console.log(privateVar); // 会报错，privateVar 是 IIFE 内部的私有变量
+            </div>
+            <div class="result">
+                <div class="result-title">执行结果：</div>
+                <div id="basic-iife-result"></div>
+            </div>
+            <div class="explanation">
+                <h3>IIFE 的基本语法：</h3>
+                <ul>
+                    <li><code>(function() { ... })();</code></li>
+                    <li>第一个括号将函数声明转换为函数表达式</li>
+                    <li>第二个括号立即调用这个函数</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>2. IIFE 带参数</h2>
+            <div class="code-block">
+// IIFE 带参数
+(function(name) {
+  console.log("IIFE 带参数:", `Hello, ${name}!`);
+})("张三");
+            </div>
+            <div class="result">
+                <div class="result-title">执行结果：</div>
+                <div id="iife-with-params-result"></div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>3. IIFE 返回值</h2>
+            <div class="code-block">
+// IIFE 返回值
+const result = (function(a, b) {
+  return a + b;
+})(10, 20);
+console.log("IIFE 返回值:", result); // 30
+            </div>
+            <div class="result">
+                <div class="result-title">执行结果：</div>
+                <div id="iife-return-result"></div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>4. IIFE 的实际应用</h2>
+            <div class="explanation">
+                <h3>IIFE 的常见应用：</h3>
+                <ul>
+                    <li><strong>创建私有作用域：</strong>避免变量污染全局作用域</li>
+                    <li><strong>模块化：</strong>实现早期的模块模式</li>
+                    <li><strong>立即执行代码：</strong>需要立即执行的初始化代码</li>
+                    <li><strong>防止变量提升：</strong>控制变量的作用域</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>5. IIFE 与闭包的关系</h2>
+            <div class="explanation">
+                <h3>IIFE 与闭包的关系：</h3>
+                <ul>
+                    <li>IIFE 可以创建一个私有作用域</li>
+                    <li>在 IIFE 内部定义的函数可以形成闭包</li>
+                    <li>IIFE 常与闭包结合使用，实现模块化和数据封装</li>
+                </ul>
+            </div>
+        </div>
+        
+        <a href="../index.html" class="back-link">返回首页</a>
+    </div>
+    
+    <script>
+        // 执行基本 IIFE 相关代码
+        (function() {
+            const resultDiv = document.getElementById('basic-iife-result');
+            (function() {
+                const privateVar = "私有变量";
+                resultDiv.innerHTML += "IIFE 内部: " + privateVar + "<br>";
+            })();
+            // console.log(privateVar); // 会报错，privateVar 是 IIFE 内部的私有变量
+        })();
+        
+        // 执行 IIFE 带参数相关代码
+        (function() {
+            const resultDiv = document.getElementById('iife-with-params-result');
+            (function(name) {
+                resultDiv.innerHTML += "IIFE 带参数: Hello, " + name + "!<br>";
+            })("张三");
+        })();
+        
+        // 执行 IIFE 返回值相关代码
+        (function() {
+            const resultDiv = document.getElementById('iife-return-result');
+            const result = (function(a, b) {
+                return a + b;
+            })(10, 20);
+            resultDiv.innerHTML += "IIFE 返回值: " + result + "<br>";
+        })();
+    </script>
+</body>
+</html>

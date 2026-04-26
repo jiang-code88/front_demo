@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>变量声明：var、let、const 的区别与作用域</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f4f4f4;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 30px;
+            padding: 20px 0;
+            border-bottom: 3px solid #3498db;
+        }
+        
+        .section {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        h2 {
+            color: #3498db;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #ecf0f1;
+        }
+        
+        h3 {
+            color: #2c3e50;
+            margin: 15px 0 10px 0;
+        }
+        
+        .code-block {
+            background: #f8f9fa;
+            border-left: 4px solid #3498db;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+        }
+        
+        .result {
+            background: #e8f4f8;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+            border: 1px solid #b8e0f0;
+        }
+        
+        .result-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #2c3e50;
+        }
+        
+        .explanation {
+            background: #f9f9f9;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+            border: 1px solid #e0e0e0;
+        }
+        
+        .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 10px 20px;
+            background: #3498db;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            transition: background 0.3s ease;
+        }
+        
+        .back-link:hover {
+            background: #2980b9;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>变量声明：var、let、const 的区别与作用域</h1>
+        
+        <div class="section">
+            <h2>1. var 声明</h2>
+            <div class="code-block">
+// var 声明
+var a = 10;
+var a = 20; // 可以重复声明
+console.log("var 重复声明后的值:", a); // 输出 20
+
+// 函数作用域
+function testVar() {
+  var b = 30;
+  if (true) {
+    var b = 40; // 同一函数作用域内，覆盖外部的 b
+    console.log("函数内 if 块中的 b:", b); // 输出 40
+  }
+  console.log("函数内的 b:", b); // 输出 40
+}
+testVar();
+            </div>
+            <div class="result">
+                <div class="result-title">执行结果：</div>
+                <div id="var-result"></div>
+            </div>
+            <div class="explanation">
+                <h3>var 的特点：</h3>
+                <ul>
+                    <li>可以重复声明同一个变量</li>
+                    <li>函数作用域，在函数内部任何位置声明的变量，在整个函数内都可访问</li>
+                    <li>存在变量提升现象，在 var 声明语句之前可以访问到变量，不会报错，只是值是 undefined（而不是报错）。</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>2. let 声明</h2>
+            <div class="code-block">
+// let 声明
+let c = 50;
+// let c = 60; // 不能重复声明，会报错
+
+// 块级作用域
+if (true) {
+  let d = 70;
+  console.log("if 块中的 d:", d); // 输出 70
+}
+// console.log("if 块外的 d:", d); // 会报错，d 只在块内有效
+            </div>
+            <div class="result">
+                <div class="result-title">执行结果：</div>
+                <div id="let-result"></div>
+            </div>
+            <div class="explanation">
+                <h3>let 的特点：</h3>
+                <ul>
+                    <li>不能重复声明同一个变量</li>
+                    <li>块级作用域，只在声明的块或子块中有效</li>
+                    <li>不存在变量提升，存在暂时性死区，只能在声明后才能访问到变量，否则会报错。</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>3. const 声明</h2>
+            <div class="code-block">
+// const 声明
+const e = 80;
+// e = 90; // 不能修改值，会报错
+
+// const 声明对象
+const obj = { name: "张三" };
+obj.name = "李四"; // 可以修改对象属性
+console.log("修改后的 obj:", obj); // 输出 { name: '李四' }
+            </div>
+            <div class="result">
+                <div class="result-title">执行结果：</div>
+                <div id="const-result"></div>
+            </div>
+            <div class="explanation">
+                <h3>const 的特点：</h3>
+                <ul>
+                    <li>声明后不能修改值（基本类型）</li>
+                    <li>可以修改对象的属性值</li>
+                    <li>块级作用域</li>
+                    <li>不存在变量提升，存在暂时性死区，只能在声明后才能访问到变量，否则会报错。</li>
+                    <li>实际开发中尽量使用 let 和 const，它们没有变量提升带来的奇怪行为，也更符合块级作用域的直觉。</li>
+                </ul>
+            </div>
+        </div>
+        
+        <a href="../index.html" class="back-link">返回首页</a>
+    </div>
+    
+    <script>
+        // 执行 var 相关代码
+        (function() {
+            var a = 10;
+            var a = 20; // 可以重复声明
+            document.getElementById('var-result').innerHTML += "var 重复声明后的值: " + a + "<br>";
+            
+            function testVar() {
+                var b = 30;
+                if (true) {
+                    var b = 40; // 同一函数作用域内，覆盖外部的 b
+                    document.getElementById('var-result').innerHTML += "函数内 if 块中的 b: " + b + "<br>";
+                }
+                document.getElementById('var-result').innerHTML += "函数内的 b: " + b + "<br>";
+            }
+            testVar();
+        })();
+        
+        // 执行 let 相关代码
+        (function() {
+            let c = 50;
+            // let c = 60; // 不能重复声明，会报错
+            
+            if (true) {
+                let d = 70;
+                document.getElementById('let-result').innerHTML += "if 块中的 d: " + d + "<br>";
+            }
+            // console.log("if 块外的 d:", d); // 会报错，d 只在块内有效
+        })();
+        
+        // 执行 const 相关代码
+        (function() {
+            const e = 80;
+            // e = 90; // 不能修改值，会报错
+            
+            const obj = { name: "张三" };
+            obj.name = "李四"; // 可以修改对象属性
+            document.getElementById('const-result').innerHTML += "修改后的 obj: " + JSON.stringify(obj) + "<br>";
+        })();
+    </script>
+</body>
+</html>

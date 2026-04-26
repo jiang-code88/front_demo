@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>参数：默认值、剩余参数、arguments 对象</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f4f4f4;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 30px;
+            padding: 20px 0;
+            border-bottom: 3px solid #3498db;
+        }
+        
+        .section {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        h2 {
+            color: #3498db;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #ecf0f1;
+        }
+        
+        h3 {
+            color: #2c3e50;
+            margin: 15px 0 10px 0;
+        }
+        
+        .code-block {
+            background: #f8f9fa;
+            border-left: 4px solid #3498db;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+        }
+        
+        .result {
+            background: #e8f4f8;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+            border: 1px solid #b8e0f0;
+        }
+        
+        .result-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #2c3e50;
+        }
+        
+        .explanation {
+            background: #f9f9f9;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+            border: 1px solid #e0e0e0;
+        }
+        
+        .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 10px 20px;
+            background: #3498db;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            transition: background 0.3s ease;
+        }
+        
+        .back-link:hover {
+            background: #2980b9;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>参数：默认值、剩余参数、arguments 对象</h1>
+        
+        <div class="section">
+            <h2>1. 默认参数</h2>
+            <div class="code-block">
+// 默认参数
+function greet(name = "陌生人") {
+  console.log("默认参数 greet():", `Hello, ${name}!`);
+}
+greet(); // Hello, 陌生人!
+greet("张三"); // Hello, 张三!
+            </div>
+            <div class="result">
+                <div class="result-title">执行结果：</div>
+                <div id="default-params-result"></div>
+            </div>
+            <div class="explanation">
+                <h3>默认参数的特点：</h3>
+                <ul>
+                    <li>当函数调用时没有提供参数，会使用默认值</li>
+                    <li>默认值可以是表达式、函数调用等</li>
+                    <li>默认参数的计算是惰性的，只有在需要时才会计算</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>2. 剩余参数</h2>
+            <div class="code-block">
+// 剩余参数
+function sum(...numbers) {
+  return numbers.reduce((total, num) => total + num, 0);
+}
+console.log("剩余参数 sum(1, 2, 3, 4):", sum(1, 2, 3, 4)); // 10
+            </div>
+            <div class="result">
+                <div class="result-title">执行结果：</div>
+                <div id="rest-params-result"></div>
+            </div>
+            <div class="explanation">
+                <h3>剩余参数的特点：</h3>
+                <ul>
+                    <li>使用 <code>...</code> 语法收集剩余的参数</li>
+                    <li>返回一个数组，包含所有剩余的参数</li>
+                    <li>只能作为函数的最后一个参数</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>3. arguments 对象</h2>
+            <div class="code-block">
+// arguments 对象 (仅在函数声明和函数表达式中可用)
+function showArgs() {
+  console.log("arguments 对象:", arguments);
+  console.log("arguments[0]:", arguments[0]);
+}
+showArgs(1, "hello", true);
+            </div>
+            <div class="result">
+                <div class="result-title">执行结果：</div>
+                <div id="arguments-result"></div>
+                <div class="explanation">
+                    <h3>arguments 对象的特点：</h3>
+                    <ul>
+                        <li>是一个类数组对象，包含函数调用时的所有参数</li>
+                        <li>具有 length 属性，但没有数组的方法</li>
+                        <li>仅在函数声明和函数表达式中可用，箭头函数中不可用</li>
+                        <li>可以通过索引访问参数，如 arguments[0]</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>4. 剩余参数与 arguments 的区别</h2>
+            <div class="explanation">
+                <h3>剩余参数与 arguments 的主要区别：</h3>
+                <ul>
+                    <li>剩余参数是一个真正的数组，具有数组的所有方法</li>
+                    <li>arguments 是一个类数组对象，需要转换为数组才能使用数组方法</li>
+                    <li>剩余参数只包含那些没有对应形参的实参，而 arguments 包含所有实参</li>
+                    <li>箭头函数中没有 arguments 对象，但可以使用剩余参数</li>
+                </ul>
+            </div>
+        </div>
+        
+        <a href="../index.html" class="back-link">返回首页</a>
+    </div>
+    
+    <script>
+        // 执行默认参数相关代码
+        (function() {
+            const resultDiv = document.getElementById('default-params-result');
+            function greet(name = "陌生人") {
+                resultDiv.innerHTML += "默认参数 greet(): Hello, " + name + "!<br>";
+            }
+            greet(); // Hello, 陌生人!
+            greet("张三"); // Hello, 张三!
+        })();
+        
+        // 执行剩余参数相关代码
+        (function() {
+            const resultDiv = document.getElementById('rest-params-result');
+            function sum(...numbers) {
+                return numbers.reduce((total, num) => total + num, 0);
+            }
+            resultDiv.innerHTML += "剩余参数 sum(1, 2, 3, 4): " + sum(1, 2, 3, 4) + "<br>";
+        })();
+        
+        // 执行 arguments 对象相关代码
+        (function() {
+            const resultDiv = document.getElementById('arguments-result');
+            function showArgs() {
+                resultDiv.innerHTML += "arguments 对象: " + Array.from(arguments) + "<br>";
+                resultDiv.innerHTML += "arguments[0]: " + arguments[0] + "<br>";
+            }
+            showArgs(1, "hello", true);
+        })();
+    </script>
+</body>
+</html>

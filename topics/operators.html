@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>运算符：算术、比较、逻辑、三元、短路运算</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f4f4f4;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 30px;
+            padding: 20px 0;
+            border-bottom: 3px solid #3498db;
+        }
+        
+        .section {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        h2 {
+            color: #3498db;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #ecf0f1;
+        }
+        
+        h3 {
+            color: #2c3e50;
+            margin: 15px 0 10px 0;
+        }
+        
+        .code-block {
+            background: #f8f9fa;
+            border-left: 4px solid #3498db;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+        }
+        
+        .result {
+            background: #e8f4f8;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+            border: 1px solid #b8e0f0;
+        }
+        
+        .result-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #2c3e50;
+        }
+        
+        .explanation {
+            background: #f9f9f9;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+            border: 1px solid #e0e0e0;
+        }
+        
+        .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 10px 20px;
+            background: #3498db;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            transition: background 0.3s ease;
+        }
+        
+        .back-link:hover {
+            background: #2980b9;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>运算符：算术、比较、逻辑、三元、短路运算</h1>
+        
+        <div class="section">
+            <h2>1. 算术运算符</h2>
+            <div class="code-block">
+// 算术运算符
+console.log("1 + 2:", 1 + 2); // 3
+console.log("5 - 3:", 5 - 3); // 2
+console.log("2 * 4:", 2 * 4); // 8
+console.log("10 / 2:", 10 / 2); // 5
+console.log("10 % 3:", 10 % 3); // 1
+// 使用变量来演示递增操作
+let num1 = 1;
+console.log("++num1:", ++num1); // 2
+let num2 = 1;
+console.log("num2++:", num2++); // 1 (先使用后自增)
+console.log("num2 自增后:", num2); // 2
+            </div>
+            <div class="result">
+                <div class="result-title">执行结果：</div>
+                <div id="arithmetic-result"></div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>2. 比较运算符</h2>
+            <div class="code-block">
+// 比较运算符
+console.log("1 == '1':", 1 == '1'); // true (类型转换)
+console.log("1 === '1':", 1 === '1'); // false (严格比较)
+console.log("5 > 3:", 5 > 3); // true
+console.log("5 < 3:", 5 < 3); // false
+console.log("5 >= 5:", 5 >= 5); // true
+console.log("5 <= 3:", 5 <= 3); // false
+console.log("NaN == NaN:", NaN == NaN); // false (特殊情况)
+            </div>
+            <div class="result">
+                <div class="result-title">执行结果：</div>
+                <div id="comparison-result"></div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>3. 逻辑运算符</h2>
+            <div class="code-block">
+// 逻辑运算符
+console.log("true && false:", true && false); // false
+console.log("true || false:", true || false); // true
+console.log("!true:", !true); // false
+            </div>
+            <div class="result">
+                <div class="result-title">执行结果：</div>
+                <div id="logical-result"></div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>4. 三元运算符</h2>
+            <div class="code-block">
+// 三元运算符
+const age = 18;
+const status = age >= 18 ? "成年人" : "未成年人";
+console.log("年龄状态:", status); // 成年人
+            </div>
+            <div class="result">
+                <div class="result-title">执行结果：</div>
+                <div id="ternary-result"></div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>5. 短路运算</h2>
+            <div class="code-block">
+// 短路运算
+const a1 = 0 || "默认值"; // 0 为假值，返回 "默认值"
+const b1 = "有值" || "默认值"; // "有值" 为真值，返回 "有值"
+const c1 = 1 && "后面的值"; // 1 为真值，返回 "后面的值"
+const d1 = 0 && "后面的值"; // 0 为假值，返回 0
+console.log("a1:", a1);
+console.log("b1:", b1);
+console.log("c1:", c1);
+console.log("d1:", d1);
+            </div>
+            <div class="result">
+                <div class="result-title">执行结果：</div>
+                <div id="short-circuit-result"></div>
+            </div>
+            <div class="explanation">
+                <h3>短路运算的原理：</h3>
+                <ul>
+                    <li><code>||</code> 运算符：如果第一个操作数为真值，则返回第一个操作数；否则返回第二个操作数</li>
+                    <li><code>&&</code> 运算符：如果第一个操作数为假值，则返回第一个操作数；否则返回第二个操作数</li>
+                    <li>短路运算常用于设置默认值、条件执行等场景</li>
+                </ul>
+            </div>
+        </div>
+        
+        <a href="../index.html" class="back-link">返回首页</a>
+    </div>
+    
+    <script>
+        // 执行算术运算符相关代码
+        (function() {
+            const resultDiv = document.getElementById('arithmetic-result');
+            resultDiv.innerHTML += "1 + 2: " + (1 + 2) + "<br>";
+            resultDiv.innerHTML += "5 - 3: " + (5 - 3) + "<br>";
+            resultDiv.innerHTML += "2 * 4: " + (2 * 4) + "<br>";
+            resultDiv.innerHTML += "10 / 2: " + (10 / 2) + "<br>";
+            resultDiv.innerHTML += "10 % 3: " + (10 % 3) + "<br>";
+            
+            let num1 = 1;
+            resultDiv.innerHTML += "++num1: " + (++num1) + "<br>";
+            
+            let num2 = 1;
+            resultDiv.innerHTML += "num2++: " + (num2++) + "<br>";
+            resultDiv.innerHTML += "num2 自增后: " + num2 + "<br>";
+        })();
+        
+        // 执行比较运算符相关代码
+        (function() {
+            const resultDiv = document.getElementById('comparison-result');
+            resultDiv.innerHTML += "1 == '1': " + (1 == '1') + "<br>";
+            resultDiv.innerHTML += "1 === '1': " + (1 === '1') + "<br>";
+            resultDiv.innerHTML += "5 > 3: " + (5 > 3) + "<br>";
+            resultDiv.innerHTML += "5 < 3: " + (5 < 3) + "<br>";
+            resultDiv.innerHTML += "5 >= 5: " + (5 >= 5) + "<br>";
+            resultDiv.innerHTML += "5 <= 3: " + (5 <= 3) + "<br>";
+            resultDiv.innerHTML += "NaN == NaN: " + (NaN == NaN) + "<br>";
+        })();
+        
+        // 执行逻辑运算符相关代码
+        (function() {
+            const resultDiv = document.getElementById('logical-result');
+            resultDiv.innerHTML += "true && false: " + (true && false) + "<br>";
+            resultDiv.innerHTML += "true || false: " + (true || false) + "<br>";
+            resultDiv.innerHTML += "!true: " + (!true) + "<br>";
+        })();
+        
+        // 执行三元运算符相关代码
+        (function() {
+            const resultDiv = document.getElementById('ternary-result');
+            const age = 18;
+            const status = age >= 18 ? "成年人" : "未成年人";
+            resultDiv.innerHTML += "年龄状态: " + status + "<br>";
+        })();
+        
+        // 执行短路运算相关代码
+        (function() {
+            const resultDiv = document.getElementById('short-circuit-result');
+            const a1 = 0 || "默认值"; // 0 为假值，返回 "默认值"
+            const b1 = "有值" || "默认值"; // "有值" 为真值，返回 "有值"
+            const c1 = 1 && "后面的值"; // 1 为真值，返回 "后面的值"
+            const d1 = 0 && "后面的值"; // 0 为假值，返回 0
+            resultDiv.innerHTML += "a1: " + a1 + "<br>";
+            resultDiv.innerHTML += "b1: " + b1 + "<br>";
+            resultDiv.innerHTML += "c1: " + c1 + "<br>";
+            resultDiv.innerHTML += "d1: " + d1 + "<br>";
+        })();
+    </script>
+</body>
+</html>

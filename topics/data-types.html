@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数据类型：基本类型和引用类型</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f4f4f4;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 30px;
+            padding: 20px 0;
+            border-bottom: 3px solid #3498db;
+        }
+        
+        .section {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        h2 {
+            color: #3498db;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #ecf0f1;
+        }
+        
+        h3 {
+            color: #2c3e50;
+            margin: 15px 0 10px 0;
+        }
+        
+        .code-block {
+            background: #f8f9fa;
+            border-left: 4px solid #3498db;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+        }
+        
+        .result {
+            background: #e8f4f8;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+            border: 1px solid #b8e0f0;
+        }
+        
+        .result-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #2c3e50;
+        }
+        
+        .explanation {
+            background: #f9f9f9;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+            border: 1px solid #e0e0e0;
+        }
+        
+        .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 10px 20px;
+            background: #3498db;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            transition: background 0.3s ease;
+        }
+        
+        .back-link:hover {
+            background: #2980b9;
+        }
+        
+        ul {
+            margin-left: 20px;
+            margin-bottom: 15px;
+        }
+        
+        li {
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>数据类型：基本类型和引用类型</h1>
+        
+        <div class="section">
+            <h2>1. 基本类型</h2>
+            <div class="code-block">
+// 基本类型
+const str = "Hello"; // string
+const num = 123; // number
+const bool = true; // boolean
+const n = null; // null
+const undef = undefined; // undefined
+const sym = Symbol("test"); // symbol
+const big = 123n; // bigint
+
+console.log("string:", str);
+console.log("number:", num);
+console.log("boolean:", bool);
+console.log("null:", n);
+console.log("undefined:", undef);
+console.log("symbol:", sym);
+console.log("bigint:", big);
+            </div>
+            <div class="result">
+                <div class="result-title">执行结果：</div>
+                <div id="primitive-result"></div>
+            </div>
+            <div class="explanation">
+                <h3>基本类型的特点：</h3>
+                <ul>
+                    <li>存储在栈内存中</li>
+                    <li>不可变（immutable）</li>
+                    <li>赋值时是值拷贝</li>
+                    <li>比较时比较值</li>
+                </ul>
+                <h3>JavaScript 中的基本类型：</h3>
+                <ul>
+                    <li>string：字符串</li>
+                    <li>number：数字</li>
+                    <li>boolean：布尔值</li>
+                    <li>null：空值</li>
+                    <li>undefined：未定义</li>
+                    <li>symbol：唯一标识符</li>
+                    <li>bigint：大整数</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>2. 引用类型</h2>
+            <div class="code-block">
+// 引用类型
+const arr = [1, 2, 3]; // array (object)
+const obj2 = { age: 20 }; // object
+const func = function() {}; // function (object)
+
+console.log("array:", arr);
+console.log("object:", obj2);
+console.log("function:", func);
+            </div>
+            <div class="result">
+                <div class="result-title">执行结果：</div>
+                <div id="reference-result"></div>
+            </div>
+            <div class="explanation">
+                <h3>引用类型的特点：</h3>
+                <ul>
+                    <li>存储在堆内存中</li>
+                    <li>可变（mutable）</li>
+                    <li>赋值时是引用拷贝</li>
+                    <li>比较时比较引用地址</li>
+                </ul>
+                <h3>JavaScript 中的引用类型：</h3>
+                <ul>
+                    <li>Object：对象</li>
+                    <li>Array：数组</li>
+                    <li>Function：函数</li>
+                    <li>Date：日期</li>
+                    <li>RegExp：正则表达式</li>
+                    <li>等等</li>
+                </ul>
+            </div>
+        </div>
+        
+        <a href="../index.html" class="back-link">返回首页</a>
+    </div>
+    
+    <script>
+        // 执行基本类型相关代码
+        (function() {
+            const str = "Hello"; // string
+            const num = 123; // number
+            const bool = true; // boolean
+            const n = null; // null
+            const undef = undefined; // undefined
+            const sym = Symbol("test"); // symbol
+            const big = 123n; // bigint
+            
+            const resultDiv = document.getElementById('primitive-result');
+            resultDiv.innerHTML += "string: " + str + "<br>";
+            resultDiv.innerHTML += "number: " + num + "<br>";
+            resultDiv.innerHTML += "boolean: " + bool + "<br>";
+            resultDiv.innerHTML += "null: " + n + "<br>";
+            resultDiv.innerHTML += "undefined: " + undef + "<br>";
+            resultDiv.innerHTML += "symbol: " + sym + "<br>";
+            resultDiv.innerHTML += "bigint: " + big + "<br>";
+        })();
+        
+        // 执行引用类型相关代码
+        (function() {
+            const arr = [1, 2, 3]; // array (object)
+            const obj2 = { age: 20 }; // object
+            const func = function() {}; // function (object)
+            
+            const resultDiv = document.getElementById('reference-result');
+            resultDiv.innerHTML += "array: " + JSON.stringify(arr) + "<br>";
+            resultDiv.innerHTML += "object: " + JSON.stringify(obj2) + "<br>";
+            resultDiv.innerHTML += "function: " + func.toString() + "<br>";
+        })();
+    </script>
+</body>
+</html>

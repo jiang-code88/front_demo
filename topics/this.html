@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>this 指向规则以及 call、apply、bind</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f4f4f4;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 30px;
+            padding: 20px 0;
+            border-bottom: 3px solid #3498db;
+        }
+        
+        .section {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        h2 {
+            color: #3498db;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #ecf0f1;
+        }
+        
+        h3 {
+            color: #2c3e50;
+            margin: 15px 0 10px 0;
+        }
+        
+        .code-block {
+            background: #f8f9fa;
+            border-left: 4px solid #3498db;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+        }
+        
+        .result {
+            background: #e8f4f8;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+            border: 1px solid #b8e0f0;
+        }
+        
+        .result-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #2c3e50;
+        }
+        
+        .explanation {
+            background: #f9f9f9;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+            border: 1px solid #e0e0e0;
+        }
+        
+        .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 10px 20px;
+            background: #3498db;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            transition: background 0.3s ease;
+        }
+        
+        .back-link:hover {
+            background: #2980b9;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+        
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        
+        th {
+            background-color: #f2f2f2;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>this 指向规则以及 call、apply、bind</h1>
+        
+        <div class="section">
+            <h2>1. this 指向规则</h2>
+            <div class="code-block">
+// this 指向规则
+const obj5 = {
+  name: "张三",
+  sayName: function() {
+    console.log("方法中的 this.name:", this.name);
+  }
+};
+obj5.sayName(); // 张三 (this 指向 obj5)
+
+// 独立函数调用
+const sayName = obj5.sayName;
+sayName(); // undefined (this 指向全局对象)
+            </div>
+            <div class="result">
+                <div class="result-title">执行结果：</div>
+                <div id="this-rule-result"></div>
+            </div>
+            <div class="explanation">
+                <h3>this 指向的基本规则：</h3>
+                <ul>
+                    <li>在方法中，this 指向调用该方法的对象</li>
+                    <li>在独立函数调用中，this 指向全局对象（在严格模式下为 undefined）</li>
+                    <li>在构造函数中，this 指向新创建的对象</li>
+                    <li>在箭头函数中，this 继承自外层作用域</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>2. call 方法</h2>
+            <div class="code-block">
+// call 方法
+const obj6 = { name: "李四" };
+obj5.sayName.call(obj6); // 李四 (this 指向 obj6)
+            </div>
+            <div class="result">
+                <div class="result-title">执行结果：</div>
+                <div id="call-result"></div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>3. apply 方法</h2>
+            <div class="code-block">
+// apply 方法
+obj5.sayName.apply(obj6); // 李四 (this 指向 obj6)
+            </div>
+            <div class="result">
+                <div class="result-title">执行结果：</div>
+                <div id="apply-result"></div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>4. bind 方法</h2>
+            <div class="code-block">
+// bind 方法
+const boundSayName = obj5.sayName.bind(obj6);
+boundSayName(); // 李四 (this 指向 obj6)
+            </div>
+            <div class="result">
+                <div class="result-title">执行结果：</div>
+                <div id="bind-result"></div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>5. call 和 apply 传递参数</h2>
+            <div class="code-block">
+// call 和 apply 传递参数
+function introduce(name, age) {
+  console.log(`我是 ${name}，今年 ${age} 岁`);
+}
+introduce.call(null, "张三", 20); // 我是 张三，今年 20 岁
+introduce.apply(null, ["李四", 25]); // 我是 李四，今年 25 岁
+            </div>
+            <div class="result">
+                <div class="result-title">执行结果：</div>
+                <div id="params-result"></div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>6. call、apply、bind 的区别</h2>
+            <table>
+                <tr>
+                    <th>方法</th>
+                    <th>功能</th>
+                    <th>参数</th>
+                    <th>返回值</th>
+                </tr>
+                <tr>
+                    <td>call</td>
+                    <td>改变 this 指向并立即执行函数</td>
+                    <td>第一个参数是 this 指向，后续参数是函数参数</td>
+                    <td>函数的返回值</td>
+                </tr>
+                <tr>
+                    <td>apply</td>
+                    <td>改变 this 指向并立即执行函数</td>
+                    <td>第一个参数是 this 指向，第二个参数是参数数组</td>
+                    <td>函数的返回值</td>
+                </tr>
+                <tr>
+                    <td>bind</td>
+                    <td>改变 this 指向并返回新函数</td>
+                    <td>第一个参数是 this 指向，后续参数是函数参数</td>
+                    <td>新的函数</td>
+                </tr>
+            </table>
+        </div>
+        
+        <a href="../index.html" class="back-link">返回首页</a>
+    </div>
+    
+    <script>
+        // 执行 this 指向规则相关代码
+        (function() {
+            const resultDiv = document.getElementById('this-rule-result');
+            const obj5 = {
+                name: "张三",
+                sayName: function() {
+                    resultDiv.innerHTML += "方法中的 this.name: " + this.name + "<br>";
+                }
+            };
+            obj5.sayName(); // 张三 (this 指向 obj5)
+            
+            // 独立函数调用
+            const sayName = obj5.sayName;
+            sayName(); // undefined (this 指向全局对象)
+        })();
+        
+        // 执行 call 方法相关代码
+        (function() {
+            const resultDiv = document.getElementById('call-result');
+            const obj5 = {
+                name: "张三",
+                sayName: function() {
+                    resultDiv.innerHTML += "call 方法 this.name: " + this.name + "<br>";
+                }
+            };
+            const obj6 = { name: "李四" };
+            obj5.sayName.call(obj6); // 李四 (this 指向 obj6)
+        })();
+        
+        // 执行 apply 方法相关代码
+        (function() {
+            const resultDiv = document.getElementById('apply-result');
+            const obj5 = {
+                name: "张三",
+                sayName: function() {
+                    resultDiv.innerHTML += "apply 方法 this.name: " + this.name + "<br>";
+                }
+            };
+            const obj6 = { name: "李四" };
+            obj5.sayName.apply(obj6); // 李四 (this 指向 obj6)
+        })();
+        
+        // 执行 bind 方法相关代码
+        (function() {
+            const resultDiv = document.getElementById('bind-result');
+            const obj5 = {
+                name: "张三",
+                sayName: function() {
+                    resultDiv.innerHTML += "bind 方法 this.name: " + this.name + "<br>";
+                }
+            };
+            const obj6 = { name: "李四" };
+            const boundSayName = obj5.sayName.bind(obj6);
+            boundSayName(); // 李四 (this 指向 obj6)
+        })();
+        
+        // 执行 call 和 apply 传递参数相关代码
+        (function() {
+            const resultDiv = document.getElementById('params-result');
+            function introduce(name, age) {
+                resultDiv.innerHTML += "我是 " + name + "，今年 " + age + " 岁<br>";
+            }
+            introduce.call(null, "张三", 20); // 我是 张三，今年 20 岁
+            introduce.apply(null, ["李四", 25]); // 我是 李四，今年 25 岁
+        })();
+    </script>
+</body>
+</html>
