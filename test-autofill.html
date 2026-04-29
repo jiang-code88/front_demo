@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AutoFill Helper — 测试页</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f3f4f6;
+      color: #111827;
+      min-height: 100vh;
+    }
+
+    /* ── 顶部导航 ── */
+    .nav {
+      background: #4f46e5;
+      color: #fff;
+      padding: 14px 28px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .nav-logo {
+      width: 32px; height: 32px;
+      background: rgba(255,255,255,.2);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px;
+    }
+    .nav h1 { font-size: 17px; font-weight: 700; }
+    .nav p  { font-size: 12px; opacity: .75; margin-top: 2px; }
+
+    /* ── 主体 ── */
+    .container { max-width: 860px; margin: 0 auto; padding: 28px 20px; }
+
+    .hint-banner {
+      background: #ede9fe;
+      border: 1px solid #c4b5fd;
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin-bottom: 24px;
+      font-size: 13px;
+      color: #5b21b6;
+      line-height: 1.6;
+    }
+    .hint-banner strong { font-weight: 700; }
+
+    .section { margin-bottom: 32px; }
+    .section-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #6b7280;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .section-title::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: #e5e7eb;
+    }
+
+    /* ── 表单卡片 ── */
+    .card {
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      padding: 20px 24px;
+      margin-bottom: 16px;
+    }
+    .card-title {
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 16px;
+      color: #1f2937;
+    }
+    .field-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+    .field-grid.single { grid-template-columns: 1fr; }
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    label {
+      font-size: 12px;
+      font-weight: 600;
+      color: #6b7280;
+    }
+    input[type="text"],
+    input[type="email"],
+    input[type="tel"],
+    input[type="password"],
+    input[type="number"],
+    input[type="url"],
+    input[type="search"],
+    textarea,
+    select {
+      height: 36px;
+      border: 1px solid #e5e7eb;
+      border-radius: 7px;
+      padding: 0 10px;
+      font-size: 13px;
+      outline: none;
+      color: #111827;
+      width: 100%;
+      font-family: inherit;
+      transition: border-color .15s;
+    }
+    input:focus, textarea:focus, select:focus {
+      border-color: #4f46e5;
+      box-shadow: 0 0 0 3px rgba(79,70,229,.1);
+    }
+    textarea {
+      height: 80px;
+      padding: 8px 10px;
+      resize: vertical;
+    }
+    select { cursor: pointer; background: #fff; }
+
+    .submit-btn {
+      margin-top: 16px;
+      padding: 8px 20px;
+      background: #4f46e5;
+      color: #fff;
+      border: none;
+      border-radius: 7px;
+      font-size: 13px;
+      cursor: pointer;
+      font-family: inherit;
+      transition: background .1s;
+    }
+    .submit-btn:hover { background: #4338ca; }
+
+    /* ── 输出区 ── */
+    #output {
+      background: #1e1b4b;
+      color: #a5b4fc;
+      border-radius: 8px;
+      padding: 16px 18px;
+      font-family: monospace;
+      font-size: 12px;
+      white-space: pre-wrap;
+      min-height: 60px;
+      margin-top: 16px;
+    }
+
+    @media (max-width: 600px) {
+      .field-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-logo">📋</div>
+  <div>
+    <h1>AutoFill Helper — 测试页</h1>
+    <p>用于验证 Tampermonkey 脚本功能，请先安装脚本后使用</p>
+  </div>
+</nav>
+
+<div class="container">
+
+  <div class="hint-banner">
+    <strong>使用说明：</strong>点击下方任意输入框，输入框内右侧将出现一个
+    <strong>紫色小图标 📋</strong>，点击图标可弹出候选内容面板。<br>
+    如需管理数据，可在 <strong>Tampermonkey 扩展菜单</strong> 中点击
+    「自动填入管理」打开完整设置页。
+  </div>
+
+  <!-- ── 区块 1：基本信息 ── -->
+  <div class="section">
+    <div class="section-title">基本信息表单</div>
+    <div class="card">
+      <div class="card-title">用户注册 · 信息填写</div>
+      <div class="field-grid">
+        <div class="field">
+          <label for="f-name">姓名</label>
+          <input id="f-name" type="text" placeholder="请输入姓名">
+        </div>
+        <div class="field">
+          <label for="f-phone">手机号</label>
+          <input id="f-phone" type="tel" placeholder="请输入手机号">
+        </div>
+        <div class="field">
+          <label for="f-email">邮箱</label>
+          <input id="f-email" type="email" placeholder="请输入邮箱地址">
+        </div>
+        <div class="field">
+          <label for="f-id">身份证号</label>
+          <input id="f-id" type="text" placeholder="请输入身份证号">
+        </div>
+        <div class="field">
+          <label for="f-company">公司名称</label>
+          <input id="f-company" type="text" placeholder="请输入公司名称">
+        </div>
+        <div class="field">
+          <label for="f-dept">部门</label>
+          <input id="f-dept" type="text" placeholder="请输入部门">
+        </div>
+      </div>
+      <div class="field-grid single" style="margin-top:14px">
+        <div class="field">
+          <label for="f-addr">详细地址</label>
+          <input id="f-addr" type="text" placeholder="请输入详细地址">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 区块 2：账号密码 ── -->
+  <div class="section">
+    <div class="section-title">账号 &amp; 密码</div>
+    <div class="card">
+      <div class="card-title">登录表单</div>
+      <div class="field-grid">
+        <div class="field">
+          <label for="f-user">用户名 / 账号</label>
+          <input id="f-user" type="text" placeholder="请输入账号">
+        </div>
+        <div class="field">
+          <label for="f-pass">密码</label>
+          <input id="f-pass" type="password" placeholder="请输入密码">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 区块 3：多行文本 ── -->
+  <div class="section">
+    <div class="section-title">多行文本输入</div>
+    <div class="card">
+      <div class="card-title">备注 / 描述</div>
+      <div class="field-grid single">
+        <div class="field">
+          <label for="f-note">备注</label>
+          <textarea id="f-note" placeholder="请输入备注信息"></textarea>
+        </div>
+        <div class="field" style="margin-top:12px">
+          <label for="f-desc">产品描述</label>
+          <textarea id="f-desc" placeholder="请输入产品描述" style="height:100px"></textarea>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 区块 4：其他类型 ── -->
+  <div class="section">
+    <div class="section-title">其他输入类型</div>
+    <div class="card">
+      <div class="card-title">数字 / 链接 / 搜索</div>
+      <div class="field-grid">
+        <div class="field">
+          <label for="f-num">数量</label>
+          <input id="f-num" type="number" placeholder="请输入数字">
+        </div>
+        <div class="field">
+          <label for="f-url">链接 URL</label>
+          <input id="f-url" type="url" placeholder="https://example.com">
+        </div>
+        <div class="field">
+          <label for="f-search">搜索关键词</label>
+          <input id="f-search" type="search" placeholder="输入搜索内容">
+        </div>
+        <div class="field">
+          <label for="f-notype">无 type 属性的 input</label>
+          <input id="f-notype" placeholder="这是没有 type 的 input">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 提交 + 输出 ── -->
+  <div class="card">
+    <div class="card-title">表单提交（查看填入值）</div>
+    <button class="submit-btn" onclick="collectValues()">收集所有字段值</button>
+    <pre id="output">点击上方按钮后，此处将显示所有字段当前的值。</pre>
+  </div>
+
+</div>
+
+<script>
+  function collectValues() {
+    var fields = document.querySelectorAll('input, textarea');
+    var result = {};
+    fields.forEach(function(el) {
+      var key = el.id || el.placeholder || el.name || '(未命名)';
+      result[key] = el.value;
+    });
+    document.getElementById('output').textContent = JSON.stringify(result, null, 2);
+  }
+</script>
+
+</body>
+</html>
