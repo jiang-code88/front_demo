@@ -4,127 +4,215 @@
 // @version      1.0.0
 // @description  点击表单元素时在旁边出现小图标，点击图标可弹出候选内容列表自动填入，支持按域名管理数据
 // @author       You
-// @match        *://*/*
-// @match        file:///*
-// @grant        GM_getValue
-// @grant        GM_setValue
-// @grant        GM_registerMenuCommand
-// @grant        unsafeWindow
-// @run-at       document-idle
+// @match        *://*/*                // 匹配所有 HTTP/HTTPS 协议的页面
+// @match        file:///*              // 匹配本地文件协议
+// @grant        GM_getValue            // 读取 Tampermonkey 存储
+// @grant        GM_setValue            // 写入 Tampermonkey 存储
+// @grant        GM_registerMenuCommand // 注册 Tampermonkey 菜单命令
+// @grant        unsafeWindow           // 访问页面真实 window 对象（用于设置页通信）
+// @run-at       document-idle          // 文档加载完成后执行
 // ==/UserScript==
 
 (function () {
   'use strict';
 
-  // ══════════════════════════════════════════════════════════
-  //  常量
-  // ══════════════════════════════════════════════════════════
-  var STORAGE_KEY = 'autofill_helper_data';
+  // ════════════════════════════════════════════════════════════════════════
+  //  整体架构说明
+  // ════════════════════════════════════════════════════════════════════════
+  // 
+  //                     ┌─────────────────────────────────────────────────┐
+  //                     │              用户交互层                          │
+  //                     │  ┌─────────────┐    ┌─────────────────────────┐ │
+  //                     │  │  触发图标    │────▶│    候选面板             │ │
+  //                     │  │  (Icon)     │    │  • 搜索过滤             │ │
+  //                     │  │  输入框聚焦  │    │  • 全局/域名分组        │ │
+  //                     │  │  显示/隐藏   │    │  • 添加/编辑/删除       │ │
+  //                     │  └─────────────┘    └─────────────────────────┘ │
+  //                     └─────────────────────────────────────────────────┘
+  //                                          │
+  //                                          ▼
+  //                     ┌─────────────────────────────────────────────────┐
+  //                     │              数据管理层                          │
+  //                     │  ┌─────────────┐    ┌─────────────────────────┐ │
+  //                     │  │  Local API  │────▶│   Tampermonkey Storage │ │
+  //                     │  │  add/edit/  │    │   GM_getValue/SetValue │ │
+  //                     │  │  delete/get │    │   JSON 序列化存储       │ │
+  //                     │  └─────────────┘    └─────────────────────────┘ │
+  //                     └─────────────────────────────────────────────────┘
+  //                                          │
+  //                                          ▼
+  //                     ┌─────────────────────────────────────────────────┐
+  //                     │              数据结构                            │
+  //                     │  {                                              │
+  //                     │    "global": [ {id, label, value, createdAt} ]  │
+  //                     │    "example.com": [ {id, label, value, ...} ]   │
+  //                     │  }                                              │
+  //                     └─────────────────────────────────────────────────┘
+  //
+  // ════════════════════════════════════════════════════════════════════════
 
+  // ════════════════════════════════════════════════════════════════════════
+  //  常量定义
+  // ════════════════════════════════════════════════════════════════════════
+  var STORAGE_KEY = 'autofill_helper_data';  // 存储键名
+
+  // 匹配的表单输入元素选择器
+  // 包含多种 input 类型和 textarea，覆盖绝大多数表单场景
   var INPUT_SELECTOR = [
-    'input[type="text"]',
-    'input[type="email"]',
-    'input[type="search"]',
-    'input[type="number"]',
-    'input[type="tel"]',
-    'input[type="url"]',
-    'input[type="password"]',
-    'input:not([type])',
-    'textarea'
+    'input[type="text"]',       // 文本输入
+    'input[type="email"]',      // 邮箱输入
+    'input[type="search"]',     // 搜索框
+    'input[type="number"]',     // 数字输入
+    'input[type="tel"]',        // 电话输入
+    'input[type="url"]',        // URL 输入
+    'input[type="password"]',   // 密码输入
+    'input:not([type])',        // 无 type 属性的 input
+    'textarea'                  // 多行文本域
   ].join(',');
 
-  // ══════════════════════════════════════════════════════════
-  //  数据读写层
-  // ══════════════════════════════════════════════════════════
+  // ════════════════════════════════════════════════════════════════════════
+  //  数据读写层（Data Layer）
+  //  负责与 Tampermonkey 存储进行交互，提供数据的 CRUD 操作
+  // ════════════════════════════════════════════════════════════════════════
 
+  /**
+   * 获取所有存储的数据
+   * @returns {Object} 数据对象，key 为域名或 'global'，value 为条目数组
+   */
   function getData() {
-    var raw = GM_getValue(STORAGE_KEY, null);
-    if (!raw) return {};
-    try { return JSON.parse(raw); } catch (e) { return {}; }
+    var raw = GM_getValue(STORAGE_KEY, null);  // 从 TM 存储读取
+    if (!raw) return {};                        // 无数据返回空对象
+    try { return JSON.parse(raw); } catch (e) { return {}; }  // 解析失败返回空对象
   }
 
+  /**
+   * 保存数据到 Tampermonkey 存储
+   * @param {Object} data - 要保存的数据对象
+   */
   function saveData(data) {
-    GM_setValue(STORAGE_KEY, JSON.stringify(data));
+    GM_setValue(STORAGE_KEY, JSON.stringify(data));  // JSON 序列化后存储
   }
 
+  /**
+   * 生成唯一 ID
+   * 使用时间戳（36进制）+ 随机数（截取6位）组合，保证唯一性
+   * @returns {string} 唯一 ID 字符串
+   */
   function genId() {
     return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
   }
 
+  /**
+   * 获取当前域名的可用条目
+   * @param {string} domain - 当前域名
+   * @returns {Object} { global: 全局条目数组, domainItems: 当前域名条目数组 }
+   */
   function getItemsForDomain(domain) {
     var data = getData();
     return {
-      global: data['global'] || [],
-      domainItems: data[domain] || []
+      global: data['global'] || [],      // 全局条目（所有站点可用）
+      domainItems: data[domain] || []    // 当前域名专属条目
     };
   }
 
+  /**
+   * 添加新条目
+   * @param {string} scope - 作用域（'global' 或具体域名）
+   * @param {string} label - 条目标签（用于显示）
+   * @param {string} value - 条目值（实际填入的内容）
+   */
   function addItem(scope, label, value) {
     var data = getData();
-    if (!data[scope]) data[scope] = [];
-    data[scope].push({ id: genId(), label: label, value: value, createdAt: Date.now() });
+    if (!data[scope]) data[scope] = [];  // 作用域不存在则创建空数组
+    data[scope].push({ 
+      id: genId(), 
+      label: label, 
+      value: value, 
+      createdAt: Date.now() 
+    });
     saveData(data);
   }
 
+  /**
+   * 编辑已有条目
+   * @param {string} scope - 作用域
+   * @param {string} id - 条目 ID
+   * @param {string} label - 新标签
+   * @param {string} value - 新值
+   */
   function editItem(scope, id, label, value) {
     var data = getData();
-    if (!data[scope]) return;
+    if (!data[scope]) return;  // 作用域不存在则直接返回
     var item = data[scope].find(function (i) { return i.id === id; });
-    if (item) { item.label = label; item.value = value; }
+    if (item) { item.label = label; item.value = value; }  // 找到则更新
     saveData(data);
   }
 
+  /**
+   * 删除条目
+   * @param {string} scope - 作用域
+   * @param {string} id - 条目 ID
+   */
   function deleteItem(scope, id) {
     var data = getData();
     if (!data[scope]) return;
     data[scope] = data[scope].filter(function (i) { return i.id !== id; });
-    if (data[scope].length === 0) delete data[scope];
+    if (data[scope].length === 0) delete data[scope];  // 清空后删除空数组
     saveData(data);
   }
 
+  /**
+   * 获取当前页面域名
+   * @returns {string} 当前域名，默认为 'localhost'
+   */
   function getCurrentDomain() {
     return location.hostname || 'localhost';
   }
 
-  // ══════════════════════════════════════════════════════════
+  // ════════════════════════════════════════════════════════════════════════
   //  Shadow DOM — 样式隔离容器
-  // ══════════════════════════════════════════════════════════
+  //  使用 Shadow DOM 确保脚本样式不会与页面样式冲突
+  // ════════════════════════════════════════════════════════════════════════
 
+  // 创建宿主元素
   var hostEl = document.createElement('div');
-  hostEl.id = '__afh_host__';
+  hostEl.id = '__afh_host__';  // 唯一 ID 标识
+  // 定位样式：fixed 定位，左上角，宽高为 0（仅作为 Shadow DOM 容器）
   Object.assign(hostEl.style, {
     position: 'fixed',
     top: '0', left: '0',
     width: '0', height: '0',
-    overflow: 'visible',
-    zIndex: '2147483647',
-    pointerEvents: 'none'
+    overflow: 'visible',        // 允许子元素溢出显示
+    zIndex: '2147483647',      // 最大 z-index，确保在最顶层
+    pointerEvents: 'none'       // 默认不接收鼠标事件
   });
   document.body.appendChild(hostEl);
 
+  // 创建 Shadow DOM（open 模式允许外部访问）
   var shadow = hostEl.attachShadow({ mode: 'open' });
 
+  // 创建样式元素并注入所有样式
   var styleEl = document.createElement('style');
   styleEl.textContent = [
-    '*, *::before, *::after { box-sizing: border-box; }',
+    '*, *::before, *::after { box-sizing: border-box; }',  // 全局盒模型
 
-    /* ── 触发图标 ── */
+    /* ── 触发图标样式 ── */
     '.afh-icon {',
     '  position: fixed;',
     '  width: 22px; height: 22px;',
-    '  background: #4f46e5;',
+    '  background: #4f46e5;       /* 紫色主色调 */',
     '  border-radius: 5px;',
     '  cursor: pointer;',
-    '  pointer-events: all;',
+    '  pointer-events: all;',     // 覆盖宿主的 pointerEvents: none
     '  display: flex; align-items: center; justify-content: center;',
     '  opacity: 0.82;',
     '  transition: opacity .15s, transform .1s;',
     '  user-select: none;',
     '}',
-    '.afh-icon:hover { opacity: 1; transform: scale(1.08); }',
+    '.afh-icon:hover { opacity: 1; transform: scale(1.08); }',  // hover 效果
     '.afh-icon svg { width: 12px; height: 12px; fill: #fff; pointer-events: none; }',
 
-    /* ── 候选面板 ── */
+    /* ── 候选面板样式 ── */
     '.afh-panel {',
     '  position: fixed;',
     '  width: 300px; max-height: 400px;',
@@ -165,20 +253,20 @@
     /* 条目行 */
     '.afh-item { display: flex; align-items: center; gap: 8px;',
     '  padding: 6px 10px; cursor: pointer; transition: background .08s; }',
-    '.afh-item:hover { background: #f5f3ff; }',
+    '.afh-item:hover { background: #f5f3ff; }  /* 浅紫色 hover 背景 */',
     '.afh-item-info { flex: 1; min-width: 0; }',
     '.afh-item-lbl { font-size: 10px; color: #a78bfa; font-weight: 600; margin-bottom: 1px; }',
     '.afh-item-val { font-size: 12px; color: #1f2937;',
     '  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }',
     '.afh-item-acts { display: none; gap: 2px; }',
-    '.afh-item:hover .afh-item-acts { display: flex; }',
+    '.afh-item:hover .afh-item-acts { display: flex; }  /* hover 时显示操作按钮 */',
 
     /* 条目操作按钮 */
     '.afh-abtn { width: 20px; height: 20px; border: none; background: none;',
     '  cursor: pointer; border-radius: 3px; display: flex;',
     '  align-items: center; justify-content: center; color: #9ca3af; padding: 0; }',
     '.afh-abtn:hover { background: #ede9fe; color: #6d28d9; }',
-    '.afh-abtn.del:hover { background: #fee2e2; color: #dc2626; }',
+    '.afh-abtn.del:hover { background: #fee2e2; color: #dc2626; }',  /* 删除按钮红色 */
     '.afh-abtn svg { width: 11px; height: 11px; fill: currentColor; pointer-events: none; }',
 
     /* 底部工具栏 */
@@ -188,7 +276,7 @@
     '  border: 1px solid #e5e7eb; background: #f9fafb;',
     '  font-size: 11px; cursor: pointer; color: #374151; transition: background .1s; }',
     '.afh-fbtn:hover { background: #f3f4f6; }',
-    '.afh-fbtn.pri { background: #4f46e5; color: #fff; border-color: #4f46e5; }',
+    '.afh-fbtn.pri { background: #4f46e5; color: #fff; border-color: #4f46e5; }',  /* 主按钮样式 */
     '.afh-fbtn.pri:hover { background: #4338ca; }',
 
     /* 内联添加/编辑表单 */
@@ -207,160 +295,209 @@
   ].join('\n');
   shadow.appendChild(styleEl);
 
-  // ══════════════════════════════════════════════════════════
-  //  SVG 图标
-  // ══════════════════════════════════════════════════════════
+  // ════════════════════════════════════════════════════════════════════════
+  //  SVG 图标定义
+  //  使用内联 SVG，无需外部资源
+  // ════════════════════════════════════════════════════════════════════════
 
   var ICON_PASTE = '<svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">'
     + '<path d="M8 2a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z"/>'
     + '<path d="M6 3a2 2 0 00-2 2v11a2 2 0 002 2h8a2 2 0 002-2V5a2 2 0 00-2-2'
-    + ' 3 3 0 01-3 3H9a3 3 0 01-3-3z"/></svg>';
+    + ' 3 3 0 01-3 3H9a3 3 0 01-3-3z"/></svg>';  // 粘贴图标
 
   var ICON_EDIT = '<svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">'
     + '<path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793z"/>'
-    + '<path d="M11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"/></svg>';
+    + '<path d="M11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"/></svg>';  // 编辑图标
 
   var ICON_DEL = '<svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">'
     + '<path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10'
     + 'a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9z'
     + 'M7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 112 0v6a1 1 0 11-2 0V8z"'
-    + ' clip-rule="evenodd"/></svg>';
+    + ' clip-rule="evenodd"/></svg>';  // 删除图标
 
-  // ══════════════════════════════════════════════════════════
-  //  状态
-  // ══════════════════════════════════════════════════════════
+  // ════════════════════════════════════════════════════════════════════════
+  //  状态管理
+  // ════════════════════════════════════════════════════════════════════════
 
-  var activeInput = null;
-  var iconEl     = null;
-  var panelEl    = null;
-  var hideTimer  = null;
+  var activeInput = null;   // 当前聚焦的输入框元素
+  var iconEl     = null;    // 触发图标 DOM 元素
+  var panelEl    = null;    // 候选面板 DOM 元素
+  var hideTimer  = null;    // 图标隐藏延迟定时器
 
-  // ══════════════════════════════════════════════════════════
-  //  触发图标模块
-  // ══════════════════════════════════════════════════════════
+  // ════════════════════════════════════════════════════════════════════════
+  //  触发图标模块（Trigger Icon Module）
+  //  负责图标的创建、定位、显示、隐藏
+  // ════════════════════════════════════════════════════════════════════════
 
+  /**
+   * 确保图标元素存在（懒创建）
+   */
   function ensureIcon() {
-    if (iconEl) return;
+    if (iconEl) return;  // 已存在则直接返回
     iconEl = document.createElement('div');
     iconEl.className = 'afh-icon';
     iconEl.innerHTML = ICON_PASTE;
     iconEl.title = 'AutoFill Helper（点击填入）';
-    iconEl.style.display = 'none';
+    iconEl.style.display = 'none';  // 默认隐藏
     shadow.appendChild(iconEl);
+    
+    // 点击图标事件：切换面板显示/隐藏
     iconEl.addEventListener('mousedown', function (e) {
-      e.preventDefault();
-      e.stopPropagation();
-      if (panelEl) closePanel();
-      else if (activeInput) openPanel(activeInput);
+      e.preventDefault();   // 阻止默认行为（如文本选中）
+      e.stopPropagation();  // 阻止事件冒泡
+      if (panelEl) closePanel();        // 面板已打开则关闭
+      else if (activeInput) openPanel(activeInput);  // 否则打开面板
     });
   }
 
+  /**
+   * 定位图标到输入框旁边
+   * @param {HTMLElement} el - 输入框元素
+   */
   function positionIcon(el) {
     if (!iconEl) return;
-    var r = el.getBoundingClientRect();
+    var r = el.getBoundingClientRect();  // 获取输入框位置信息
     var sz = 22, gap = 4;
-    // 图标放在输入框内部右侧
+    // 图标放在输入框内部右侧，留出一点空隙
     var left = r.right - sz - gap;
-    var top  = r.top + (r.height - sz) / 2;
+    var top  = r.top + (r.height - sz) / 2;  // 垂直居中
+    
+    // 边界检测：确保图标在可视区域内
     if (left < 4) left = 4;
     if (top < 2)  top  = 2;
     if (top + sz > window.innerHeight - 2) top = window.innerHeight - sz - 2;
+    
     iconEl.style.left = left + 'px';
     iconEl.style.top  = top  + 'px';
   }
 
+  /**
+   * 显示图标
+   * @param {HTMLElement} el - 输入框元素
+   */
   function showIcon(el) {
-    clearTimeout(hideTimer);
+    clearTimeout(hideTimer);  // 清除之前的隐藏定时器
     ensureIcon();
-    activeInput = el;
+    activeInput = el;         // 记录当前活动输入框
     positionIcon(el);
     iconEl.style.display = 'flex';
   }
 
+  /**
+   * 延迟隐藏图标（250ms 后隐藏）
+   * 使用延迟是为了处理快速切换输入框的场景
+   */
   function scheduleHideIcon() {
     hideTimer = setTimeout(function () {
-      if (iconEl && !panelEl) iconEl.style.display = 'none';
+      if (iconEl && !panelEl) iconEl.style.display = 'none';  // 面板未打开才隐藏
     }, 250);
   }
 
-  // 监听 focus / blur（用 capture 保证最早捕获）
+  // ════════════════════════════════════════════════════════════════════════
+  //  事件监听注册
+  // ════════════════════════════════════════════════════════════════════════
+
+  // 监听输入框聚焦（使用 capture 模式确保最早捕获）
   document.addEventListener('focusin', function (e) {
     if (e.target && e.target.matches && e.target.matches(INPUT_SELECTOR)) {
       showIcon(e.target);
     }
   }, true);
 
+  // 监听输入框失焦
   document.addEventListener('focusout', function (e) {
     if (e.target && e.target.matches && e.target.matches(INPUT_SELECTOR)) {
       scheduleHideIcon();
     }
   }, true);
 
-  // 滚动 / 缩放时同步位置
+  // 页面滚动时同步图标和面板位置
   window.addEventListener('scroll', function () {
     if (!activeInput) return;
     if (iconEl)  positionIcon(activeInput);
     if (panelEl) positionPanel(activeInput);
-  }, true);
+  }, true);  // capture 模式，确保在页面元素滚动前更新
 
+  // 窗口大小改变时同步位置
   window.addEventListener('resize', function () {
     if (!activeInput) return;
     if (iconEl)  positionIcon(activeInput);
     if (panelEl) positionPanel(activeInput);
   });
 
-  // Esc 关闭面板
+  // ESC 键关闭面板
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape' && panelEl) closePanel();
   }, true);
 
-  // ══════════════════════════════════════════════════════════
-  //  候选面板模块
-  // ══════════════════════════════════════════════════════════
+  // ════════════════════════════════════════════════════════════════════════
+  //  候选面板模块（Candidate Panel Module）
+  //  负责面板的渲染、交互、表单操作
+  // ════════════════════════════════════════════════════════════════════════
 
+  /**
+   * 定位候选面板
+   * @param {HTMLElement} el - 输入框元素
+   */
   function positionPanel(el) {
     if (!panelEl) return;
     var r = el.getBoundingClientRect();
-    var pw = 300, ph = 400, mg = 6;
+    var pw = 300, ph = 400, mg = 6;  // 面板宽高和边距
     var left = r.left;
-    var top  = r.bottom + mg;
+    var top  = r.bottom + mg;  // 默认显示在输入框下方
+    
     // 下方空间不足则翻转到上方
     if (top + ph > window.innerHeight - 10) top = r.top - ph - mg;
     if (top < 4) top = 4;
     // 右侧越界则左移
     if (left + pw > window.innerWidth - 6) left = window.innerWidth - pw - 6;
     if (left < 4) left = 4;
+    
     panelEl.style.left = left + 'px';
     panelEl.style.top  = top  + 'px';
   }
 
+  /**
+   * 打开候选面板
+   * @param {HTMLElement} el - 输入框元素
+   */
   function openPanel(el) {
-    closePanel();
+    closePanel();  // 先关闭已有面板
     var domain = getCurrentDomain();
     panelEl = document.createElement('div');
     panelEl.className = 'afh-panel';
     shadow.appendChild(panelEl);
-    renderPanel(el, domain, '', false, null);
+    renderPanel(el, domain, '', false, null);  // 初始渲染
     positionPanel(el);
   }
 
+  /**
+   * 渲染面板内容（核心渲染函数）
+   * @param {HTMLElement} inputEl - 当前输入框
+   * @param {string} domain - 当前域名
+   * @param {string} query - 搜索关键词
+   * @param {boolean} showForm - 是否显示添加表单
+   * @param {Object} editingItem - 正在编辑的条目（null 表示非编辑状态）
+   */
   function renderPanel(inputEl, domain, query, showForm, editingItem) {
     if (!panelEl) return;
-    panelEl.innerHTML = '';
+    panelEl.innerHTML = '';  // 清空面板
 
+    // 获取数据并过滤
     var _ref = getItemsForDomain(domain);
     var globals     = _ref.global;
     var domainItems = _ref.domainItems;
 
     var q = query.toLowerCase();
+    // 过滤函数：按标签或值搜索
     function filt(arr) {
       return !q ? arr : arr.filter(function (i) {
         return i.label.toLowerCase().indexOf(q) !== -1
             || i.value.toLowerCase().indexOf(q) !== -1;
       });
     }
-    var fg = filt(globals);
-    var fd = filt(domainItems);
+    var fg = filt(globals);     // 过滤后的全局条目
+    var fd = filt(domainItems); // 过滤后的域名条目
 
     /* ── 顶部搜索栏 ── */
     var head = document.createElement('div');
@@ -371,6 +508,7 @@
     srch.type = 'text';
     srch.placeholder = '搜索...';
     srch.value = query;
+    // 输入时重新渲染（实现实时搜索）
     srch.addEventListener('input', function (e) {
       renderPanel(inputEl, domain, e.target.value, false, null);
     });
@@ -388,6 +526,7 @@
     var list = document.createElement('div');
     list.className = 'afh-list';
 
+    // 空状态
     if (fd.length === 0 && fg.length === 0) {
       var empty = document.createElement('div');
       empty.className = 'afh-empty';
@@ -411,7 +550,7 @@
       if (fd.length > 0) {
         var div = document.createElement('div');
         div.className = 'afh-divider';
-        list.appendChild(div);
+        list.appendChild(div);  // 添加分隔线
       }
       var lbl2 = document.createElement('div');
       lbl2.className = 'afh-glabel';
@@ -446,14 +585,14 @@
     mgBtn.textContent = '管理全部';
     mgBtn.addEventListener('click', function () {
       closePanel();
-      openSettingsPage();
+      openSettingsPage();  // 打开设置页
     });
 
     foot.appendChild(addBtn);
     foot.appendChild(mgBtn);
     panelEl.appendChild(foot);
 
-    // 自动聚焦搜索框
+    // 自动聚焦搜索框（非表单状态）
     if (!showForm && !editingItem) {
       setTimeout(function () {
         var s = panelEl && panelEl.querySelector('.afh-search');
@@ -462,10 +601,20 @@
     }
   }
 
+  /**
+   * 构建单个条目元素
+   * @param {Object} item - 条目数据
+   * @param {string} scope - 作用域
+   * @param {HTMLElement} inputEl - 当前输入框
+   * @param {string} domain - 当前域名
+   * @param {string} query - 当前搜索关键词
+   * @returns {HTMLElement} 条目 DOM 元素
+   */
   function buildItemEl(item, scope, inputEl, domain, query) {
     var el = document.createElement('div');
     el.className = 'afh-item';
 
+    // 信息区
     var info = document.createElement('div');
     info.className = 'afh-item-info';
 
@@ -476,18 +625,21 @@
     var val = document.createElement('div');
     val.className = 'afh-item-val';
     val.textContent = item.value;
-    val.title = item.value;
+    val.title = item.value;  // 完整内容显示在 tooltip
 
     info.appendChild(lbl);
     info.appendChild(val);
 
+    // 操作按钮区
     var acts = document.createElement('div');
     acts.className = 'afh-item-acts';
 
+    // 编辑按钮
     var ebtn = document.createElement('button');
     ebtn.className = 'afh-abtn';
     ebtn.innerHTML = ICON_EDIT;
     ebtn.title = '编辑';
+    // 使用闭包保存 item 和 scope 的引用
     (function (it, sc) {
       ebtn.addEventListener('click', function (e) {
         e.stopPropagation();
@@ -496,6 +648,7 @@
       });
     })(item, scope);
 
+    // 删除按钮
     var dbtn = document.createElement('button');
     dbtn.className = 'afh-abtn del';
     dbtn.innerHTML = ICON_DEL;
@@ -513,6 +666,7 @@
     el.appendChild(info);
     el.appendChild(acts);
 
+    // 点击条目填充内容
     el.addEventListener('click', function () {
       fillInput(inputEl, item.value);
       closePanel();
@@ -521,15 +675,25 @@
     return el;
   }
 
+  /**
+   * 构建添加/编辑表单
+   * @param {HTMLElement} inputEl - 当前输入框
+   * @param {string} domain - 当前域名
+   * @param {string} query - 当前搜索关键词
+   * @param {Object} editingItem - 编辑条目（null 表示新增）
+   * @returns {HTMLElement} 表单 DOM 元素
+   */
   function buildForm(inputEl, domain, query, editingItem) {
     var form = document.createElement('div');
     form.className = 'afh-form';
 
+    // 标签输入
     var lblInput = document.createElement('input');
     lblInput.className = 'afh-finput';
     lblInput.placeholder = '标签（如：姓名、测试账号）';
     lblInput.value = editingItem ? editingItem.label : '';
 
+    // 值输入（默认填充当前输入框内容）
     var valInput = document.createElement('input');
     valInput.className = 'afh-finput';
     valInput.placeholder = '填入内容';
@@ -539,6 +703,7 @@
     var row = document.createElement('div');
     row.className = 'afh-frow';
 
+    // 作用域选择
     var scopeSel = document.createElement('select');
     scopeSel.className = 'afh-fsel';
 
@@ -549,11 +714,13 @@
     scopeSel.appendChild(optG);
     scopeSel.appendChild(optD);
 
+    // 编辑模式：锁定作用域
     if (editingItem) {
       scopeSel.value = editingItem.scope;
       scopeSel.disabled = true;
     }
 
+    // 保存按钮
     var saveBtn = document.createElement('button');
     saveBtn.className = 'afh-fbtn pri';
     saveBtn.style.flex = '1';
@@ -562,13 +729,13 @@
     saveBtn.addEventListener('click', function () {
       var lv = lblInput.value.trim();
       var vv = valInput.value.trim();
-      if (!lv || !vv) return;
+      if (!lv || !vv) return;  // 必填校验
       if (editingItem) editItem(editingItem.scope, editingItem.id, lv, vv);
       else             addItem(scopeSel.value, lv, vv);
-      renderPanel(inputEl, domain, query, false, null);
+      renderPanel(inputEl, domain, query, false, null);  // 保存后重新渲染
     });
 
-    // Enter 触发保存
+    // Enter 键触发保存
     function onEnter(e) { if (e.key === 'Enter') saveBtn.click(); }
     lblInput.addEventListener('keydown', onEnter);
     valInput.addEventListener('keydown', onEnter);
@@ -579,27 +746,37 @@
     form.appendChild(valInput);
     form.appendChild(row);
 
+    // 聚焦标签输入框
     setTimeout(function () { lblInput.focus(); }, 20);
     return form;
   }
 
+  /**
+   * 将值填入输入框（支持 React/Vue/Angular 等框架）
+   * @param {HTMLElement} el - 输入框元素
+   * @param {string} value - 要填入的值
+   */
   function fillInput(el, value) {
     el.focus();
     try {
+      // 获取原型上的 value 属性描述符（解决某些框架的限制）
       var proto = el.tagName === 'TEXTAREA'
         ? window.HTMLTextAreaElement.prototype
         : window.HTMLInputElement.prototype;
       var desc = Object.getOwnPropertyDescriptor(proto, 'value');
-      if (desc && desc.set) desc.set.call(el, value);
+      if (desc && desc.set) desc.set.call(el, value);  // 使用原型方法设置
       else el.value = value;
     } catch (_) {
-      el.value = value;
+      el.value = value;  // 降级方案
     }
-    // 触发 React / Vue / Angular 等框架的合成事件
+    // 触发合成事件，通知框架数据变更
     el.dispatchEvent(new Event('input',  { bubbles: true }));
     el.dispatchEvent(new Event('change', { bubbles: true }));
   }
 
+  /**
+   * 关闭面板
+   */
   function closePanel() {
     if (panelEl) { panelEl.remove(); panelEl = null; }
     if (iconEl)  iconEl.style.display = 'none';
@@ -612,10 +789,14 @@
     if (path.indexOf(hostEl) === -1) closePanel();
   }, true);
 
-  // ══════════════════════════════════════════════════════════
-  //  设置页（新标签页 + DOM 动态构建，无模板字面量嵌套）
-  // ══════════════════════════════════════════════════════════
+  // ════════════════════════════════════════════════════════════════════════
+  //  设置页模块（Settings Page）
+  //  新标签页形式打开，提供完整的数据管理功能
+  // ════════════════════════════════════════════════════════════════════════
 
+  /**
+   * 打开设置页
+   */
   function openSettingsPage() {
     // Tampermonkey 沙箱隔离下，必须挂在 unsafeWindow（页面真实 window）上，
     // 设置页通过 window.opener 访问的才是同一个对象。
@@ -637,8 +818,10 @@
     win.document.close();
   }
 
-  /* ── 设置页 HTML 骨架（脚本部分全用普通字符串拼接，避免模板字面量嵌套）── */
-
+  /**
+   * 构建设置页完整 HTML
+   * @returns {string} HTML 字符串
+   */
   function buildSettingsHtml() {
     return '<!DOCTYPE html><html lang="zh-CN"><head>'
       + '<meta charset="UTF-8">'
@@ -653,6 +836,10 @@
       + '</body></html>';
   }
 
+  /**
+   * 构建设置页样式
+   * @returns {string} CSS 字符串
+   */
   function buildSettingsStyles() {
     return ''
       + '* { box-sizing: border-box; margin: 0; padding: 0; }'
@@ -748,15 +935,14 @@
       + '.s-io-row { display: flex; gap: 6px; margin-top: 8px; align-items: center; }';
   }
 
-  /* ── 设置页逻辑脚本（全部用普通字符串，零模板字面量）── */
+  /**
+   * 构建设置页逻辑脚本
+   * 注意：此函数返回的字符串将被注入到设置页的 <script> 标签内执行
+   * @returns {string} JavaScript 代码字符串
+   */
   function buildSettingsScript() {
-    /*
-     * 这段字符串将被注入到设置页的 <script> 标签内执行。
-     * 使用 Unicode 转义书写中文，避免潜在编码问题。
-     * 使用 api = window.opener.__afhAPI 访问主窗口的 GM 数据层。
-     */
     return ''
-      /* 获取 API */
+      /* 获取 API（从主窗口获取）*/
       + 'var api = window.opener && window.opener.__afhAPI;'
       + 'if (!api) {'
       + '  document.getElementById("afh-root").innerHTML'
@@ -765,7 +951,7 @@
       + '  return;'
       + '}'
 
-      /* 状态 */
+      /* 状态：当前筛选条件 */
       + 'var filter = "all";'
 
       /* 工具函数 */
@@ -788,7 +974,7 @@
       + '  return r;'
       + '}'
 
-      /* ── render() ── */
+      /* ── render() 主渲染函数 ── */
       + 'function render() {'
       + '  var root = document.getElementById("afh-root");'
       + '  root.innerHTML = "";'
@@ -952,7 +1138,7 @@
       + '  root.appendChild(ioCard);'
       + '}'  /* end render */
 
-      /* ── openModal(item) ── */
+      /* ── openModal(item) 弹窗函数 ── */
       + 'function openModal(item) {'
       + '  var old = document.getElementById("afh-modal");'
       + '  if (old) old.remove();'
@@ -1077,9 +1263,9 @@
       + 'render();';
   }
 
-  // ══════════════════════════════════════════════════════════
+  // ════════════════════════════════════════════════════════════════════════
   //  Tampermonkey 菜单注册
-  // ══════════════════════════════════════════════════════════
+  // ════════════════════════════════════════════════════════════════════════
   GM_registerMenuCommand('\u81ea\u52a8\u586b\u5165\u7ba1\u7406', openSettingsPage);
 
 })();
