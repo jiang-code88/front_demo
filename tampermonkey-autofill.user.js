@@ -194,104 +194,292 @@
   // 创建样式元素并注入所有样式
   var styleEl = document.createElement('style');
   styleEl.textContent = [
-    '*, *::before, *::after { box-sizing: border-box; }',  // 全局盒模型
+    /* ──────────────────────────────────────────────────────────────── */
+    /* 全局重置样式 */
+    /* ──────────────────────────────────────────────────────────────── */
+    '*, *::before, *::after {',
+    '  box-sizing: border-box;',  /* 盒模型：宽高包含 padding 和 border */
+    '}',
 
-    /* ── 触发图标样式 ── */
+    /* ──────────────────────────────────────────────────────────────── */
+    /* 触发图标样式 (点击输入框时出现的小图标) */
+    /* ──────────────────────────────────────────────────────────────── */
     '.afh-icon {',
-    '  position: fixed;',
-    '  width: 22px; height: 22px;',
-    '  background: #4f46e5;       /* 紫色主色调 */',
-    '  border-radius: 5px;',
-    '  cursor: pointer;',
-    '  pointer-events: all;',     // 覆盖宿主的 pointerEvents: none
-    '  display: flex; align-items: center; justify-content: center;',
-    '  opacity: 0.82;',
-    '  transition: opacity .15s, transform .1s;',
-    '  user-select: none;',
+    '  position: fixed;',        /* 固定定位：相对于视口，滚动时位置不变 */
+    '  width: 22px;',            /* 宽度 22px */
+    '  height: 22px;',           /* 高度 22px */
+    '  background: #4f46e5;',    /* 背景色：紫色（主色调）*/
+    '  border-radius: 5px;',     /* 圆角：5px，让图标呈圆角方形 */
+    '  cursor: pointer;',        /* 鼠标样式：手型，提示可点击 */
+    '  pointer-events: all;',    /* 鼠标事件：允许接收点击等事件 */
+    '  display: flex;',          /* Flex 布局：子元素可灵活排列 */
+    '  align-items: center;',    /* 垂直居中：子元素在垂直方向居中 */
+    '  justify-content: center;',/* 水平居中：子元素在水平方向居中 */
+    '  opacity: 0.82;',         /* 透明度：82%，稍微有点透明 */
+    '  transition: opacity .15s, transform .1s;',  /* 过渡动画：透明度和缩放变化时平滑过渡 */
+    '  user-select: none;',      /* 用户选择：禁止选中图标 */
     '}',
-    '.afh-icon:hover { opacity: 1; transform: scale(1.08); }',  // hover 效果
-    '.afh-icon svg { width: 12px; height: 12px; fill: #fff; pointer-events: none; }',
+    '.afh-icon:hover {',
+    '  opacity: 1;',             /* hover 时：完全不透明 */
+    '  transform: scale(1.08);', /* hover 时：放大到 108% */
+    '}',
+    '.afh-icon svg {',
+    '  width: 12px;',            /* SVG 图标宽度 */
+    '  height: 12px;',           /* SVG 图标高度 */
+    '  fill: #fff;',             /* SVG 填充颜色：白色 */
+    '  pointer-events: none;',   /* SVG 不接收鼠标事件（点击穿透）*/
+    '}',
 
-    /* ── 候选面板样式 ── */
+    /* ──────────────────────────────────────────────────────────────── */
+    /* 候选面板样式 (点击图标后弹出的面板) */
+    /* ──────────────────────────────────────────────────────────────── */
     '.afh-panel {',
-    '  position: fixed;',
-    '  width: 300px; max-height: 400px;',
-    '  background: #fff;',
-    '  border: 1px solid #e5e7eb;',
-    '  border-radius: 10px;',
+    '  position: fixed;',        /* 固定定位 */
+    '  width: 300px;',           /* 面板宽度 300px */
+    '  max-height: 400px;',      /* 最大高度 400px（超过则滚动）*/
+    '  background: #fff;',       /* 背景色：白色 */
+    '  border: 1px solid #e5e7eb;',  /* 边框：1px 灰色实线 */
+    '  border-radius: 10px;',    /* 圆角：10px */
     '  box-shadow: 0 8px 30px rgba(0,0,0,.13), 0 2px 8px rgba(0,0,0,.06);',
-    '  pointer-events: all;',
-    '  display: flex; flex-direction: column;',
-    '  overflow: hidden;',
+                                 /* 阴影：两层阴影，外层柔和，内层清晰 */
+    '  pointer-events: all;',    /* 允许接收鼠标事件 */
+    '  display: flex;',          /* Flex 布局 */
+    '  flex-direction: column;', /* 子元素垂直排列 */
+    '  overflow: hidden;',       /* 超出部分隐藏（配合圆角）*/
     '  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;',
-    '  font-size: 13px; color: #111827;',
+                                 /* 字体：系统字体，适配不同平台 */
+    '  font-size: 13px;',        /* 字体大小 */
+    '  color: #111827;',         /* 文字颜色：深灰色 */
     '}',
 
+    /* ──────────────────────────────────────────────────────────────── */
     /* 顶部搜索栏 */
-    '.afh-head { display: flex; align-items: center; gap: 6px;',
-    '  padding: 8px 10px; border-bottom: 1px solid #f3f4f6; flex-shrink: 0; }',
-    '.afh-search { flex: 1; height: 28px;',
-    '  border: 1px solid #e5e7eb; border-radius: 6px;',
-    '  padding: 0 8px; font-size: 12px; outline: none;',
-    '  color: #111827; background: #f9fafb; }',
-    '.afh-search:focus { border-color: #4f46e5; background: #fff; }',
-    '.afh-xbtn { width: 22px; height: 22px; border: none; background: none;',
-    '  cursor: pointer; border-radius: 4px; color: #9ca3af;',
-    '  font-size: 16px; line-height: 1; padding: 0;',
-    '  display: flex; align-items: center; justify-content: center; }',
-    '.afh-xbtn:hover { background: #f3f4f6; color: #374151; }',
+    /* ──────────────────────────────────────────────────────────────── */
+    '.afh-head {',
+    '  display: flex;',          /* Flex 布局 */
+    '  align-items: center;',    /* 垂直居中 */
+    '  gap: 6px;',               /* 子元素间距 6px */
+    '  padding: 8px 10px;',      /* 内边距：上下 8px，左右 10px */
+    '  border-bottom: 1px solid #f3f4f6;',  /* 底部边框：浅灰色 */
+    '  flex-shrink: 0;',         /* 不允许缩小 */
+    '}',
+    '.afh-search {',
+    '  flex: 1;',                /* 占据剩余空间 */
+    '  height: 28px;',           /* 高度 */
+    '  border: 1px solid #e5e7eb;', /* 边框 */
+    '  border-radius: 6px;',     /* 圆角 */
+    '  padding: 0 8px;',         /* 水平内边距 */
+    '  font-size: 12px;',        /* 字体大小 */
+    '  outline: none;',          /* 移除默认聚焦轮廓 */
+    '  color: #111827;',         /* 文字颜色 */
+    '  background: #f9fafb;',    /* 背景色：浅灰 */
+    '}',
+    '.afh-search:focus {',
+    '  border-color: #4f46e5;',  /* 聚焦时边框变紫色 */
+    '  background: #fff;',       /* 聚焦时背景变白 */
+    '}',
+    '.afh-xbtn {',               /* 关闭按钮 */
+    '  width: 22px;',
+    '  height: 22px;',
+    '  border: none;',           /* 无边框 */
+    '  background: none;',       /* 无背景 */
+    '  cursor: pointer;',        /* 手型鼠标 */
+    '  border-radius: 4px;',     /* 圆角 */
+    '  color: #9ca3af;',         /* 灰色 */
+    '  font-size: 16px;',
+    '  line-height: 1;',         /* 行高等于字号，垂直居中 */
+    '  padding: 0;',             /* 无内边距 */
+    '  display: flex;',
+    '  align-items: center;',
+    '  justify-content: center;',
+    '}',
+    '.afh-xbtn:hover {',
+    '  background: #f3f4f6;',    /* hover 时浅灰背景 */
+    '  color: #374151;',         /* hover 时深灰文字 */
+    '}',
 
+    /* ──────────────────────────────────────────────────────────────── */
     /* 列表区 */
-    '.afh-list { flex: 1; overflow-y: auto; padding: 4px 0; }',
-    '.afh-list::-webkit-scrollbar { width: 4px; }',
-    '.afh-list::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 2px; }',
-    '.afh-glabel { font-size: 10px; font-weight: 700; color: #9ca3af;',
-    '  text-transform: uppercase; letter-spacing: .08em; padding: 6px 10px 3px; }',
-    '.afh-divider { height: 1px; background: #f3f4f6; margin: 3px 10px; }',
-    '.afh-empty { text-align: center; color: #9ca3af; font-size: 12px; padding: 18px 10px; }',
+    /* ──────────────────────────────────────────────────────────────── */
+    '.afh-list {',
+    '  flex: 1;',                /* 占据剩余空间 */
+    '  overflow-y: auto;',       /* 垂直方向超出时滚动 */
+    '  padding: 4px 0;',         /* 上下内边距 */
+    '}',
+    '.afh-list::-webkit-scrollbar {',  /* 自定义滚动条宽度 */
+    '  width: 4px;',
+    '}',
+    '.afh-list::-webkit-scrollbar-thumb {',  /* 自定义滚动条滑块 */
+    '  background: #e5e7eb;',    /* 滑块颜色 */
+    '  border-radius: 2px;',     /* 滑块圆角 */
+    '}',
+    '.afh-glabel {',             /* 分组标签（如"全局"、"当前站点"）*/
+    '  font-size: 10px;',
+    '  font-weight: 700;',       /* 粗体 */
+    '  color: #9ca3af;',         /* 灰色 */
+    '  text-transform: uppercase;', /* 转大写 */
+    '  letter-spacing: .08em;',  /* 字母间距 */
+    '  padding: 6px 10px 3px;',  /* 内边距 */
+    '}',
+    '.afh-divider {',            /* 分隔线 */
+    '  height: 1px;',            /* 高度 1px（水平线）*/
+    '  background: #f3f4f6;',    /* 浅灰色 */
+    '  margin: 3px 10px;',       /* 上下边距 3px，左右 10px */
+    '}',
+    '.afh-empty {',              /* 空状态 */
+    '  text-align: center;',     /* 文字居中 */
+    '  color: #9ca3af;',         /* 灰色 */
+    '  font-size: 12px;',
+    '  padding: 18px 10px;',     /* 内边距 */
+    '}',
 
+    /* ──────────────────────────────────────────────────────────────── */
     /* 条目行 */
-    '.afh-item { display: flex; align-items: center; gap: 8px;',
-    '  padding: 6px 10px; cursor: pointer; transition: background .08s; }',
-    '.afh-item:hover { background: #f5f3ff; }  /* 浅紫色 hover 背景 */',
-    '.afh-item-info { flex: 1; min-width: 0; }',
-    '.afh-item-lbl { font-size: 10px; color: #a78bfa; font-weight: 600; margin-bottom: 1px; }',
-    '.afh-item-val { font-size: 12px; color: #1f2937;',
-    '  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }',
-    '.afh-item-acts { display: none; gap: 2px; }',
-    '.afh-item:hover .afh-item-acts { display: flex; }  /* hover 时显示操作按钮 */',
+    /* ──────────────────────────────────────────────────────────────── */
+    '.afh-item {',               /* 每个候选条目 */
+    '  display: flex;',
+    '  align-items: center;',
+    '  gap: 8px;',               /* 内容和操作按钮间距 */
+    '  padding: 6px 10px;',      /* 内边距 */
+    '  cursor: pointer;',        /* 手型鼠标 */
+    '  transition: background .08s;',  /* 背景变化过渡 */
+    '}',
+    '.afh-item:hover {',
+    '  background: #f5f3ff;',    /* hover 时浅紫色背景 */
+    '}',
+    '.afh-item-info {',          /* 条目信息区 */
+    '  flex: 1;',                /* 占据剩余空间 */
+    '  min-width: 0;',           /* 允许缩小到 0（防止溢出）*/
+    '}',
+    '.afh-item-lbl {',           /* 条目标签 */
+    '  font-size: 10px;',
+    '  color: #a78bfa;',         /* 紫色 */
+    '  font-weight: 600;',       /* 半粗体 */
+    '  margin-bottom: 1px;',     /* 与下方内容间距 */
+    '}',
+    '.afh-item-val {',           /* 条目值 */
+    '  font-size: 12px;',
+    '  color: #1f2937;',         /* 深灰色 */
+    '  white-space: nowrap;',    /* 不换行 */
+    '  overflow: hidden;',       /* 超出隐藏 */
+    '  text-overflow: ellipsis;',/* 超出显示省略号 */
+    '}',
+    '.afh-item-acts {',          /* 操作按钮区 */
+    '  display: none;',          /* 默认隐藏 */
+    '  gap: 2px;',               /* 按钮间距 */
+    '}',
+    '.afh-item:hover .afh-item-acts {',
+    '  display: flex;',          /* hover 时显示 */
+    '}',
 
-    /* 条目操作按钮 */
-    '.afh-abtn { width: 20px; height: 20px; border: none; background: none;',
-    '  cursor: pointer; border-radius: 3px; display: flex;',
-    '  align-items: center; justify-content: center; color: #9ca3af; padding: 0; }',
-    '.afh-abtn:hover { background: #ede9fe; color: #6d28d9; }',
-    '.afh-abtn.del:hover { background: #fee2e2; color: #dc2626; }',  /* 删除按钮红色 */
-    '.afh-abtn svg { width: 11px; height: 11px; fill: currentColor; pointer-events: none; }',
+    /* ──────────────────────────────────────────────────────────────── */
+    /* 条目操作按钮（编辑/删除）*/
+    /* ──────────────────────────────────────────────────────────────── */
+    '.afh-abtn {',
+    '  width: 20px;',
+    '  height: 20px;',
+    '  border: none;',
+    '  background: none;',
+    '  cursor: pointer;',
+    '  border-radius: 3px;',
+    '  display: flex;',
+    '  align-items: center;',
+    '  justify-content: center;',
+    '  color: #9ca3af;',         /* 默认灰色 */
+    '  padding: 0;',
+    '}',
+    '.afh-abtn:hover {',
+    '  background: #ede9fe;',    /* hover 浅紫背景 */
+    '  color: #6d28d9;',         /* hover 深紫文字 */
+    '}',
+    '.afh-abtn.del:hover {',     /* 删除按钮特殊样式 */
+    '  background: #fee2e2;',    /* 浅红背景 */
+    '  color: #dc2626;',         /* 红色文字 */
+    '}',
+    '.afh-abtn svg {',
+    '  width: 11px;',
+    '  height: 11px;',
+    '  fill: currentColor;',     /* 继承父元素颜色 */
+    '  pointer-events: none;',
+    '}',
 
+    /* ──────────────────────────────────────────────────────────────── */
     /* 底部工具栏 */
-    '.afh-foot { flex-shrink: 0; padding: 7px 10px;',
-    '  border-top: 1px solid #f3f4f6; display: flex; gap: 6px; }',
-    '.afh-fbtn { flex: 1; height: 26px; border-radius: 6px;',
-    '  border: 1px solid #e5e7eb; background: #f9fafb;',
-    '  font-size: 11px; cursor: pointer; color: #374151; transition: background .1s; }',
-    '.afh-fbtn:hover { background: #f3f4f6; }',
-    '.afh-fbtn.pri { background: #4f46e5; color: #fff; border-color: #4f46e5; }',  /* 主按钮样式 */
-    '.afh-fbtn.pri:hover { background: #4338ca; }',
+    /* ──────────────────────────────────────────────────────────────── */
+    '.afh-foot {',
+    '  flex-shrink: 0;',         /* 不允许缩小 */
+    '  padding: 7px 10px;',      /* 内边距 */
+    '  border-top: 1px solid #f3f4f6;',  /* 顶部边框 */
+    '  display: flex;',
+    '  gap: 6px;',               /* 按钮间距 */
+    '}',
+    '.afh-fbtn {',               /* 底部按钮 */
+    '  flex: 1;',                /* 平分空间 */
+    '  height: 26px;',           /* 高度 */
+    '  border-radius: 6px;',     /* 圆角 */
+    '  border: 1px solid #e5e7eb;', /* 边框 */
+    '  background: #f9fafb;',    /* 浅灰背景 */
+    '  font-size: 11px;',        /* 小号字体 */
+    '  cursor: pointer;',
+    '  color: #374151;',         /* 深灰色文字 */
+    '  transition: background .1s;',
+    '}',
+    '.afh-fbtn:hover {',
+    '  background: #f3f4f6;',    /* hover 背景变深一点 */
+    '}',
+    '.afh-fbtn.pri {',           /* 主按钮（紫色）*/
+    '  background: #4f46e5;',    /* 紫色背景 */
+    '  color: #fff;',            /* 白色文字 */
+    '  border-color: #4f46e5;',  /* 紫色边框 */
+    '}',
+    '.afh-fbtn.pri:hover {',
+    '  background: #4338ca;',    /* hover 时紫色变深 */
+    '}',
 
+    /* ──────────────────────────────────────────────────────────────── */
     /* 内联添加/编辑表单 */
-    '.afh-form { flex-shrink: 0; padding: 8px 10px;',
-    '  border-top: 1px solid #f3f4f6; background: #fafafa;',
-    '  display: flex; flex-direction: column; gap: 5px; }',
-    '.afh-finput { width: 100%; height: 27px;',
-    '  border: 1px solid #e5e7eb; border-radius: 5px;',
-    '  padding: 0 8px; font-size: 12px; outline: none; color: #111827; background: #fff; }',
-    '.afh-finput:focus { border-color: #4f46e5; }',
-    '.afh-frow { display: flex; gap: 5px; }',
-    '.afh-fsel { height: 27px; border: 1px solid #e5e7eb; border-radius: 5px;',
-    '  padding: 0 6px; font-size: 11px; outline: none; color: #111827;',
-    '  background: #fff; cursor: pointer; }',
-    '.afh-fsel:focus { border-color: #4f46e5; }',
+    /* ──────────────────────────────────────────────────────────────── */
+    '.afh-form {',
+    '  flex-shrink: 0;',
+    '  padding: 8px 10px;',
+    '  border-top: 1px solid #f3f4f6;',
+    '  background: #fafafa;',    /* 浅灰背景 */
+    '  display: flex;',
+    '  flex-direction: column;', /* 垂直排列 */
+    '  gap: 5px;',               /* 表单元素间距 */
+    '}',
+    '.afh-finput {',             /* 表单输入框 */
+    '  width: 100%;',            /* 宽度 100% */
+    '  height: 27px;',
+    '  border: 1px solid #e5e7eb;',
+    '  border-radius: 5px;',
+    '  padding: 0 8px;',         /* 水平内边距 */
+    '  font-size: 12px;',
+    '  outline: none;',          /* 移除默认聚焦框 */
+    '  color: #111827;',
+    '  background: #fff;',
+    '}',
+    '.afh-finput:focus {',
+    '  border-color: #4f46e5;',  /* 聚焦时紫色边框 */
+    '}',
+    '.afh-frow {',               /* 表单行 */
+    '  display: flex;',
+    '  gap: 5px;',
+    '}',
+    '.afh-fsel {',               /* 表单选择框 */
+    '  height: 27px;',
+    '  border: 1px solid #e5e7eb;',
+    '  border-radius: 5px;',
+    '  padding: 0 6px;',
+    '  font-size: 11px;',
+    '  outline: none;',
+    '  color: #111827;',
+    '  background: #fff;',
+    '  cursor: pointer;',
+    '}',
+    '.afh-fsel:focus {',
+    '  border-color: #4f46e5;',
+    '}',
   ].join('\n');
   shadow.appendChild(styleEl);
 
@@ -842,97 +1030,354 @@
    */
   function buildSettingsStyles() {
     return ''
-      + '* { box-sizing: border-box; margin: 0; padding: 0; }'
-      + 'body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;'
-      + '  background: #f3f4f6; color: #111827; min-height: 100vh; }'
+      /* ──────────────────────────────────────────────────────────────── */
+      /* 设置页全局样式 */
+      /* ──────────────────────────────────────────────────────────────── */
+      + '* {',
+      + '  box-sizing: border-box;',  /* 盒模型：宽高包含 padding/border */
+      + '  margin: 0;',               /* 移除默认外边距 */
+      + '  padding: 0;',              /* 移除默认内边距 */
+      + '}'
+      + 'body {',
+      + '  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;',  /* 系统字体 */
+      + '  background: #f3f4f6;',     /* 浅灰背景 */
+      + '  color: #111827;',          /* 深灰文字 */
+      + '  min-height: 100vh;',       /* 最小高度：视口高度 */
+      + '}'
 
-      + '.s-hd { background: #4f46e5; color: #fff; padding: 14px 24px;'
-      + '  display: flex; align-items: center; gap: 16px; }'
-      + '.s-hd-logo { width: 32px; height: 32px; background: rgba(255,255,255,.2);'
-      + '  border-radius: 8px; display: flex; align-items: center; justify-content: center;'
-      + '  font-size: 16px; flex-shrink: 0; }'
-      + '.s-hd h1 { font-size: 17px; font-weight: 700; }'
-      + '.s-hd p { font-size: 12px; opacity: .75; margin-top: 2px; }'
+      /* ──────────────────────────────────────────────────────────────── */
+      /* 页面头部 */
+      /* ──────────────────────────────────────────────────────────────── */
+      + '.s-hd {',
+      + '  background: #4f46e5;',     /* 紫色背景 */
+      + '  color: #fff;',             /* 白色文字 */
+      + '  padding: 14px 24px;',      /* 内边距 */
+      + '  display: flex;',           /* Flex 布局 */
+      + '  align-items: center;',     /* 垂直居中 */
+      + '  gap: 16px;',               /* 子元素间距 */
+      + '}'
+      + '.s-hd-logo {',
+      + '  width: 32px;',             /* 宽高 32px */
+      + '  height: 32px;',
+      + '  background: rgba(255,255,255,.2);',  /* 白色半透明背景 */
+      + '  border-radius: 8px;',      /* 圆角 */
+      + '  display: flex;',
+      + '  align-items: center;',
+      + '  justify-content: center;',
+      + '  font-size: 16px;',
+      + '  flex-shrink: 0;',          /* 不缩小 */
+      + '}'
+      + '.s-hd h1 {',
+      + '  font-size: 17px;',         /* 标题字体大小 */
+      + '  font-weight: 700;',        /* 粗体 */
+      + '}'
+      + '.s-hd p {',
+      + '  font-size: 12px;',         /* 副标题字体 */
+      + '  opacity: .75;',            /* 半透明 */
+      + '  margin-top: 2px;',         /* 与上方间距 */
+      + '}'
 
-      + '.s-wrap { max-width: 880px; margin: 0 auto; padding: 20px 16px; }'
+      /* ──────────────────────────────────────────────────────────────── */
+      /* 内容容器 */
+      /* ──────────────────────────────────────────────────────────────── */
+      + '.s-wrap {',
+      + '  max-width: 880px;',        /* 最大宽度 */
+      + '  margin: 0 auto;',          /* 水平居中 */
+      + '  padding: 20px 16px;',      /* 内边距 */
+      + '}'
 
-      + '.s-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px;'
-      + '  margin-bottom: 16px; overflow: hidden; }'
-      + '.s-card-hd { padding: 12px 18px; border-bottom: 1px solid #f3f4f6;'
-      + '  display: flex; align-items: center; justify-content: space-between; }'
-      + '.s-card-title { font-size: 14px; font-weight: 600; color: #374151; }'
+      /* ──────────────────────────────────────────────────────────────── */
+      /* 卡片组件 */
+      /* ──────────────────────────────────────────────────────────────── */
+      + '.s-card {',
+      + '  background: #fff;',        /* 白色背景 */
+      + '  border: 1px solid #e5e7eb;', /* 灰色边框 */
+      + '  border-radius: 10px;',     /* 圆角 */
+      + '  margin-bottom: 16px;',     /* 底部外边距 */
+      + '  overflow: hidden;',        /* 溢出隐藏 */
+      + '}'
+      + '.s-card-hd {',
+      + '  padding: 12px 18px;',      /* 内边距 */
+      + '  border-bottom: 1px solid #f3f4f6;',  /* 底部边框 */
+      + '  display: flex;',
+      + '  align-items: center;',
+      + '  justify-content: space-between;',  /* 两端对齐 */
+      + '}'
+      + '.s-card-title {',
+      + '  font-size: 14px;',
+      + '  font-weight: 600;',        /* 半粗体 */
+      + '  color: #374151;',          /* 深灰文字 */
+      + '}'
 
-      + '.s-chips { display: flex; gap: 6px; flex-wrap: wrap; padding: 12px 18px 0; }'
-      + '.s-chip { padding: 3px 12px; border-radius: 999px; font-size: 12px; cursor: pointer;'
-      + '  border: 1px solid #e5e7eb; background: #fff; color: #6b7280;'
-      + '  transition: all .1s; user-select: none; }'
-      + '.s-chip:hover { border-color: #a78bfa; color: #6d28d9; }'
-      + '.s-chip.active { background: #4f46e5; color: #fff; border-color: #4f46e5; }'
+      /* ──────────────────────────────────────────────────────────────── */
+      /* 筛选标签（Chip） */
+      /* ──────────────────────────────────────────────────────────────── */
+      + '.s-chips {',
+      + '  display: flex;',
+      + '  gap: 6px;',                /* 标签间距 */
+      + '  flex-wrap: wrap;',         /* 自动换行 */
+      + '  padding: 12px 18px 0;',    /* 内边距 */
+      + '}'
+      + '.s-chip {',
+      + '  padding: 3px 12px;',       /* 内边距 */
+      + '  border-radius: 999px;',    /* 圆形（超大圆角）*/
+      + '  font-size: 12px;',
+      + '  cursor: pointer;',
+      + '  border: 1px solid #e5e7eb;',
+      + '  background: #fff;',
+      + '  color: #6b7280;',          /* 灰色文字 */
+      + '  transition: all .1s;',     /* 过渡动画 */
+      + '  user-select: none;',       /* 禁止选中 */
+      + '}'
+      + '.s-chip:hover {',
+      + '  border-color: #a78bfa;',   /* hover 紫色边框 */
+      + '  color: #6d28d9;',          /* hover 紫色文字 */
+      + '}'
+      + '.s-chip.active {',           /* 选中状态 */
+      + '  background: #4f46e5;',     /* 紫色背景 */
+      + '  color: #fff;',             /* 白色文字 */
+      + '  border-color: #4f46e5;',   /* 紫色边框 */
+      + '}'
 
-      + '.s-toolbar { padding: 10px 18px; display: flex; gap: 8px;'
-      + '  flex-wrap: wrap; align-items: center; }'
+      /* ──────────────────────────────────────────────────────────────── */
+      /* 工具栏 */
+      /* ──────────────────────────────────────────────────────────────── */
+      + '.s-toolbar {',
+      + '  padding: 10px 18px;',
+      + '  display: flex;',
+      + '  gap: 8px;',
+      + '  flex-wrap: wrap;',         /* 自动换行 */
+      + '  align-items: center;',
+      + '}'
 
-      + '.s-table { width: 100%; border-collapse: collapse; }'
-      + '.s-table th { padding: 8px 16px; text-align: left; font-size: 11px; font-weight: 700;'
-      + '  color: #6b7280; text-transform: uppercase; letter-spacing: .06em;'
-      + '  border-bottom: 1px solid #f3f4f6; background: #fafafa; }'
-      + '.s-table td { padding: 9px 16px; font-size: 13px;'
-      + '  border-bottom: 1px solid #f9fafb; vertical-align: middle; }'
-      + '.s-table tbody tr:last-child td { border-bottom: none; }'
-      + '.s-table tbody tr:hover td { background: #fafafa; }'
+      /* ──────────────────────────────────────────────────────────────── */
+      /* 数据表格 */
+      /* ──────────────────────────────────────────────────────────────── */
+      + '.s-table {',
+      + '  width: 100%;',             /* 宽度 100% */
+      + '  border-collapse: collapse;', /* 合并边框 */
+      + '}'
+      + '.s-table th {',              /* 表头单元格 */
+      + '  padding: 8px 16px;',
+      + '  text-align: left;',        /* 左对齐 */
+      + '  font-size: 11px;',
+      + '  font-weight: 700;',
+      + '  color: #6b7280;',          /* 灰色 */
+      + '  text-transform: uppercase;', /* 转大写 */
+      + '  letter-spacing: .06em;',   /* 字母间距 */
+      + '  border-bottom: 1px solid #f3f4f6;',
+      + '  background: #fafafa;',     /* 浅灰背景 */
+      + '}'
+      + '.s-table td {',              /* 数据单元格 */
+      + '  padding: 9px 16px;',
+      + '  font-size: 13px;',
+      + '  border-bottom: 1px solid #f9fafb;',
+      + '  vertical-align: middle;',  /* 垂直居中 */
+      + '}'
+      + '.s-table tbody tr:last-child td {',
+      + '  border-bottom: none;',     /* 最后一行无边框 */
+      + '}'
+      + '.s-table tbody tr:hover td {',
+      + '  background: #fafafa;',     /* hover 浅灰背景 */
+      + '}'
 
-      + '.s-tag { display: inline-block; padding: 1px 8px; border-radius: 999px;'
-      + '  font-size: 11px; font-weight: 600; background: #ede9fe; color: #6d28d9; }'
-      + '.s-tag.dm { background: #dbeafe; color: #1d4ed8; }'
-      + '.s-empty { text-align: center; color: #9ca3af; font-size: 13px; padding: 28px; }'
+      /* ──────────────────────────────────────────────────────────────── */
+      /* 标签和空状态 */
+      /* ──────────────────────────────────────────────────────────────── */
+      + '.s-tag {',                   /* 小标签 */
+      + '  display: inline-block;',   /* 行内块 */
+      + '  padding: 1px 8px;',
+      + '  border-radius: 999px;',    /* 圆形 */
+      + '  font-size: 11px;',
+      + '  font-weight: 600;',
+      + '  background: #ede9fe;',     /* 浅紫背景 */
+      + '  color: #6d28d9;',          /* 紫色文字 */
+      + '}'
+      + '.s-tag.dm {',                /* 域名标签变体 */
+      + '  background: #dbeafe;',     /* 浅蓝背景 */
+      + '  color: #1d4ed8;',          /* 蓝色文字 */
+      + '}'
+      + '.s-empty {',                 /* 空状态 */
+      + '  text-align: center;',
+      + '  color: #9ca3af;',          /* 灰色 */
+      + '  font-size: 13px;',
+      + '  padding: 28px;',
+      + '}'
 
-      + '.s-btn { display: inline-flex; align-items: center; gap: 4px;'
-      + '  padding: 5px 12px; border-radius: 6px; font-size: 12px; cursor: pointer;'
-      + '  border: 1px solid #e5e7eb; background: #f9fafb; color: #374151;'
-      + '  transition: background .1s; white-space: nowrap; }'
-      + '.s-btn:hover { background: #f3f4f6; }'
-      + '.s-btn.pri { background: #4f46e5; color: #fff; border-color: #4f46e5; }'
-      + '.s-btn.pri:hover { background: #4338ca; }'
-      + '.s-btn.danger { color: #dc2626; border-color: #fca5a5; background: #fff; }'
-      + '.s-btn.danger:hover { background: #fef2f2; }'
+      /* ──────────────────────────────────────────────────────────────── */
+      /* 按钮样式 */
+      /* ──────────────────────────────────────────────────────────────── */
+      + '.s-btn {',                   /* 基础按钮 */
+      + '  display: inline-flex;',    /* 行内 Flex */
+      + '  align-items: center;',
+      + '  gap: 4px;',
+      + '  padding: 5px 12px;',
+      + '  border-radius: 6px;',
+      + '  font-size: 12px;',
+      + '  cursor: pointer;',
+      + '  border: 1px solid #e5e7eb;',
+      + '  background: #f9fafb;',     /* 浅灰背景 */
+      + '  color: #374151;',          /* 深灰文字 */
+      + '  transition: background .1s;',
+      + '  white-space: nowrap;',      /* 不换行 */
+      + '}'
+      + '.s-btn:hover {',
+      + '  background: #f3f4f6;',     /* hover 背景变深 */
+      + '}'
+      + '.s-btn.pri {',               /* 主按钮 */
+      + '  background: #4f46e5;',     /* 紫色背景 */
+      + '  color: #fff;',             /* 白色文字 */
+      + '  border-color: #4f46e5;',   /* 紫色边框 */
+      + '}'
+      + '.s-btn.pri:hover {',
+      + '  background: #4338ca;',     /* hover 深紫色 */
+      + '}'
+      + '.s-btn.danger {',            /* 危险按钮 */
+      + '  color: #dc2626;',          /* 红色文字 */
+      + '  border-color: #fca5a5;',   /* 浅红边框 */
+      + '  background: #fff;',
+      + '}'
+      + '.s-btn.danger:hover {',
+      + '  background: #fef2f2;',     /* hover 浅红背景 */
+      + '}'
 
-      + '.s-modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,.4);'
-      + '  display: flex; align-items: center; justify-content: center; z-index: 999; }'
-      + '.s-modal { background: #fff; border-radius: 10px; width: 440px; max-width: 96vw;'
-      + '  box-shadow: 0 20px 60px rgba(0,0,0,.18); }'
-      + '.s-modal-hd { padding: 14px 18px; border-bottom: 1px solid #f3f4f6;'
-      + '  display: flex; justify-content: space-between; align-items: center; }'
-      + '.s-modal-title { font-size: 15px; font-weight: 600; }'
-      + '.s-modal-close { background: none; border: none; font-size: 20px; cursor: pointer;'
-      + '  color: #9ca3af; line-height: 1; }'
-      + '.s-modal-close:hover { color: #111827; }'
-      + '.s-modal-body { padding: 18px; }'
-      + '.s-modal-ft { padding: 12px 18px; border-top: 1px solid #f3f4f6;'
-      + '  display: flex; justify-content: flex-end; gap: 8px; }'
+      /* ──────────────────────────────────────────────────────────────── */
+      /* 弹窗样式 */
+      /* ──────────────────────────────────────────────────────────────── */
+      + '.s-modal-bg {',              /* 弹窗背景遮罩 */
+      + '  position: fixed;',         /* 固定定位 */
+      + '  inset: 0;',                /* 覆盖全屏 */
+      + '  background: rgba(0,0,0,.4);',  /* 半透明黑色 */
+      + '  display: flex;',
+      + '  align-items: center;',     /* 垂直居中 */
+      + '  justify-content: center;', /* 水平居中 */
+      + '  z-index: 999;',            /* 层级最高 */
+      + '}'
+      + '.s-modal {',                 /* 弹窗内容 */
+      + '  background: #fff;',
+      + '  border-radius: 10px;',
+      + '  width: 440px;',            /* 固定宽度 */
+      + '  max-width: 96vw;',         /* 响应式最大宽度 */
+      + '  box-shadow: 0 20px 60px rgba(0,0,0,.18);',  /* 深色阴影 */
+      + '}'
+      + '.s-modal-hd {',              /* 弹窗头部 */
+      + '  padding: 14px 18px;',
+      + '  border-bottom: 1px solid #f3f4f6;',
+      + '  display: flex;',
+      + '  justify-content: space-between;',
+      + '  align-items: center;',
+      + '}'
+      + '.s-modal-title {',
+      + '  font-size: 15px;',
+      + '  font-weight: 600;',
+      + '}'
+      + '.s-modal-close {',           /* 关闭按钮 */
+      + '  background: none;',
+      + '  border: none;',
+      + '  font-size: 20px;',
+      + '  cursor: pointer;',
+      + '  color: #9ca3af;',          /* 灰色 */
+      + '  line-height: 1;',          /* 行高为 1 */
+      + '}'
+      + '.s-modal-close:hover {',
+      + '  color: #111827;',          /* hover 变黑 */
+      + '}'
+      + '.s-modal-body {',            /* 弹窗内容区 */
+      + '  padding: 18px;',
+      + '}'
+      + '.s-modal-ft {',              /* 弹窗底部 */
+      + '  padding: 12px 18px;',
+      + '  border-top: 1px solid #f3f4f6;',
+      + '  display: flex;',
+      + '  justify-content: flex-end;', /* 右对齐 */
+      + '  gap: 8px;',
+      + '}'
 
-      + '.s-fg { margin-bottom: 12px; }'
-      + '.s-fg:last-child { margin-bottom: 0; }'
-      + '.s-label { font-size: 13px; font-weight: 500; color: #374151;'
-      + '  margin-bottom: 4px; display: block; }'
-      + '.s-input { width: 100%; height: 34px; border: 1px solid #e5e7eb;'
-      + '  border-radius: 6px; padding: 0 10px; font-size: 13px; outline: none; color: #111827; }'
-      + '.s-input:focus { border-color: #4f46e5;'
-      + '  box-shadow: 0 0 0 3px rgba(79,70,229,.1); }'
-      + '.s-select { width: 100%; height: 34px; border: 1px solid #e5e7eb;'
-      + '  border-radius: 6px; padding: 0 10px; font-size: 13px; outline: none;'
-      + '  background: #fff; color: #111827; cursor: pointer; }'
-      + '.s-select:focus { border-color: #4f46e5; }'
+      /* ──────────────────────────────────────────────────────────────── */
+      /* 表单元素 */
+      /* ──────────────────────────────────────────────────────────────── */
+      + '.s-fg {',                    /* 表单组 */
+      + '  margin-bottom: 12px;',     /* 底部间距 */
+      + '}'
+      + '.s-fg:last-child {',
+      + '  margin-bottom: 0;',        /* 最后一个无间距 */
+      + '}'
+      + '.s-label {',                 /* 表单标签 */
+      + '  font-size: 13px;',
+      + '  font-weight: 500;',
+      + '  color: #374151;',
+      + '  margin-bottom: 4px;',
+      + '  display: block;',          /* 块级显示 */
+      + '}'
+      + '.s-input {',                 /* 文本输入框 */
+      + '  width: 100%;',
+      + '  height: 34px;',
+      + '  border: 1px solid #e5e7eb;',
+      + '  border-radius: 6px;',
+      + '  padding: 0 10px;',
+      + '  font-size: 13px;',
+      + '  outline: none;',           /* 移除默认聚焦框 */
+      + '  color: #111827;',
+      + '}'
+      + '.s-input:focus {',
+      + '  border-color: #4f46e5;',   /* 聚焦紫色边框 */
+      + '  box-shadow: 0 0 0 3px rgba(79,70,229,.1);',  /* 紫色光晕 */
+      + '}'
+      + '.s-select {',                /* 下拉选择框 */
+      + '  width: 100%;',
+      + '  height: 34px;',
+      + '  border: 1px solid #e5e7eb;',
+      + '  border-radius: 6px;',
+      + '  padding: 0 10px;',
+      + '  font-size: 13px;',
+      + '  outline: none;',
+      + '  background: #fff;',
+      + '  color: #111827;',
+      + '  cursor: pointer;',
+      + '}'
+      + '.s-select:focus {',
+      + '  border-color: #4f46e5;',
+      + '}'
 
-      + '.s-io-box { background: #f9fafb; border-radius: 8px;'
-      + '  padding: 14px 18px; margin: 0 18px 16px; }'
-      + '.s-io-title { font-size: 11px; font-weight: 700; color: #6b7280;'
-      + '  text-transform: uppercase; letter-spacing: .06em; margin-bottom: 8px; }'
-      + '.s-textarea { width: 100%; height: 90px; border: 1px solid #e5e7eb;'
-      + '  border-radius: 6px; padding: 8px 10px; font-size: 12px;'
-      + '  font-family: monospace; outline: none; resize: vertical; color: #111827;'
-      + '  background: #fff; }'
-      + '.s-textarea:focus { border-color: #4f46e5; }'
-      + '.s-io-row { display: flex; gap: 6px; margin-top: 8px; align-items: center; }';
+      /* ──────────────────────────────────────────────────────────────── */
+      /* 导入/导出区域 */
+      /* ──────────────────────────────────────────────────────────────── */
+      + '.s-io-box {',                /* 导入导出容器 */
+      + '  background: #f9fafb;',     /* 浅灰背景 */
+      + '  border-radius: 8px;',
+      + '  padding: 14px 18px;',
+      + '  margin: 0 18px 16px;',     /* 外边距 */
+      + '}'
+      + '.s-io-title {',              /* 标题 */
+      + '  font-size: 11px;',
+      + '  font-weight: 700;',
+      + '  color: #6b7280;',
+      + '  text-transform: uppercase;',
+      + '  letter-spacing: .06em;',
+      + '  margin-bottom: 8px;',
+      + '}'
+      + '.s-textarea {',              /* 文本域 */
+      + '  width: 100%;',
+      + '  height: 90px;',
+      + '  border: 1px solid #e5e7eb;',
+      + '  border-radius: 6px;',
+      + '  padding: 8px 10px;',
+      + '  font-size: 12px;',
+      + '  font-family: monospace;',  /* 等宽字体 */
+      + '  outline: none;',
+      + '  resize: vertical;',        /* 仅允许垂直调整大小 */
+      + '  color: #111827;',
+      + '  background: #fff;',
+      + '}'
+      + '.s-textarea:focus {',
+      + '  border-color: #4f46e5;',
+      + '}'
+      + '.s-io-row {',                /* 按钮行 */
+      + '  display: flex;',
+      + '  gap: 6px;',
+      + '  margin-top: 8px;',         /* 顶部间距 */
+      + '  align-items: center;',
+      + '}';
   }
 
   /**
