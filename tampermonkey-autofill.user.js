@@ -175,20 +175,71 @@
   // ════════════════════════════════════════════════════════════════════════
 
   // 创建宿主元素
+  /**
+   * document.createElement(tagName): 创建指定标签名的HTML元素
+   * - 参数: tagName (string) - 要创建的HTML标签名，如 'div', 'span'
+   * - 返回值: 对应类型的DOM元素对象（如 HTMLDivElement）
+   * - 注意: 新创建的元素仅存在于内存中，需通过 appendChild() 添加到页面
+   * 
+   * - (method)：表示这是一个 方法 （函数）
+   * - Document.createElement：方法所属的对象和方法名
+   * - <"div">：泛型参数 ，表示你传入的标签名是 "div"
+   * - (tagName: "div",：参数列表 ，参数名是 tagName，类型是字符串 "div"，含义是标签名
+   * - options?: ElementCreationOptions | undefined)：
+   *   参数名 options，? 表示这个参数是 可选 的，类型是两种可能的值 ElementCreationOptions 配置对象或 undefined（不传参数时的值）
+   * - : HTMLDivElement：返回值类型 ，调用这个方法会返回一个 HTMLDivElement 对象
+   * - (+2 overloads)：表示这个方法还有 两种重载形式 （不同的参数组合）
+   * 
+   * - : 后面的内容 表示 类型 （如 : string 表示字符串类型）
+   * - ? 表示 可选 （参数可传可不传）
+   * - | 表示 或 （如 A | B 表示可以是 A 类型或 B 类型）
+   * - <> 表示 泛型 （用来指定更具体的类型）
+   * - (+N overloads) 表示有 N 种重载形式 （不同的参数组合）
+   * 
+   * 阅读顺序建议：先看方法名 → 再看返回值类型 → 最后看参数列表 → 重载信息
+   */
   var hostEl = document.createElement('div');
   hostEl.id = '__afh_host__';  // 唯一 ID 标识
   // 定位样式：fixed 定位，左上角，宽高为 0（仅作为 Shadow DOM 容器）
   Object.assign(hostEl.style, {
-    position: 'fixed',
-    top: '0', left: '0',
-    width: '0', height: '0',
-    overflow: 'visible',        // 允许子元素溢出显示
-    zIndex: '2147483647',      // 最大 z-index，确保在最顶层
-    pointerEvents: 'none'       // 默认不接收鼠标事件
+    position: 'fixed',          // 固定定位：相对于视口，滚动时位置不变
+    top: '0', left: '0',        // 定位到左上角，提供稳定的定位基准
+    width: '0', height: '0',    // 宽高为 0，容器不可见，确保容器本身不占用空间
+    overflow: 'visible',        // 允许子元素溢出显示，子元素可以显示在容器外
+    zIndex: '2147483647',       // 最大 z-index 层级，内容始终在最顶层，确保内容不被遮挡
+    pointerEvents: 'none'       // 默认不接收鼠标事件，让鼠标事件穿透到下面的页面内容，不影响用户正常操作
   });
+  /**
+   * 上述代码执行后 hostEl 的 HTML 结构：
+   * <div id="__afh_host__" 
+   *  style="position: fixed; top: 0; left: 0; width: 0; height: 0; 
+   *         overflow: visible; z-index: 2147483647; pointer-events: none;">
+   * </div>
+   */
   document.body.appendChild(hostEl);
 
   // 创建 Shadow DOM（open 模式允许外部访问）
+  /**
+   * hostEl.attachShadow({ mode: 'open' }): 创建一个 Shadow DOM 容器
+   * - 参数: { mode: 'open' } - 模式为 open，外部 JavaScript 可以通过 element.shadowRoot 访问 Shadow DOM
+   * - 返回值: ShadowRoot 对象，用于操作 Shadow DOM 内容
+   * 
+   * ┌─────────────────────────────────────────────────────────┐
+   * │                     主页面 DOM                           │
+   * │                                                         │
+   * │  <div id="__afh_host__">           ← 普通 DOM 元素       │
+   * │    #shadow-root (open)             ← Shadow DOM 入口     │
+   * │      ├── <style>...</style>                ← 隔离的样式   │
+   * │      ├── <div class="afh-icon">...</div>   ← 隔离的内容   │
+   * │      └── <div class="afh-panel">...</div>  ← 隔离的内容   │
+   * │ </div>                                                  │
+   * │                                                         │
+   * │  其他页面元素...                                          │
+   * └─────────────────────────────────────────────────────────┘
+   * - Shadow DOM 内部的 CSS 样式 不会影响 外部页面，外部页面的样式也 不会影响 内部的 CSS 样式。
+   * - Shadow DOM 内部的元素 不会被直接访问，只能通过 ShadowRoot 接口操作。
+   * - Shadow DOM 可以将复杂的 UI 组件封装在独立的 Shadow DOM 中。
+   */
   var shadow = hostEl.attachShadow({ mode: 'open' });
 
   // 创建样式元素并注入所有样式
@@ -488,20 +539,23 @@
   //  使用内联 SVG，无需外部资源
   // ════════════════════════════════════════════════════════════════════════
 
+  // 粘贴图标
   var ICON_PASTE = '<svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">'
     + '<path d="M8 2a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z"/>'
     + '<path d="M6 3a2 2 0 00-2 2v11a2 2 0 002 2h8a2 2 0 002-2V5a2 2 0 00-2-2'
-    + ' 3 3 0 01-3 3H9a3 3 0 01-3-3z"/></svg>';  // 粘贴图标
+    + ' 3 3 0 01-3 3H9a3 3 0 01-3-3z"/></svg>';  
 
+  // 编辑图标
   var ICON_EDIT = '<svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">'
     + '<path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793z"/>'
-    + '<path d="M11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"/></svg>';  // 编辑图标
-
+    + '<path d="M11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"/></svg>'; 
+     
+  // 删除图标
   var ICON_DEL = '<svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">'
     + '<path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10'
     + 'a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9z'
     + 'M7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 112 0v6a1 1 0 11-2 0V8z"'
-    + ' clip-rule="evenodd"/></svg>';  // 删除图标
+    + ' clip-rule="evenodd"/></svg>';
 
   // ════════════════════════════════════════════════════════════════════════
   //  状态管理
@@ -586,12 +640,130 @@
   // ════════════════════════════════════════════════════════════════════════
 
   // 监听输入框聚焦（使用 capture 模式确保最早捕获）
+  /**
+   * - 用户在页面上操作时，脚本需要知道用户什么时候聚焦到输入框
+   * - 通过监听 focusin 事件，可以实时响应用户的操作
+   * - 只有当聚焦的是匹配的输入框时，才显示自动填充图标
+   * - 如果页面有多个匹配的输入框，当用户聚焦到任意一个时，都会显示图标
+   * 
+   * 工作流程：
+   *  用户点击输入框
+   *        │
+   *        ▼
+   *  触发 focusin 事件
+   *        │
+   *        ▼
+   *  事件从 document 开始捕获传播
+   *        │
+   *        ▼
+   *  检查 e.target 是否匹配 INPUT_SELECTOR
+   *        │
+   *        ├── 匹配 → 调用 showIcon() 显示图标
+   *        │
+   *        └── 不匹配 → 什么都不做
+   * 
+   * - document 监听整个文档
+   * - addEventListener 添加事件监听的方法
+   * - 'focusin' 事件类型：元素获得焦点时触发（支持冒泡，通过事件委托，页面上所有输入框聚焦时都能触发）
+   * - function (e) {...} 事件处理函数（回调函数）
+   * - true 表示在 捕获阶段 触发事件处理，默认 false 在 冒泡阶段 触发事件处理
+   * 
+   * - e 是 事件对象 ，包含了事件的所有信息
+   * - e.target 触发事件的 具体元素 （即用户聚焦的输入框）
+   * - e.target.matches(INPUT_SELECTOR) 检查触发事件的元素是否匹配指定的选择器
+   * 
+   * 事件传播有三个阶段：
+   *  1. 捕获阶段 （从外到内）
+   *  2. 目标阶段 （到达目标元素）
+   *  3. 冒泡阶段 （从内到外）
+   * 当用户点击 input 时，事件的传播就像 声音的传播 一样：
+   *  1）捕获阶段（Capture Phase）
+   *    - 事件从外向内传递，先触发父元素的事件处理函数，再触发子元素的事件处理函数，
+   *      事件从 document 开始，逐级向下传到目标元素
+   *    - 优先响应：捕获阶段比冒泡阶段先执行，确保脚本的监听器 优先于 页面其他脚本响应事件
+   *    - 防止被阻止：有些页面脚本会在冒泡阶段调用 e.stopPropagation() 阻止事件传播，
+   *      如果脚本在冒泡阶段监听，可能无法收到事件
+   *  2）目标阶段（Target Phase）
+   *    - 事件到达目标元素，触发目标元素的事件处理函数
+   *  3）冒泡阶段（Bubbling Phase）
+   *    - 事件从内向外传递，先触发子元素的事件处理函数，再触发父元素的事件处理函数，
+   *      事件从目标元素逐级向上传回 document
+   * 
+   * (method)： 这是一个方法
+   * Document.addEventListener：方法所属的对象和方法名
+   * <"focusin">：泛型参数 ，表示你传入的事件类型是 "focusin"
+   * (type: "focusin",：
+   *   参数名 type，类型是字符串 "focusin" （表示事件类型），含义：指定要监听的事件名称
+   * listener: (this: Document, ev: FocusEvent) => any,：
+   *   参数名 listener （事件监听器/回调函数）
+   *   类型 ：一个函数，签名为 (this: Document, ev: FocusEvent) => any
+   *     - this: Document ：函数内部的 this 指向 document
+   *     - ev: FocusEvent ：函数接收一个 FocusEvent 类型的参数（事件对象）
+   *     - => any ：函数返回值可以是任意类型
+   * options?: boolean | AddEventListenerOptions | undefined)：
+   *   参数名 options
+   *   ? ：表示这是 可选参数 
+   *   类型：三种可能的值
+   *     - boolean ： true （捕获阶段）或 false （冒泡阶段）
+   *     - AddEventListenerOptions ：一个配置对象（如 { capture: true, once: true } ）
+   *     - undefined ：不传参数时的值
+   * : void：返回值类型，表示该方法没有返回值，只执行事件监听注册
+   * (+1 overload)：表示这个方法还有 一种其他调用方式
+   * 
+   * 事件类型
+   * - 参考：https://developer.mozilla.org/zh-CN/docs/Web/API/Document_Object_Model/Events
+   * - 常用事件类型：事件类型 触发时机 示例
+   * - 鼠标事件
+   *   click 用户点击元素 点击按钮、链接等可点击元素时触发
+   *   dblclick 用户双击元素 双击文本选中文本时触发
+   *   mousedown 鼠标按钮按下 拖拽开始时触发
+   *   mouseup 鼠标按钮松开 拖拽结束时触发
+   *   mouseover 鼠标移入元素 悬停效果
+   *   mouseout 鼠标移出元素 离开元素时触发
+   *   mousemove 鼠标在元素上移动 实时追踪位置
+   * - 键盘事件
+   *   keydown 键盘按键按下 按下回车键提交表单
+   *   keyup 键盘按键松开 释放按键时触发
+   * - 表单事件
+   *   focus 元素获得焦点（ 不冒泡 ） 点击输入框 
+   *   focusin 元素获得焦点（ 支持冒泡 ） 点击输入框 
+   *     - 使用 focusin （支持冒泡）通过事件委托在 document 级别统一监听，实现监听页面上所有输入框的聚焦事件
+   *     - 使用 focus （不冒泡），只能监听单个元素，需要为每个输入框单独添加监听器，效率低
+   *   blur 元素失去焦点（ 不冒泡 ） 离开输入框 
+   *   focusout 元素失去焦点（ 支持冒泡 ） 离开输入框
+   *   input 输入框内容改变 实时搜索 
+   *   change 表单元素值改变且失焦 选择下拉框 
+   *   submit 表单提交 点击提交按钮
+   * - 窗口事件
+   *   load 页面完全加载（包括图片、样式表） 页面初始化 
+   *   DOMContentLoaded DOM 加载完成（不等待图片） 更快的初始化 
+   *   resize 窗口大小改变 窗口大小改变时触发图标和面板位置更新
+   *   scroll 页面滚动 页面滚动时触发图标和面板位置更新
+   *   beforeunload 页面即将关闭 提醒用户保存未完成的工作
+   * - 其他事件
+   *   contextmenu 右键菜单触发 自定义右键菜单
+   * 
+   * 冒泡的作用：
+   * - 如果事件支持冒泡，就可以在父元素上监听，然后通过 e.target 找到真正触发事件的子元素，
+   *   只需添加一个监听器，减少内存占用，新增的子元素自动被监听，无需重新绑定，避免大量重复的监听器绑定代码。
+   * - 如果事件不支持冒泡，就只能在每个子元素上单独添加监听器
+   */
   document.addEventListener('focusin', function (e) {
+    // e.target 存在，且支持 matches 方法，且匹配选择器，检查聚焦的元素是否是表单输入框
     if (e.target && e.target.matches && e.target.matches(INPUT_SELECTOR)) {
+      // 如果是，调用 showIcon() 显示图标
       showIcon(e.target);
     }
+    // 如果不是，什么都不做
   }, true);
 
+  /**
+   * - document 监听整个文档
+   * - addEventListener 添加事件监听的方法
+   * - 'focusout' 事件类型：元素失去焦点时触发
+   * - function (e) {...} 事件处理函数（回调函数）
+   * - true 表示在 捕获阶段 触发事件处理
+   */
   // 监听输入框失焦
   document.addEventListener('focusout', function (e) {
     if (e.target && e.target.matches && e.target.matches(INPUT_SELECTOR)) {
@@ -600,6 +772,13 @@
   }, true);
 
   // 页面滚动时同步图标和面板位置
+  /**
+   * - window 监听整个窗口
+   * - addEventListener 添加事件监听的方法
+   * - 'scroll' 事件类型：页面滚动时触发
+   * - function () {...} 事件处理函数（回调函数）
+   * - true 表示在 捕获阶段 触发事件处理
+   */
   window.addEventListener('scroll', function () {
     if (!activeInput) return;
     if (iconEl)  positionIcon(activeInput);
@@ -607,6 +786,12 @@
   }, true);  // capture 模式，确保在页面元素滚动前更新
 
   // 窗口大小改变时同步位置
+  /**
+   * - window 监听整个窗口
+   * - addEventListener 添加事件监听的方法
+   * - 'resize' 事件类型：窗口大小改变时触发
+   * - function () {...} 事件处理函数（回调函数）
+   */
   window.addEventListener('resize', function () {
     if (!activeInput) return;
     if (iconEl)  positionIcon(activeInput);
