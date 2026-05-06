@@ -584,9 +584,15 @@
     shadow.appendChild(iconEl);
     
     // 点击图标事件：切换面板显示/隐藏
+    // mousedown：鼠标按下瞬间触发（更早）, click：按下并抬起（更晚）
+    // 用 mousedown 比 click 更合适，原因是“要抢在页面默认行为和外部监听之前处理”
+    // 例如你点了图标，不希望页面默认行为和外部监听器也被触发
     iconEl.addEventListener('mousedown', function (e) {
-      e.preventDefault();   // 阻止默认行为（如文本选中）
-      e.stopPropagation();  // 阻止事件冒泡
+      // 先阻止默认行为（例如按下导致选中文本、焦点变化引发的副作用等）
+      e.preventDefault();
+      // 阻止事件传播，防止事件冒泡到父元素，
+      // 例如你点了图标，不希望页面外层容器、document 上的点击监听器也被触发
+      e.stopPropagation();  
       if (panelEl) closePanel();        // 面板已打开则关闭
       else if (activeInput) openPanel(activeInput);  // 否则打开面板
     });
