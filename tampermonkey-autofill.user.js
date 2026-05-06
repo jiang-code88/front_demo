@@ -166,7 +166,23 @@
    * @returns {string} 当前域名，默认为 'localhost'
    */
   function getCurrentDomain() {
+    /**
+     * location 是 JavaScript 中的一个 全局对象 ，它包含了当前页面的 URL 信息
+     * location.hostname 返回当前页面的 域名 （不包含协议、端口和路径）
+     * - 例如：https://www.example.com 将返回 "www.example.com"
+     * - 例如：https://www.baidu.com/search?q=test 将返回 "www.baidu.com"
+     * - 例如：http://localhost:8080 将返回 "localhost"
+     * - 例如：http://192.168.1.100:3000 将返回 "192.168.1.100"
+     * - 如果当前页面没有域名，如本地文件 file:// 或 about:blank，将返回空字符串
+     */
     return location.hostname || 'localhost';
+    /**
+     * JavaScript 的真值（truthy）和假值（falsy）概念
+     * - 真值（在布尔上下文中会被转换为 true 的值）：
+     *   任何非零、非空、非 null、非 undefined、非 false 的值、非 NaN 的值
+     * - 假值（在布尔上下文中会被转换为 false 的值）：
+     *   零（0，0n）、空字符串、null、undefined、false、NaN（Not a Number，非数字）
+     */
   }
 
   // ════════════════════════════════════════════════════════════════════════
@@ -804,6 +820,14 @@
     if (panelEl) positionPanel(activeInput);
   });
 
+  /**
+   * - document 监听整个文档
+   * - addEventListener 添加事件监听的方法
+   * - 'keydown' 事件类型：键盘按键按下时触发
+   * - function (e) {...} 事件处理函数（回调函数）
+   * - true 表示在 捕获阶段 触发事件处理
+   * - 检查 e.key 是否为 'Escape' 键，且面板存在时关闭面板
+   */
   // ESC 键关闭面板
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape' && panelEl) closePanel();
