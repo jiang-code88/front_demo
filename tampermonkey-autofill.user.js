@@ -904,8 +904,8 @@
    *  1）捕获阶段（Capture Phase）
    *    - 事件从外向内传递，先触发父元素的事件处理函数，再触发子元素的事件处理函数，
    *      事件从 document 开始，逐级向下传到目标元素
-   *    - 优先响应：捕获阶段比冒泡阶段先执行，确保脚本的监听器 优先于 页面其他脚本响应事件
-   *    - 防止被阻止：有些页面脚本会在冒泡阶段调用 e.stopPropagation() 阻止事件传播，
+   *    - 好处1 优先响应：捕获阶段比冒泡阶段先执行，确保脚本的监听器 优先于 页面其他脚本响应事件
+   *    - 好处2 防止被阻止：有些页面脚本会在冒泡阶段调用 e.stopPropagation() 阻止事件传播，
    *      如果脚本在冒泡阶段监听，可能无法收到事件
    *  2）目标阶段（Target Phase）
    *    - 事件到达目标元素，触发目标元素的事件处理函数
@@ -1102,7 +1102,18 @@
     var q = query.toLowerCase();
     // 过滤函数：按标签或值搜索
     function filt(arr) {
+      // arr.filter(callback(element, index, array), thisArg)
+      // - callback(element, index, array)：过滤函数，返回 true 表示保留该元素，
+      //   - element：当前元素
+      //   - index：（可选）当前元素索引，从 0 开始
+      //   - array：（可选）调用 filter 的数组本身，你可以通过这个参数访问整个数组，
+      //     也就是当你在回调函数中处理某个元素时， array 参数让你能"看到"整个数组的全貌，获取如长度、其他元素等信息。
+      // - thisArg：可选，作为回调函数中的 this 指向，默认为 undefined
+      //   回调函数中可使用 this 访问通过 thisArg 参数传入的特定对象，
+      //   方便在回调函数中访问外部特定对象的属性或方法，给回调函数绑定外部上下文变量信息。
+      // - 返回值：新数组，包含所有通过过滤的的元素
       return !q ? arr : arr.filter(function (i) {
+        // 检查标签或值是否包含搜索关键词（不区分大小写）
         return i.label.toLowerCase().indexOf(q) !== -1
             || i.value.toLowerCase().indexOf(q) !== -1;
       });
@@ -1122,6 +1133,15 @@
     srch.placeholder = '搜索...';
     srch.value = query;
     // 输入时重新渲染（实现实时搜索）
+    /** 
+     * addEventListener 方法第三个参数不填，默认为 false，即在事件监听器在 冒泡阶段 触发事件。
+     * addEventListener 的 第三个参数 useCapture 选择建议：
+     * ｜场景｜参数值｜原因｜
+     * ｜--｜--｜--｜
+     * ｜普通事件监听｜false 或省略｜简单直接，符合直觉｜
+     * ｜需要优先响应｜true ｜在事件到达目标前拦截｜
+     * ｜事件委托（如 focusin ）｜true ｜确保监听器优先执行｜
+     */
     srch.addEventListener('input', function (e) {
       renderPanel(inputEl, domain, e.target.value, false, null);
     });
