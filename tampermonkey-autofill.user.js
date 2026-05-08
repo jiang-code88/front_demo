@@ -427,9 +427,12 @@
     '.afh-item-val {',           /* 条目值 */
     '  font-size: 12px;',
     '  color: #1f2937;',         /* 深灰色 */
-    '  white-space: nowrap;',    /* 不换行 */
-    '  overflow: hidden;',       /* 超出隐藏 */
-    '  text-overflow: ellipsis;',/* 超出显示省略号 */
+    '  display: -webkit-box;',   /* 多行截断容器 */
+    '  -webkit-box-orient: vertical;',
+    '  -webkit-line-clamp: 3;',  /* 最多显示 3 行，超出显示省略号 */
+    '  overflow: hidden;',
+    '  white-space: pre-wrap;',  /* 保留换行符并自动折行 */
+    '  word-break: break-all;',  /* 防止长单词撑破布局 */
     '}',
     '.afh-item-acts {',          /* 操作按钮区 */
     '  display: none;',          /* 默认隐藏 */
@@ -546,6 +549,15 @@
     '}',
     '.afh-fsel:focus {',
     '  border-color: #4f46e5;',
+    '}',
+
+    /* textarea 值输入框：继承 .afh-finput 外观，去掉固定高度，允许多行 */
+    '.afh-finput-ta {',
+    '  height: auto;',           /* 取消继承的固定高度 */
+    '  min-height: 54px;',       /* 默认约两行高 */
+    '  resize: vertical;',       /* 允许用户拖拽调整高度 */
+    '  padding: 4px 8px;',       /* 垂直内边距适配多行 */
+    '  line-height: 1.4;',
     '}',
   ].join('\n');
   shadow.appendChild(styleEl);
@@ -1096,9 +1108,9 @@
     lblInput.placeholder = '标签（如：姓名、测试账号）';
     lblInput.value = editingItem ? editingItem.label : '';
 
-    // 值输入（默认填充当前输入框内容）
-    var valInput = document.createElement('input');
-    valInput.className = 'afh-finput';
+    // 值输入（默认填充当前输入框内容，支持多行）
+    var valInput = document.createElement('textarea');
+    valInput.className = 'afh-finput afh-finput-ta';
     valInput.placeholder = '填入内容';
     valInput.value = editingItem ? editingItem.value
                    : (activeInput ? activeInput.value : '');
@@ -1138,10 +1150,9 @@
       renderPanel(inputEl, domain, query, false, null);  // 保存后重新渲染
     });
 
-    // Enter 键触发保存
+    // Enter 键触发保存（仅标签输入框；值输入框是 textarea，Enter 应换行）
     function onEnter(e) { if (e.key === 'Enter') saveBtn.click(); }
     lblInput.addEventListener('keydown', onEnter);
-    valInput.addEventListener('keydown', onEnter);
 
     row.appendChild(scopeSel);
     row.appendChild(saveBtn);
@@ -1587,6 +1598,15 @@
       + '.s-textarea:focus {',
       + '  border-color: #4f46e5;',
       + '}'
+
+      /* 弹窗内"填入内容"textarea：覆盖导入导出框专用的固定高度和等宽字体 */
+      + '.s-input-ta {'
+      + '  height: auto;'
+      + '  min-height: 60px;'
+      + '  resize: vertical;'
+      + '  font-family: inherit;'
+      + '}'
+
       + '.s-io-row {',                /* 按钮行 */
       + '  display: flex;',
       + '  gap: 6px;',
@@ -1701,7 +1721,7 @@
       + '      tdL.innerHTML = "<strong>" + esc(item.label) + "</strong>";'
       + '      var tdV  = document.createElement("td");'
       + '      tdV.style.cssText'
-      + '        = "max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap";'
+      + '        = "max-width:300px;overflow:hidden;white-space:pre-wrap;word-break:break-all;vertical-align:top";'
       + '      tdV.title = item.value; tdV.textContent = item.value;'
       + '      var tdS  = document.createElement("td");'
       + '      tdS.innerHTML = "<span class=\'s-tag"'
@@ -1834,8 +1854,8 @@
       + '  lblIn.className = "s-input";'
       + '  lblIn.placeholder = "\u5982\uff1a\u59d3\u540d\u3001\u624b\u673a\u53f7\u3001\u6d4b\u8bd5\u8d26\u53f7";'
       + '  lblIn.value = isEdit ? item.label : "";'
-      + '  var valIn = document.createElement("input");'
-      + '  valIn.className = "s-input";'
+      + '  var valIn = document.createElement("textarea");'
+      + '  valIn.className = "s-textarea s-input-ta";'
       + '  valIn.placeholder = "\u8981\u81ea\u52a8\u586b\u5165\u7684\u5185\u5bb9";'
       + '  valIn.value = isEdit ? item.value : "";'
       + '  var scopeSel = document.createElement("select");'
@@ -1902,7 +1922,7 @@
       + '  });'
       + '  function onEnter(e) { if (e.key === "Enter") saveB.click(); }'
       + '  lblIn.addEventListener("keydown", onEnter);'
-      + '  valIn.addEventListener("keydown", onEnter);'
+      + '  /* valIn 是 textarea，Enter 应换行，不触发保存 */'
       + '  mft.appendChild(cancB); mft.appendChild(saveB);'
       + '  modal.appendChild(mft);'
       + '  bg.appendChild(modal); document.body.appendChild(bg);'
