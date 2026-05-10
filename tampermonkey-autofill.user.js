@@ -378,8 +378,8 @@
     '  flex-direction: column;',
     /* 超出部分隐藏（配合圆角）*/
     '  overflow: hidden;',
+    /* 字体：系统字体，适配不同平台 */
     '  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;',
-                                 /* 字体：系统字体，适配不同平台 */
     /* 字体大小 */
     '  font-size: 13px;',
     /* 文字颜色：深灰色 */
@@ -698,6 +698,8 @@
     '  outline: none;',
     '  color: #111827;',
     '  background: #fff;',
+    /* 继承父元素字体，避免浏览器默认赋予 input 和 textarea 等宽字体 */
+    '  font-family: inherit;',
     '}',
     '.afh-finput:focus {',
     /* 聚焦时紫色边框 */
