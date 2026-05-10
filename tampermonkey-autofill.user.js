@@ -774,6 +774,8 @@
   var iconEl     = null;
   // 候选面板 DOM 元素
   var panelEl    = null;
+  // 搜索输入框 DOM 元素（独立保存，避免每次重建破坏输入法状态）
+  var srchEl     = null;
   // 图标隐藏延迟定时器
   var hideTimer  = null;
 
@@ -1078,7 +1080,31 @@
     panelEl = document.createElement('div');
     panelEl.className = 'afh-panel';
     shadow.appendChild(panelEl);
-    // 初始渲染
+    
+    // 创建搜索框（只创建一次，避免每次重建破坏输入法状态）
+    srchEl = document.createElement('input');
+    srchEl.className = 'afh-search';
+    srchEl.type = 'text';
+    srchEl.placeholder = '搜索...';
+    srchEl.value = '';
+    // 输入时重新渲染（实现实时搜索）
+    srchEl.addEventListener('input', function (e) {
+      renderPanel(el, domain, e.target.value, false, null);
+    });
+    
+    var head = document.createElement('div');
+    head.className = 'afh-head';
+    
+    var xbtn = document.createElement('button');
+    xbtn.className = 'afh-xbtn';
+    xbtn.textContent = '×';
+    xbtn.addEventListener('click', closePanel);
+    
+    head.appendChild(srchEl);
+    head.appendChild(xbtn);
+    panelEl.appendChild(head);
+    
+    // 初始渲染列表
     renderPanel(el, domain, '', false, null);
     positionPanel(el);
   }
@@ -1093,8 +1119,6 @@
    */
   function renderPanel(inputEl, domain, query, showForm, editingItem) {
     if (!panelEl) return;
-    // 清空面板
-    panelEl.innerHTML = '';
 
     // 获取数据并过滤
     var _ref = getItemsForDomain(domain);
@@ -1113,7 +1137,7 @@
       // - thisArg：可选，作为回调函数中的 this 指向，默认为 undefined
       //   回调函数中可使用 this 访问通过 thisArg 参数传入的特定对象，
       //   方便在回调函数中访问外部特定对象的属性或方法，给回调函数绑定外部上下文变量信息。
-      // - 返回值：新数组，包含所有通过过滤的的元素
+      // - 返回值：新数组，包含所有通过过滤的元素
       return !q ? arr : arr.filter(function (i) {
         // 检查标签或值是否包含搜索关键词（不区分大小写）
         return i.label.toLowerCase().indexOf(q) !== -1
@@ -1125,41 +1149,16 @@
     // 过滤后的域名条目
     var fd = filt(domainItems);
 
-    /* ── 顶部搜索栏 ── */
-    var head = document.createElement('div');
-    head.className = 'afh-head';
-
-    var srch = document.createElement('input');
-    srch.className = 'afh-search';
-    srch.type = 'text';
-    srch.placeholder = '搜索...';
-    srch.value = query;
-    // 输入时重新渲染（实现实时搜索）
-    /** 
-     * addEventListener 方法第三个参数不填，默认为 false，即在事件监听器在 冒泡阶段 触发事件。
-     * addEventListener 的 第三个参数 useCapture 选择建议：
-     * ｜场景｜参数值｜原因｜
-     * ｜--｜--｜--｜
-     * ｜普通事件监听｜false 或省略｜简单直接，符合直觉｜
-     * ｜需要优先响应｜true ｜在事件到达目标前拦截｜
-     * ｜事件委托（如 focusin ）｜true ｜确保监听器优先执行｜
-     */
-    srch.addEventListener('input', function (e) {
-      renderPanel(inputEl, domain, e.target.value, false, null);
-    });
-
-    var xbtn = document.createElement('button');
-    xbtn.className = 'afh-xbtn';
-    xbtn.textContent = '×';
-    xbtn.addEventListener('click', closePanel);
-
-    head.appendChild(srch);
-    head.appendChild(xbtn);
-    panelEl.appendChild(head);
-
     /* ── 列表区 ── */
-    var list = document.createElement('div');
-    list.className = 'afh-list';
+    // 查找或创建列表容器，避免每次重建搜索框
+    var list = panelEl.querySelector('.afh-list');
+    if (!list) {
+      list = document.createElement('div');
+      list.className = 'afh-list';
+    } else {
+      // 清空现有列表内容，保留搜索框
+      list.innerHTML = '';
+    }
 
     // 空状态
     if (fd.length === 0 && fg.length === 0) {
@@ -1197,14 +1196,25 @@
       });
     }
 
-    panelEl.appendChild(list);
+    // 如果是新创建的列表，添加到面板
+    if (!panelEl.querySelector('.afh-list')) {
+      panelEl.appendChild(list);
+    }
 
     /* ── 内联表单（快速添加 / 编辑）── */
+    // 移除旧表单
+    var oldForm = panelEl.querySelector('.afh-form');
+    if (oldForm) oldForm.remove();
+    
     if (showForm || editingItem) {
       panelEl.appendChild(buildForm(inputEl, domain, query, editingItem));
     }
 
     /* ── 底部工具栏 ── */
+    // 移除旧工具栏
+    var oldFoot = panelEl.querySelector('.afh-foot');
+    if (oldFoot) oldFoot.remove();
+    
     var foot = document.createElement('div');
     foot.className = 'afh-foot';
 
@@ -1232,8 +1242,7 @@
     // 自动聚焦搜索框（非表单状态）
     if (!showForm && !editingItem) {
       setTimeout(function () {
-        var s = panelEl && panelEl.querySelector('.afh-search');
-        if (s) s.focus();
+        if (srchEl) srchEl.focus();
       }, 20);
     }
   }
@@ -1420,6 +1429,7 @@
    */
   function closePanel() {
     if (panelEl) { panelEl.remove(); panelEl = null; }
+    if (srchEl)  { srchEl = null; }
     if (iconEl)  iconEl.style.display = 'none';
   }
 
