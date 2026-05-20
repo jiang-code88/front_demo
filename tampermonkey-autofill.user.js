@@ -98,21 +98,24 @@
    * @returns {Object} 数据对象，key 为域名或 'global'，value 为条目数组
    */
   function getData() {
-    // 从 TM 存储读取
     var raw = GM_getValue(STORAGE_KEY, null);
-    // 无数据返回空对象
     if (!raw) return {};
-    // 解析失败返回空对象
-    try { return JSON.parse(raw); } catch (e) { return {}; }
+    // 兼容旧版 JSON 字符串格式：下次 saveData 会自动以对象形式写回完成迁移
+    if (typeof raw === 'string') {
+      try { return JSON.parse(raw); } catch (e) { return {}; }
+    }
+    return (typeof raw === 'object') ? raw : {};
   }
 
   /**
    * 保存数据到 Tampermonkey 存储
+   * 直接传对象给 GM_setValue，序列化由 TM 后台完成，
+   * 完全绕过页面 JS 上下文，不受 Prototype.js 等库对
+   * Array.prototype.toJSON 的污染。
    * @param {Object} data - 要保存的数据对象
    */
   function saveData(data) {
-    // JSON 序列化后存储
-    GM_setValue(STORAGE_KEY, JSON.stringify(data));
+    GM_setValue(STORAGE_KEY, data);
   }
 
   /**
@@ -738,6 +741,16 @@
     '  padding: 4px 8px;',
     '  line-height: 1.4;',
     '}',
+
+    /* ──────────────────────────────────────────────────────────────── */
+    /* 键盘导航选中态（上下键高亮） */
+    /* ──────────────────────────────────────────────────────────────── */
+    '.afh-item.afh-active {',
+    /* 比 hover 更深的紫色背景，视觉上更突出 */
+    '  background: #ede9fe;',
+    /* 左侧紫色竖线作为选中指示器 */
+    '  box-shadow: inset 3px 0 0 #4f46e5;',
+    '}',
   ].join('\n');
   shadow.appendChild(styleEl);
 
@@ -778,6 +791,8 @@
   var srchEl     = null;
   // 图标隐藏延迟定时器
   var hideTimer  = null;
+  // 键盘导航：当前选中条目索引，-1 表示无选中
+  var panelActiveIdx = -1;
 
   // ════════════════════════════════════════════════════════════════════════
   //  触发图标模块（Trigger Icon Module）
@@ -1087,9 +1102,34 @@
     srchEl.type = 'text';
     srchEl.placeholder = '搜索...';
     srchEl.value = '';
-    // 输入时重新渲染（实现实时搜索）
+    // 输入时重新渲染（实现实时搜索），同时重置键盘选中索引
     srchEl.addEventListener('input', function (e) {
+      panelActiveIdx = -1;
       renderPanel(el, domain, e.target.value, false, null);
+    });
+
+    // 键盘导航：上下键选择条目，回车填充
+    srchEl.addEventListener('keydown', function (e) {
+      if (!panelEl) return;
+      // 存在添加/编辑表单时不拦截，避免干扰表单内的键盘操作
+      if (panelEl.querySelector('.afh-form')) return;
+      var items = panelEl.querySelectorAll('.afh-item');
+      if (items.length === 0) return;
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        panelActiveIdx = (panelActiveIdx + 1) % items.length;
+        updateActiveItem(items);
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        panelActiveIdx = panelActiveIdx <= 0 ? items.length - 1 : panelActiveIdx - 1;
+        updateActiveItem(items);
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        e.stopPropagation();
+        // 有选中条目则填充选中的，否则填充第一条
+        var idx = panelActiveIdx >= 0 ? panelActiveIdx : 0;
+        if (items[idx]) items[idx].click();
+      }
     });
     
     var head = document.createElement('div');
@@ -1361,6 +1401,9 @@
     scopeSel.appendChild(optG);
     scopeSel.appendChild(optD);
 
+    // 默认选择当前域名（添加新条目时）
+    scopeSel.value = domain;
+
     // 编辑模式：锁定作用域
     if (editingItem) {
       scopeSel.value = editingItem.scope;
@@ -1425,12 +1468,29 @@
   }
 
   /**
+   * 更新键盘导航选中态：给对应索引的条目加 afh-active 类，其余移除
+   * @param {NodeList} items - 当前面板中所有 .afh-item 元素
+   */
+  function updateActiveItem(items) {
+    for (var i = 0; i < items.length; i++) {
+      if (i === panelActiveIdx) {
+        items[i].classList.add('afh-active');
+        // 确保选中条目在列表可视区域内
+        items[i].scrollIntoView({ block: 'nearest' });
+      } else {
+        items[i].classList.remove('afh-active');
+      }
+    }
+  }
+
+  /**
    * 关闭面板
    */
   function closePanel() {
     if (panelEl) { panelEl.remove(); panelEl = null; }
     if (srchEl)  { srchEl = null; }
     if (iconEl)  iconEl.style.display = 'none';
+    panelActiveIdx = -1;
   }
 
   // 点击外部区域关闭面板（composedPath 可穿透 Shadow DOM）
