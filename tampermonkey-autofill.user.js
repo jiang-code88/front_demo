@@ -831,19 +831,34 @@
   }
 
   /**
-   * 定位图标到输入框最右侧，垂直居中显示
+   * 定位图标，优先显示在鼠标附近
    * @param {HTMLElement} el - 输入框元素
+   * @param {Object} mousePos - 鼠标位置 {x, y}
    */
-  function positionIcon(el) {
+  function positionIcon(el, mousePos) {
     if (!iconEl) return;
     // 获取输入框位置信息
     var r = el.getBoundingClientRect();
-    // sz: 图标尺寸（宽/高）, gap: 图标与输入框右边缘的间距
-    var sz = 22, gap = 4;
-    // 图标相对输入框左边的距离，图标放在输入框内部右侧，留出一点空隙
-    var left = r.right - sz - gap;
-    // 图标相对输入框顶部的距离，垂直居中显示
-    var top  = r.top + (r.height - sz) / 2;
+    // sz: 图标尺寸（宽/高）, gap: 图标与输入框边缘的间距
+    var sz = 22, gap = 8;
+    var left, top;
+    
+    // 如果有鼠标位置，优先显示在鼠标附近
+    if (mousePos && mousePos.x !== undefined && mousePos.y !== undefined) {
+      // 图标左上角定位到鼠标位置左下方一点
+      left = mousePos.x - sz / 2;
+      top = mousePos.y + gap;
+      
+      // 确保图标在输入框范围内
+      if (left < r.left + gap) left = r.left + gap;
+      if (left + sz > r.right - gap) left = r.right - sz - gap;
+      if (top < r.top + gap) top = r.top + gap;
+      if (top + sz > r.bottom - gap) top = r.bottom - sz - gap;
+    } else {
+      // 没有鼠标位置（如 Tab 键聚焦），回退到输入框右侧居中
+      left = r.right - sz - gap;
+      top = r.top + (r.height - sz) / 2;
+    }
     
     // 边界检测：确保图标在可视区域内，不会紧贴视窗边缘
     // 左边距不小于 4px
@@ -860,14 +875,15 @@
   /**
    * 显示图标
    * @param {HTMLElement} el - 输入框元素
+   * @param {Object} mousePos - 鼠标位置 {x, y}
    */
-  function showIcon(el) {
+  function showIcon(el, mousePos) {
     // 清除之前的隐藏定时器
     clearTimeout(hideTimer);
     ensureIcon();
     // 记录当前活动输入框
     activeInput = el;
-    positionIcon(el);
+    positionIcon(el, mousePos);
     iconEl.style.display = 'flex';
   }
 
@@ -995,11 +1011,19 @@
    *   只需添加一个监听器，减少内存占用，新增的子元素自动被监听，无需重新绑定，避免大量重复的监听器绑定代码。
    * - 如果事件不支持冒泡，就只能在每个子元素上单独添加监听器
    */
+  // 记录最后一次点击的鼠标位置
+  var lastMousePos = null;
+  
+  // 监听鼠标按下事件，记录鼠标位置
+  document.addEventListener('mousedown', function(e) {
+    lastMousePos = { x: e.clientX, y: e.clientY };
+  }, true);
+  
   document.addEventListener('focusin', function (e) {
     // e.target 存在，且支持 matches 方法，且匹配选择器，检查聚焦的元素是否是表单输入框
     if (e.target && e.target.matches && e.target.matches(INPUT_SELECTOR)) {
-      // 如果是，调用 showIcon() 显示图标
-      showIcon(e.target);
+      // 如果是，调用 showIcon() 显示图标，传递鼠标位置
+      showIcon(e.target, lastMousePos);
     }
     // 如果不是，什么都不做
   }, true);
