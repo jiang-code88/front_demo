@@ -831,23 +831,27 @@
   }
 
   /**
-   * 定位图标到输入框旁边
+   * 定位图标到输入框最右侧，垂直居中显示
    * @param {HTMLElement} el - 输入框元素
    */
   function positionIcon(el) {
     if (!iconEl) return;
     // 获取输入框位置信息
     var r = el.getBoundingClientRect();
+    // sz: 图标尺寸（宽/高）, gap: 图标与输入框右边缘的间距
     var sz = 22, gap = 4;
-    // 图标放在输入框内部右侧，留出一点空隙
+    // 图标相对输入框左边的距离，图标放在输入框内部右侧，留出一点空隙
     var left = r.right - sz - gap;
-    // 垂直居中
+    // 图标相对输入框顶部的距离，垂直居中显示
     var top  = r.top + (r.height - sz) / 2;
     
-    // 边界检测：确保图标在可视区域内
-    if (left < 4) left = 4;
-    if (top < 2)  top  = 2;
-    if (top + sz > window.innerHeight - 2) top = window.innerHeight - sz - 2;
+    // 边界检测：确保图标在可视区域内，不会紧贴视窗边缘
+    // 左边距不小于 4px
+    if (left < 4) left = 4; 
+    // 顶部距不小于 2px
+    if (top < 2)  top  = 2; 
+    // 底部边距不小于 2px
+    if (top + sz > window.innerHeight - 2) top = window.innerHeight - sz - 2; 
     
     iconEl.style.left = left + 'px';
     iconEl.style.top  = top  + 'px';
