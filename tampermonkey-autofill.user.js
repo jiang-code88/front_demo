@@ -843,17 +843,12 @@
     var sz = 22, gap = 8;
     var left, top;
     
-    // 如果有鼠标位置，优先显示在鼠标附近
+    // 如果有鼠标位置，显示在鼠标右下方（右下角偏移一定距离）
     if (mousePos && mousePos.x !== undefined && mousePos.y !== undefined) {
-      // 图标左上角定位到鼠标位置左下方一点
-      left = mousePos.x - sz / 2;
-      top = mousePos.y + gap;
-      
-      // 确保图标在输入框范围内
-      if (left < r.left + gap) left = r.left + gap;
-      if (left + sz > r.right - gap) left = r.right - sz - gap;
-      if (top < r.top + gap) top = r.top + gap;
-      if (top + sz > r.bottom - gap) top = r.bottom - sz - gap;
+      // 图标定位到鼠标右下方：X 轴右侧偏移，Y 轴下方偏移
+      var offset = 12; // 偏移距离，避免遮挡鼠标
+      left = mousePos.x + offset;
+      top = mousePos.y + offset;
     } else {
       // 没有鼠标位置（如 Tab 键聚焦），回退到输入框右侧居中
       left = r.right - sz - gap;
