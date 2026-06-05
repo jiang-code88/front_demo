@@ -845,8 +845,8 @@
     
     // 如果有鼠标位置，优先显示在鼠标附近
     if (mousePos && mousePos.x !== undefined && mousePos.y !== undefined) {
-      // 图标左上角定位到鼠标位置左下方一点
-      left = mousePos.x - sz / 2;
+      // 图标左上角定位到鼠标位置右下方一点
+      left = mousePos.x + gap;
       top = mousePos.y + gap;
       
       // 确保图标在输入框范围内
