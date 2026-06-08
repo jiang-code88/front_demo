@@ -65,6 +65,12 @@
   // 存储键名
   var STORAGE_KEY = 'autofill_helper_data';
 
+  // inline（输入触发）模式下，搜索词候选的最大长度，超过则放弃该候选
+  var MAX_QUERY_LEN = 100;
+
+  // inline（输入触发）模式输入防抖延迟（毫秒）
+  var INPUT_DEBOUNCE_MS = 300;
+
   // 匹配的表单输入元素选择器
   // 包含多种 input 类型和 textarea，覆盖绝大多数表单场景
   var INPUT_SELECTOR = [
@@ -751,6 +757,42 @@
     /* 左侧紫色竖线作为选中指示器 */
     '  box-shadow: inset 3px 0 0 #4f46e5;',
     '}',
+
+    /* ──────────────────────────────────────────────────────────────── */
+    /* inline 模式匹配类型徽标（整体替换 / 当前行） */
+    /* ──────────────────────────────────────────────────────────────── */
+    '.afh-badge {',
+    /* 行内块，跟在标签后面 */
+    '  display: inline-block;',
+    /* 与左侧标签留间距 */
+    '  margin-left: 6px;',
+    /* 小号字体 */
+    '  font-size: 9px;',
+    '  font-weight: 600;',
+    /* 内边距 */
+    '  padding: 0 5px;',
+    /* 行高，垂直方向更紧凑 */
+    '  line-height: 14px;',
+    /* 胶囊圆角 */
+    '  border-radius: 999px;',
+    /* 不转大写，避免继承 */
+    '  text-transform: none;',
+    /* 字母间距复位 */
+    '  letter-spacing: 0;',
+    /* 不换行 */
+    '  white-space: nowrap;',
+    '  vertical-align: middle;',
+    '}',
+    /* 整体替换：紫色系 */
+    '.afh-badge.whole {',
+    '  background: #ede9fe;',
+    '  color: #6d28d9;',
+    '}',
+    /* 当前行：蓝色系 */
+    '.afh-badge.line {',
+    '  background: #dbeafe;',
+    '  color: #1d4ed8;',
+    '}',
   ].join('\n');
   shadow.appendChild(styleEl);
 
@@ -794,6 +836,15 @@
   // 键盘导航：当前选中条目索引，-1 表示无选中
   var panelActiveIdx = -1;
 
+  // 面板模式：'search'（点击图标，带搜索框、全量替换）| 'inline'（输入触发，无搜索框、区间替换）
+  var panelMode = 'search';
+  // inline 模式下缓存的取词上下文：{ lineStart, lineEnd, lineTerm, wholeTerm }
+  var inlineCtx = null;
+  // inline 模式输入防抖定时器
+  var inputDebounceTimer = null;
+  // 填充进行中标志：避免 fillInput/fillInlineInput 派发的 input 事件再次触发 inline 搜索
+  var isFilling = false;
+
   // ════════════════════════════════════════════════════════════════════════
   //  触发图标模块（Trigger Icon Module）
   //  负责图标的创建、定位、显示、隐藏
@@ -823,9 +874,8 @@
       // 阻止事件传播，防止事件冒泡到父元素，
       // 例如你点了图标，不希望页面外层容器、document 上的点击监听器也被触发
       e.stopPropagation();  
-      // 面板已打开则关闭
-      if (panelEl) closePanel();
-      // 否则打开面板
+      // 已是 search 面板则关闭（切换）；否则（无面板或 inline 面板）打开 search 面板
+      if (panelEl && panelMode === 'search') closePanel();
       else if (activeInput) openPanel(activeInput);
     });
   }
@@ -1037,6 +1087,18 @@
     }
   }, true);
 
+  // 监听输入框输入（inline 模式触发）：300ms 防抖，匹配选择器且非填充触发时处理
+  document.addEventListener('input', function (e) {
+    // 跳过由 fillInput/fillInlineInput 派发的合成 input 事件，避免循环触发
+    if (isFilling) return;
+    var t = e.target;
+    if (!(t && t.matches && t.matches(INPUT_SELECTOR))) return;
+    clearTimeout(inputDebounceTimer);
+    inputDebounceTimer = setTimeout(function () {
+      handleInlineInput(t);
+    }, INPUT_DEBOUNCE_MS);
+  }, true);
+
   // 页面滚动时同步图标和面板位置
   /**
    * - window 监听整个窗口
@@ -1073,9 +1135,31 @@
    * - true 表示在 捕获阶段 触发事件处理
    * - 检查 e.key 是否为 'Escape' 键，且面板存在时关闭面板
    */
-  // ESC 键关闭面板
+  // ESC 键关闭面板；inline 模式下 ↑↓ 导航、Enter 填充（焦点保留在页面输入框）
   document.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape' && panelEl) closePanel();
+    if (e.key === 'Escape' && panelEl) { closePanel(); return; }
+
+    // 仅 inline 模式且面板存在时接管方向键 / 回车
+    if (panelMode !== 'inline' || !panelEl) return;
+    var items = panelEl.querySelectorAll('.afh-item');
+    if (items.length === 0) return;
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      panelActiveIdx = (panelActiveIdx + 1) % items.length;
+      updateActiveItem(items);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      panelActiveIdx = panelActiveIdx <= 0 ? items.length - 1 : panelActiveIdx - 1;
+      updateActiveItem(items);
+    } else if (e.key === 'Enter') {
+      // 仅在已用 ↑↓ 高亮某项时才填充；未高亮则放行（保留换行/表单提交）
+      if (panelActiveIdx >= 0 && items[panelActiveIdx]) {
+        e.preventDefault();
+        e.stopPropagation();
+        items[panelActiveIdx].click();
+      }
+    }
   }, true);
 
   // ════════════════════════════════════════════════════════════════════════
@@ -1114,6 +1198,8 @@
   function openPanel(el) {
     // 先关闭已有面板
     closePanel();
+    // 标记为 search 模式（图标点击打开，带搜索框、全量替换）
+    panelMode = 'search';
     var domain = getCurrentDomain();
     panelEl = document.createElement('div');
     panelEl.className = 'afh-panel';
@@ -1317,9 +1403,11 @@
    * @param {HTMLElement} inputEl - 当前输入框
    * @param {string} domain - 当前域名
    * @param {string} query - 当前搜索关键词
+   * @param {string} [matchType] - inline 模式匹配类型：'whole' | 'line'，传入时展示徽标并隐藏编辑/删除按钮
    * @returns {HTMLElement} 条目 DOM 元素
    */
-  function buildItemEl(item, scope, inputEl, domain, query) {
+  function buildItemEl(item, scope, inputEl, domain, query, matchType) {
+    var isInline = !!matchType;
     var el = document.createElement('div');
     el.className = 'afh-item';
 
@@ -1330,6 +1418,14 @@
     var lbl = document.createElement('div');
     lbl.className = 'afh-item-lbl';
     lbl.textContent = item.label;
+
+    // inline 模式：在标签后追加匹配类型徽标
+    if (isInline) {
+      var badge = document.createElement('span');
+      badge.className = 'afh-badge ' + matchType;
+      badge.textContent = matchType === 'whole' ? '整体替换' : '当前行';
+      lbl.appendChild(badge);
+    }
 
     var val = document.createElement('div');
     val.className = 'afh-item-val';
@@ -1374,11 +1470,13 @@
     acts.appendChild(ebtn);
     acts.appendChild(dbtn);
     el.appendChild(info);
-    el.appendChild(acts);
+    // inline 模式不展示编辑/删除按钮，保持轻量
+    if (!isInline) el.appendChild(acts);
 
-    // 点击条目填充内容
+    // 点击条目填充内容：inline 区间替换，search 全量替换
     el.addEventListener('click', function () {
-      fillInput(inputEl, item.value);
+      if (isInline) fillInlineInput(inputEl, item, matchType);
+      else          fillInput(inputEl, item.value);
       closePanel();
     });
 
@@ -1488,6 +1586,203 @@
     // 触发合成事件，通知框架数据变更
     el.dispatchEvent(new Event('input',  { bubbles: true }));
     el.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+
+  // ════════════════════════════════════════════════════════════════════════
+  //  inline 模式（输入触发）取词 / 匹配 / 填充
+  // ════════════════════════════════════════════════════════════════════════
+
+  /**
+   * 从输入框取词：返回当前行与整体内容两个候选及当前行区间
+   * @param {HTMLElement} el - 当前输入框
+   * @returns {Object} { lineStart, lineEnd, lineTerm, wholeTerm }
+   */
+  function getInlineQuery(el) {
+    var value = el.value;
+    // selectionStart 在某些 input 类型（如 number）下为 null，回退到末尾
+    var caret = (typeof el.selectionStart === 'number') ? el.selectionStart : value.length;
+    // 当前行起点：光标前最近一个换行符之后
+    var lineStart = value.lastIndexOf('\n', caret - 1) + 1;
+    // 当前行终点：光标后最近一个换行符（无则到结尾）
+    var nlAfter = value.indexOf('\n', caret);
+    var lineEnd = (nlAfter === -1) ? value.length : nlAfter;
+    return {
+      lineStart: lineStart,
+      lineEnd: lineEnd,
+      lineTerm: value.slice(lineStart, lineEnd),
+      wholeTerm: value
+    };
+  }
+
+  /**
+   * 判断某个候选词是否有效（非空白且不超过最大长度）
+   * @param {string} term
+   * @returns {boolean}
+   */
+  function isTermValid(term) {
+    return !!term && term.length <= MAX_QUERY_LEN && term.trim() !== '';
+  }
+
+  /**
+   * 判断条目是否命中某个候选词（label/value 双字段，不区分大小写）
+   * @param {Object} item
+   * @param {string} term
+   * @returns {boolean}
+   */
+  function itemMatchesTerm(item, term) {
+    if (!term) return false;
+    var t = term.toLowerCase();
+    return item.label.toLowerCase().indexOf(t) !== -1
+        || item.value.toLowerCase().indexOf(t) !== -1;
+  }
+
+  /**
+   * 计算 inline 模式命中项：为每项打 matchType（whole 优先），按 value 长度升序
+   * @param {string} domain - 当前域名
+   * @param {Object} ctx - getInlineQuery 返回的取词上下文
+   * @returns {Array} [{ item, scope, matchType }]
+   */
+  function computeInlineMatches(domain, ctx) {
+    var lineValid  = isTermValid(ctx.lineTerm);
+    var wholeValid = isTermValid(ctx.wholeTerm);
+    if (!lineValid && !wholeValid) return [];
+
+    var _ref = getItemsForDomain(domain);
+    // 域名条目在前、全局条目在后（排序后顺序由 value 长度决定，这里仅决定 scope 归属）
+    var pool = _ref.domainItems.map(function (it) { return { item: it, scope: domain }; })
+      .concat(_ref.global.map(function (it) { return { item: it, scope: 'global' }; }));
+
+    var results = [];
+    pool.forEach(function (entry) {
+      var matchType = null;
+      if (wholeValid && itemMatchesTerm(entry.item, ctx.wholeTerm)) {
+        matchType = 'whole';
+      } else if (lineValid && itemMatchesTerm(entry.item, ctx.lineTerm)) {
+        matchType = 'line';
+      }
+      if (matchType) {
+        results.push({ item: entry.item, scope: entry.scope, matchType: matchType });
+      }
+    });
+
+    // 按 value 字符串长度升序：越短越靠前
+    results.sort(function (a, b) {
+      return a.item.value.length - b.item.value.length;
+    });
+    return results;
+  }
+
+  /**
+   * inline 模式填充：按该项 matchType 决定替换区间
+   * - whole：替换整个输入框值
+   * - line ：仅替换当前行 [lineStart, lineEnd]，保留前后内容
+   * @param {HTMLElement} el - 当前输入框
+   * @param {Object} item - 选中的条目
+   * @param {string} matchType - 'whole' | 'line'
+   */
+  function fillInlineInput(el, item, matchType) {
+    var value = el.value;
+    var start, end;
+    if (matchType === 'line' && inlineCtx) {
+      start = inlineCtx.lineStart;
+      end   = inlineCtx.lineEnd;
+    } else {
+      // whole（或缺少上下文兜底）：整体替换
+      start = 0;
+      end   = value.length;
+    }
+    var newVal  = value.slice(0, start) + item.value + value.slice(end);
+    var caretPos = start + item.value.length;
+
+    // 标记填充中，避免派发的 input 事件再次触发 inline 搜索
+    isFilling = true;
+    try {
+      el.focus();
+      try {
+        var proto = el.tagName === 'TEXTAREA'
+          ? window.HTMLTextAreaElement.prototype
+          : window.HTMLInputElement.prototype;
+        var desc = Object.getOwnPropertyDescriptor(proto, 'value');
+        if (desc && desc.set) desc.set.call(el, newVal);
+        else el.value = newVal;
+      } catch (_) {
+        el.value = newVal;
+      }
+      // 设置光标到插入值末尾
+      try { el.setSelectionRange(caretPos, caretPos); } catch (_) {}
+      el.dispatchEvent(new Event('input',  { bubbles: true }));
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+    } finally {
+      isFilling = false;
+    }
+  }
+
+  /**
+   * 打开 inline 模式面板（无搜索框、无底栏、不抢焦点）
+   * @param {HTMLElement} el - 当前输入框
+   */
+  function openInlinePanel(el) {
+    closePanel();
+    panelMode = 'inline';
+    panelEl = document.createElement('div');
+    panelEl.className = 'afh-panel';
+    shadow.appendChild(panelEl);
+    renderInlineList(el, getCurrentDomain());
+    positionPanel(el);
+  }
+
+  /**
+   * 渲染 inline 模式列表：扁平、按 value 长度升序、带匹配类型徽标
+   * @param {HTMLElement} inputEl - 当前输入框
+   * @param {string} domain - 当前域名
+   */
+  function renderInlineList(inputEl, domain) {
+    if (!panelEl) return;
+    var list = panelEl.querySelector('.afh-list');
+    if (!list) {
+      list = document.createElement('div');
+      list.className = 'afh-list';
+      panelEl.appendChild(list);
+    } else {
+      list.innerHTML = '';
+    }
+
+    var matches = computeInlineMatches(domain, inlineCtx);
+    if (matches.length === 0) {
+      // 正常流程不会到这里（handleInlineInput 会先关闭），兜底显示空态
+      var empty = document.createElement('div');
+      empty.className = 'afh-empty';
+      empty.textContent = '没有匹配的内容';
+      list.appendChild(empty);
+      return;
+    }
+    matches.forEach(function (m) {
+      list.appendChild(buildItemEl(m.item, m.scope, inputEl, domain, '', m.matchType));
+    });
+  }
+
+  /**
+   * 处理 inline 输入（已防抖）：取词 → 计算命中 → 开/更新/关闭面板
+   * @param {HTMLElement} el - 当前输入框
+   */
+  function handleInlineInput(el) {
+    if (isFilling) return;
+    // 输入清空：关闭面板
+    if (el.value === '') { closePanel(); return; }
+
+    inlineCtx = getInlineQuery(el);
+    var domain = getCurrentDomain();
+    var matches = computeInlineMatches(domain, inlineCtx);
+    // 无命中：关闭面板
+    if (matches.length === 0) { closePanel(); return; }
+
+    panelActiveIdx = -1;
+    if (!panelEl) {
+      openInlinePanel(el);
+    } else if (panelMode === 'inline') {
+      renderInlineList(el, domain);
+    }
+    // 若当前是 search 面板（图标打开），不打断它
   }
 
   /**
