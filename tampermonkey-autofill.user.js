@@ -1637,7 +1637,8 @@
   }
 
   /**
-   * 计算 inline 模式命中项：为每项打 matchType（whole 优先），按 value 长度升序
+   * 计算 inline 模式命中项：为每项打 matchType（whole 优先）
+   * 仅负责筛选与打标，分组与排序交由 renderInlineList 处理
    * @param {string} domain - 当前域名
    * @param {Object} ctx - getInlineQuery 返回的取词上下文
    * @returns {Array} [{ item, scope, matchType }]
@@ -1648,7 +1649,7 @@
     if (!lineValid && !wholeValid) return [];
 
     var _ref = getItemsForDomain(domain);
-    // 域名条目在前、全局条目在后（排序后顺序由 value 长度决定，这里仅决定 scope 归属）
+    // 域名条目与全局条目，各自带上 scope 标记
     var pool = _ref.domainItems.map(function (it) { return { item: it, scope: domain }; })
       .concat(_ref.global.map(function (it) { return { item: it, scope: 'global' }; }));
 
@@ -1663,11 +1664,6 @@
       if (matchType) {
         results.push({ item: entry.item, scope: entry.scope, matchType: matchType });
       }
-    });
-
-    // 按 value 字符串长度升序：越短越靠前
-    results.sort(function (a, b) {
-      return a.item.value.length - b.item.value.length;
     });
     return results;
   }
@@ -1732,7 +1728,9 @@
   }
 
   /**
-   * 渲染 inline 模式列表：扁平、按 value 长度升序、带匹配类型徽标
+   * 渲染 inline 模式列表：按作用域分组（当前域名在前、全局在后），
+   * 组内按 matchType 分组（line 在前、whole 在后），子组内按 value 长度升序；带匹配类型徽标。
+   * 分组标签/分隔线复用 search 面板的 .afh-glabel / .afh-divider 样式。
    * @param {HTMLElement} inputEl - 当前输入框
    * @param {string} domain - 当前域名
    */
@@ -1756,8 +1754,40 @@
       list.appendChild(empty);
       return;
     }
-    matches.forEach(function (m) {
-      list.appendChild(buildItemEl(m.item, m.scope, inputEl, domain, '', m.matchType));
+
+    // 作用域顺序：当前域名在前，全局在后；matchType 顺序：当前行(line)在前，整体替换(whole)在后
+    var scopes = [domain, 'global'];
+    var typeOrder = ['line', 'whole'];
+    var renderedGroups = 0;
+
+    scopes.forEach(function (sc) {
+      var inScope = matches.filter(function (m) { return m.scope === sc; });
+      if (inScope.length === 0) return;
+
+      // 组间分隔线
+      if (renderedGroups > 0) {
+        var div = document.createElement('div');
+        div.className = 'afh-divider';
+        list.appendChild(div);
+      }
+
+      // 分组标签：当前站点 / 全局
+      var glabel = document.createElement('div');
+      glabel.className = 'afh-glabel';
+      glabel.textContent = (sc === 'global') ? '全局' : ('当前站点 · ' + sc);
+      list.appendChild(glabel);
+
+      // 组内：line 在前、whole 在后；子组内按 value 长度升序
+      typeOrder.forEach(function (t) {
+        inScope
+          .filter(function (m) { return m.matchType === t; })
+          .sort(function (a, b) { return a.item.value.length - b.item.value.length; })
+          .forEach(function (m) {
+            list.appendChild(buildItemEl(m.item, m.scope, inputEl, domain, '', m.matchType));
+          });
+      });
+
+      renderedGroups++;
     });
   }
 
