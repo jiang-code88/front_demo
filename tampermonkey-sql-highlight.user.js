@@ -355,10 +355,124 @@
     for (var i = 0; i < tokens.length; i++) {
       var tok = tokens[i];
       var esc = escHtml(tok.v);
-      var cls = T_CLS[tok.t];
-      parts.push(cls ? '<span class="' + cls + '">' + esc + '</span>' : esc);
+      var cls = (T_CLS[tok.t] || '');
+      // 叠加危险标记样式（不替换原有语法颜色类，仅追加）
+      if (tok.danger === 'err')  cls += (cls ? ' ' : '') + 'sh-err';
+      if (tok.danger === 'warn') cls += (cls ? ' ' : '') + 'sh-warn';
+      if (cls) {
+        var attrTitle = tok.tip ? ' title="' + escHtml(tok.tip) + '"' : '';
+        parts.push('<span class="' + cls + '"' + attrTitle + '>' + esc + '</span>');
+      } else {
+        parts.push(esc);
+      }
     }
     return parts.join('');
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  //  SQL 危险模式检测
+  //  在 tokenize() 结果基础上，叠加语义错误 / 危险操作标记
+  //
+  //  检测规则：
+  //    danger:'err'  — 孤立子句（WHERE/HAVING/等 出现在新语句首位）
+  //                    + 导致孤立的那个"误放分号"
+  //    danger:'warn' — 全表操作风险（UPDATE/DELETE 缺少 WHERE 子句）
+  // ══════════════════════════════════════════════════════════════════════════
+
+  // 不能独立成句、只能作为 DML 子句跟随使用的关键字
+  var ORPHAN_KW = makeSet(['WHERE', 'HAVING', 'LIMIT', 'OFFSET', 'FETCH', 'GROUP', 'ORDER']);
+
+  // 缺少 WHERE 时会影响全表的危险 DML
+  var FULL_TABLE_DML = makeSet(['UPDATE', 'DELETE']);
+
+  function analyzeDangers(tokens) {
+    // 按 ; 将 token 流分割成独立语句
+    var stmts    = [];  // Array<token[]>
+    var semiToks = [];  // 每条语句结尾的 ; token（最后一条为 null）
+    var cur      = [];
+
+    for (var i = 0; i < tokens.length; i++) {
+      var tok = tokens[i];
+      if (tok.t === 'pu' && tok.v === ';') {
+        stmts.push(cur); semiToks.push(tok); cur = [];
+      } else {
+        cur.push(tok);
+      }
+    }
+    stmts.push(cur);
+    semiToks.push(null);
+
+    for (var s = 0; s < stmts.length; s++) {
+      var stmt      = stmts[s];
+      var semiTok   = semiToks[s];
+      var prevSemi  = s > 0 ? semiToks[s - 1] : null;
+
+      // 找出本语句第一个关键字，以及是否含 WHERE
+      var firstKwTok   = null;
+      var firstKwUpper = null;
+      var hasWhere     = false;
+
+      for (var t = 0; t < stmt.length; t++) {
+        var ttok  = stmt[t];
+        if (ttok.t !== 'kw' && ttok.t !== 'fn') continue;
+        var upper = ttok.v.toUpperCase();
+        if (!firstKwTok) { firstKwTok = ttok; firstKwUpper = upper; }
+        if (upper === 'WHERE') hasWhere = true;
+      }
+
+      if (!firstKwTok) continue; // 空语句 / 纯注释
+
+      // ── 检测 1：孤立子句 ─────────────────────────────────────────────
+      // WHERE / HAVING / GROUP / ORDER 等不能出现在语句的首位
+      if (ORPHAN_KW[firstKwUpper]) {
+        for (var t2 = 0; t2 < stmt.length; t2++) {
+          var tok2 = stmt[t2];
+          if (tok2.t === 'plain') continue;
+          tok2.danger = 'err';
+          if (!tok2.tip) {
+            tok2.tip =
+              '孤立子句：此 ' + tok2.v.toUpperCase() + ' 之前多了一个分号，' +
+              '已将其与 UPDATE/DELETE 语句切断。' +
+              '更新/删除操作将在没有任何 WHERE 条件的情况下执行，影响全部数据行！';
+          }
+        }
+        // 把"提前放置的分号"也标为错误
+        if (prevSemi) {
+          prevSemi.danger = 'err';
+          prevSemi.tip    =
+            '误放的分号！此 ; 提前终止了 UPDATE/DELETE 语句，' +
+            '导致后面的 ' + firstKwUpper + ' 子句变成孤立语句（不属于任何更新语句），' +
+            '更新/删除将影响全部数据行！请删除此处多余的分号。';
+        }
+      }
+
+      // ── 检测 2：UPDATE/DELETE 无 WHERE（全表操作风险）───────────────
+      if (FULL_TABLE_DML[firstKwUpper] && !hasWhere) {
+        // 判断下一语句是否恰好是孤立的 WHERE（说明是典型的"误放分号"场景）
+        var nextStmt = stmts[s + 1] || [];
+        var nextFirstKw = null;
+        for (var t3 = 0; t3 < nextStmt.length; t3++) {
+          if (nextStmt[t3].t === 'kw') { nextFirstKw = nextStmt[t3].v.toUpperCase(); break; }
+        }
+        var isMisplacedSemi = !!(nextFirstKw && ORPHAN_KW[nextFirstKw]);
+
+        firstKwTok.danger = firstKwTok.danger || 'warn';
+        firstKwTok.tip    = firstKwTok.tip || (
+          isMisplacedSemi
+            ? '危险！此 ' + firstKwUpper + ' 因 SET 子句后多了分号而缺少 WHERE 条件，' +
+              '将对全部数据行执行操作！请删除那个多余的 ; 符号。'
+            : '警告：此 ' + firstKwUpper + ' 没有 WHERE 条件，' +
+              '将对表中全部数据行执行操作，请确认是否符合预期。'
+        );
+        // 没有孤立 WHERE 时，结尾的 ; 也加提示（避免覆盖已标为 err 的情况）
+        if (semiTok && !isMisplacedSemi) {
+          semiTok.danger = semiTok.danger || 'warn';
+          semiTok.tip    = semiTok.tip    || firstKwTok.tip;
+        }
+      }
+    }
+
+    return tokens;
   }
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -393,8 +507,9 @@
   var taPreMap = new WeakMap(); // textarea → pre 映射
 
   function renderBackdrop(ta, pre) {
-    // 末尾追加 '\n ' 防止 pre 最后一行高度计算偏低导致错位
-    pre.innerHTML  = tokensToHTML(tokenize(ta.value)) + '\n ';
+    // tokenize → 危险模式检测 → HTML 渲染
+    // 末尾追加 '\n ' 防止 pre 最后一行高度偏低导致错位
+    pre.innerHTML  = tokensToHTML(analyzeDangers(tokenize(ta.value))) + '\n ';
     pre.scrollTop  = ta.scrollTop;
     pre.scrollLeft = ta.scrollLeft;
   }
@@ -568,6 +683,21 @@
       '.sh-id{ color:#001080 }' +                      // 深蓝色 引号标识符
       '.sh-pu{ color:#666666 }' +                      // 浅灰 标点
 
+      /* ── 危险标记：错误（红色）── */
+      // 孤立子句 / 误放分号：强制覆盖为红色 + 波浪下划线
+      '.sh-err{' +
+        'color:#cc0000!important;' +
+        'text-decoration:underline wavy #cc0000!important;' +
+        'text-decoration-skip-ink:none!important;' +
+      '}' +
+
+      /* ── 危险标记：警告（橙色波浪线，保留原关键字颜色）── */
+      // UPDATE/DELETE 无 WHERE：不改变文字颜色，只加橙色波浪下划线
+      '.sh-warn{' +
+        'text-decoration:underline wavy #d97706!important;' +
+        'text-decoration-skip-ink:none!important;' +
+      '}' +
+
       /* ── Token 颜色：暗色主题（VS Code Dark 风格）── */
       '@media(prefers-color-scheme:dark){' +
         '.sh-kw{ color:#569cd6; font-weight:600 }' +
@@ -578,6 +708,8 @@
         '.sh-op{ color:#d4d4d4 }' +
         '.sh-id{ color:#9cdcfe }' +
         '.sh-pu{ color:#d4d4d4 }' +
+        '.sh-err{ color:#ff6b6b!important; text-decoration-color:#ff6b6b!important }' +
+        '.sh-warn{ text-decoration-color:#fb923c!important }' +
       '}';
 
     (document.head || document.documentElement).appendChild(s);

@@ -231,6 +231,54 @@ WHERE  [u].[IsActive]    = 1
 ORDER BY [o].[Amount] DESC;</textarea>
   </div>
 
+  <!-- 测试场景 7：误放分号导致 WHERE 孤立（核心危险场景）-->
+  <div class="section">
+    <h2>场景 7 · 危险检测 · 误放分号导致 WHERE 孤立 ⚠️</h2>
+    <p>
+      <strong>左边（正确）</strong>：分号在 WHERE 子句之后，UPDATE 只影响指定行。<br>
+      <strong>右边（错误）</strong>：分号在 SET 子句之后、WHERE 之前，UPDATE 将影响全部数据行！<br>
+      错误版本应显示：<span style="color:#cc0000;font-weight:600">红色误放分号</span>、
+      <span style="color:#cc0000;font-weight:600">红色孤立 WHERE 子句</span>、
+      <span style="text-decoration:underline wavy #d97706;font-weight:600">UPDATE 关键字橙色下划线</span>。
+      悬停在红色位置可查看错误提示。
+    </p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      <div>
+        <div style="font-size:0.85rem;color:#008000;font-weight:600;margin-bottom:6px">✓ 正确写法（WHERE 在分号前）</div>
+        <textarea style="min-height:110px">update epc_vehicle_btrid_relation
+set vehicle_model = UPPER(vehicle_model)
+where vehicle_model in ('6E33CA434E', 'F60D2F1F23');</textarea>
+      </div>
+      <div>
+        <div style="font-size:0.85rem;color:#cc0000;font-weight:600;margin-bottom:6px">✗ 错误写法（SET 后面多了一个分号）</div>
+        <textarea style="min-height:110px">update epc_vehicle_btrid_relation
+set vehicle_model = UPPER(vehicle_model);
+where vehicle_model in ('6E33CA434E', 'F60D2F1F23');</textarea>
+      </div>
+    </div>
+    <p class="note">悬停在红色标记的 <code>;</code> 或 <code>where</code> 上，可看到详细的错误说明。</p>
+  </div>
+
+  <!-- 测试场景 8：UPDATE/DELETE 无 WHERE（全表操作警告）-->
+  <div class="section">
+    <h2>场景 8 · 危险检测 · UPDATE / DELETE 无 WHERE 条件</h2>
+    <p>
+      UPDATE / DELETE 没有 WHERE 子句时，关键字会显示橙色波浪下划线警告。
+      悬停可查看提示。如果是故意全表更新，可以忽略警告。
+    </p>
+    <textarea style="min-height:130px">-- 全表更新（无 WHERE）→ UPDATE 关键字显示橙色警告下划线
+update epc_vehicle_btrid_relation
+set vehicle_model = UPPER(vehicle_model);
+
+-- 全表删除（无 WHERE）→ DELETE 关键字显示橙色警告下划线
+delete from epc_vehicle_btrid_relation;
+
+-- 有 WHERE 的正常更新 → 无警告
+update epc_vehicle_btrid_relation
+set vehicle_model = UPPER(vehicle_model)
+where vehicle_model in ('6E33CA434E', 'F60D2F1F23');</textarea>
+  </div>
+
   <!-- 对照组：普通表单（不应激活高亮） -->
   <div class="section non-sql-section">
     <h2>对照组 · 普通 textarea（不含 SQL，不应激活高亮）</h2>
