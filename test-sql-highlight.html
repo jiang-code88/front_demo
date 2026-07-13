@@ -3,299 +3,269 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SQL Highlight 测试页</title>
+  <title>SQL Editor 测试页 — CodeMirror 6</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@3.4.1/dist/css/bootstrap.min.css">
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-
+    *, *::before, *::after { box-sizing: border-box; }
     body {
-      font-family: system-ui, -apple-system, sans-serif;
-      background: #f5f5f5;
-      color: #222;
-      padding: 32px 24px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f3f4f6;
+      color: #111827;
+      min-height: 100vh;
+      margin: 0;
     }
-
-    h1 { font-size: 1.6rem; margin-bottom: 8px; }
-    .subtitle { color: #666; margin-bottom: 32px; font-size: 0.95rem; }
-
-    .section { margin-bottom: 40px; }
-    .section h2 { font-size: 1.1rem; margin-bottom: 10px; color: #333; }
-    .section p  { font-size: 0.88rem; color: #666; margin-bottom: 10px; }
-
-    textarea {
-      width: 100%;
-      min-height: 140px;
-      font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace;
-      font-size: 14px;
-      line-height: 1.6;
-      padding: 12px 14px;
-      border: 1px solid #ccc;
-      border-radius: 6px;
-      resize: vertical;
-      background: #fff;
-      color: #222;
-      outline: none;
-      transition: border-color 0.2s;
-    }
-    textarea:focus { border-color: #4a90e2; }
-
-    .note {
-      margin-top: 8px;
-      font-size: 0.82rem;
-      color: #888;
-    }
-    .note code { background: #eee; padding: 1px 5px; border-radius: 3px; }
-
-    /* 参照组：普通 textarea（不含 SQL） */
-    .non-sql-section textarea { min-height: 70px; }
-
-    /* 深色模式切换按钮 */
-    .toolbar {
+    .nav {
+      background: #2563eb;
+      color: #fff;
+      padding: 14px 28px;
       display: flex;
-      gap: 10px;
-      margin-bottom: 28px;
+      align-items: center;
+      gap: 12px;
     }
-    button {
-      padding: 7px 16px;
-      border: 1px solid #ccc;
-      border-radius: 5px;
+    .nav-logo {
+      width: 32px; height: 32px;
+      background: rgba(255,255,255,.2);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px; font-weight: 700;
+    }
+    .nav h1 { font-size: 17px; font-weight: 700; margin: 0; }
+    .nav p  { font-size: 12px; opacity: .75; margin: 2px 0 0; }
+    .container { max-width: 1000px; margin: 0 auto; padding: 28px 20px; }
+    .hint-banner {
+      background: #dbeafe;
+      border: 1px solid #93c5fd;
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin-bottom: 24px;
+      font-size: 13px;
+      color: #1e40af;
+      line-height: 1.6;
+    }
+    .hint-banner strong { font-weight: 700; }
+    .debug-panel {
+      margin-top: 28px;
       background: #fff;
-      cursor: pointer;
-      font-size: 0.9rem;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 20px;
     }
-    button:hover { background: #f0f0f0; }
-
-    .dark-mode {
-      background: #1e1e1e;
-      color: #d4d4d4;
+    .debug-panel h3 {
+      font-size: 14px;
+      font-weight: 700;
+      color: #6b7280;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      margin: 0 0 12px;
     }
-    .dark-mode textarea {
-      background: #252526;
-      color: #d4d4d4;
-      border-color: #444;
+    .debug-row {
+      display: flex;
+      gap: 8px;
+      padding: 6px 0;
+      border-bottom: 1px solid #f3f4f6;
+      font-size: 13px;
+      font-family: 'Consolas', 'Monaco', monospace;
     }
-    .dark-mode h1, .dark-mode h2 { color: #ccc; }
-    .dark-mode .subtitle, .dark-mode .section p, .dark-mode .note { color: #888; }
-    .dark-mode button { background: #333; border-color: #555; color: #ccc; }
-    .dark-mode button:hover { background: #444; }
+    .debug-row:last-child { border-bottom: none; }
+    .debug-label {
+      min-width: 120px;
+      color: #6b7280;
+      font-weight: 600;
+    }
+    .debug-value {
+      color: #111827;
+      word-break: break-all;
+      flex: 1;
+    }
+    .debug-value.empty { color: #9ca3af; font-style: italic; }
+    .sample-btn {
+      margin-top: 16px;
+    }
   </style>
 </head>
 <body>
-  <h1>SQL Highlight 脚本测试页</h1>
-  <p class="subtitle">
-    安装油猴脚本 <code>tampermonkey-sql-highlight.user.js</code> 后，在下方的 textarea 中输入 SQL，
-    将自动激活语法高亮。
-  </p>
-
-  <div class="toolbar">
-    <button onclick="toggleDark()">切换深色 / 亮色模式</button>
-    <button onclick="clearAll()">清空所有输入</button>
+  <div class="nav">
+    <div class="nav-logo">SQL</div>
+    <div>
+      <h1>SQL Tools — 测试页</h1>
+      <p>CodeMirror 6 语法高亮油猴脚本验证</p>
+    </div>
   </div>
 
-  <!-- 测试场景 1：预填 SELECT 语句 -->
-  <div class="section">
-    <h2>场景 1 · SELECT 查询（页面加载即有内容，应自动激活高亮）</h2>
-    <p>包含 JOIN、子查询、窗口函数、注释，覆盖常见语法结构。</p>
-    <textarea id="ta1">-- 查询最近 30 天各部门的销售排名
-SELECT
-    d.department_name,
-    e.employee_id,
-    e.full_name,
-    SUM(o.amount)                               AS total_sales,
-    RANK() OVER (
-        PARTITION BY d.department_id
-        ORDER BY SUM(o.amount) DESC
-    )                                           AS dept_rank
-FROM employees e
-    INNER JOIN departments d ON e.department_id = d.department_id
-    LEFT  JOIN orders      o ON o.employee_id   = e.employee_id
-                             AND o.order_date >= CURRENT_DATE - INTERVAL '30 days'
-WHERE e.status = 'active'
-  AND e.hire_date BETWEEN '2020-01-01' AND '2023-12-31'
-GROUP BY d.department_id, d.department_name, e.employee_id, e.full_name
-HAVING SUM(o.amount) > 1000
-ORDER BY dept_rank ASC, total_sales DESC
-LIMIT 50;</textarea>
-    <p class="note">提示：脚本检测到 <code>SELECT</code> 起始关键字后自动增强此 textarea。</p>
-  </div>
+  <div class="container">
+    <div class="hint-banner">
+      <strong>使用说明：</strong>
+      安装 Tampermonkey 脚本 <code>tampermonkey-sql-highlight.user.js</code> 后，
+      本页面会自动加载 CodeMirror 6 SQL 编辑器。测试项：语法高亮、自动补全、多 Tab、选区同步、表单提交。
+    </div>
 
-  <!-- 测试场景 2：手动输入 -->
-  <div class="section">
-    <h2>场景 2 · 空白输入框（输入 SQL 后自动激活）</h2>
-    <p>在下方输入框中逐步输入 SQL，防抖 500ms 后触发检测，自动激活高亮。</p>
-    <textarea id="ta2" placeholder="在此输入 SQL，如：SELECT * FROM users WHERE id = 1"></textarea>
-    <p class="note">停止输入 0.5 秒后检测；或者输入后点击旁边区域再聚焦也会触发检测。</p>
-  </div>
-
-  <!-- 测试场景 3：INSERT / UPDATE / DELETE -->
-  <div class="section">
-    <h2>场景 3 · DML 操作（INSERT / UPDATE / DELETE）</h2>
-    <textarea id="ta3">/* 批量插入用户数据 */
-INSERT INTO users (username, email, role, created_at)
-VALUES
-    ('alice',   'alice@example.com',   'admin',  NOW()),
-    ('bob',     'bob@example.com',     'editor', NOW()),
-    ('charlie', 'charlie@example.com', 'viewer', NOW());
-
--- 更新过期账户
-UPDATE accounts
-SET    status      = 'expired',
-       updated_at  = CURRENT_TIMESTAMP
-WHERE  expires_at < NOW()
-  AND  status     != 'expired';
-
--- 删除 90 天前的日志
-DELETE FROM access_logs
-WHERE created_at < DATE_SUB(NOW(), INTERVAL 90 DAY);</textarea>
-  </div>
-
-  <!-- 测试场景 4：DDL -->
-  <div class="section">
-    <h2>场景 4 · DDL 语句（CREATE TABLE / ALTER）</h2>
-    <textarea id="ta4">-- 创建用户表
-CREATE TABLE IF NOT EXISTS users (
-    id          SERIAL        PRIMARY KEY,
-    username    VARCHAR(64)   NOT NULL UNIQUE,
-    email       VARCHAR(255)  NOT NULL UNIQUE,
-    password    VARCHAR(255)  NOT NULL,
-    role        ENUM('admin', 'editor', 'viewer') DEFAULT 'viewer',
-    is_active   BOOLEAN       NOT NULL DEFAULT TRUE,
-    created_at  TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at  TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP
-        ON UPDATE CURRENT_TIMESTAMP,
-    CONSTRAINT chk_email CHECK (email LIKE '%@%')
-);
-
--- 添加索引
-CREATE INDEX idx_users_email ON users (email);
-
--- 修改列
-ALTER TABLE users
-    ADD COLUMN last_login TIMESTAMP NULL,
-    MODIFY COLUMN username VARCHAR(128) NOT NULL;</textarea>
-  </div>
-
-  <!-- 测试场景 5：CTE + 窗口函数 -->
-  <div class="section">
-    <h2>场景 5 · CTE + 窗口函数（PostgreSQL 风格）</h2>
-    <textarea id="ta5">WITH
--- 月度销售汇总
-monthly_sales AS (
-    SELECT
-        DATE_TRUNC('month', order_date)      AS month,
-        product_id,
-        SUM(quantity * unit_price)           AS revenue
-    FROM   order_items
-    WHERE  order_date >= '2024-01-01'
-    GROUP  BY 1, 2
-),
--- 环比增长率
-growth AS (
-    SELECT
-        month,
-        product_id,
-        revenue,
-        LAG(revenue) OVER (
-            PARTITION BY product_id
-            ORDER BY month
-        )                                    AS prev_revenue,
-        ROUND(
-            (revenue - LAG(revenue) OVER (PARTITION BY product_id ORDER BY month))
-            / NULLIF(LAG(revenue) OVER (PARTITION BY product_id ORDER BY month), 0)
-            * 100,
-            2
-        )                                    AS growth_pct
-    FROM monthly_sales
-)
-SELECT *
-FROM   growth
-WHERE  growth_pct IS NOT NULL
-ORDER  BY month DESC, growth_pct DESC;</textarea>
-  </div>
-
-  <!-- 测试场景 6：T-SQL（SQL Server 方括号标识符）-->
-  <div class="section">
-    <h2>场景 6 · T-SQL 风格（方括号标识符 / 系统函数）</h2>
-    <textarea id="ta6">-- SQL Server 风格查询
-SELECT TOP 10
-    [u].[UserID],
-    [u].[UserName],
-    [u].[Email],
-    FORMAT([o].[OrderDate], 'yyyy-MM-dd')  AS [OrderDate],
-    CAST([o].[Amount] AS DECIMAL(18, 2))   AS [Amount],
-    ISNULL([p].[ProfileName], 'N/A')       AS [ProfileName]
-FROM   [dbo].[Users]   AS [u]
-    INNER JOIN [dbo].[Orders]   AS [o] ON [o].[UserID] = [u].[UserID]
-    LEFT  JOIN [dbo].[Profiles] AS [p] ON [p].[UserID] = [u].[UserID]
-WHERE  [u].[IsActive]    = 1
-  AND  [o].[OrderDate]  >= DATEADD(day, -30, GETDATE())
-ORDER BY [o].[Amount] DESC;</textarea>
-  </div>
-
-  <!-- 测试场景 7：误放分号导致 WHERE 孤立（核心危险场景）-->
-  <div class="section">
-    <h2>场景 7 · 危险检测 · 误放分号导致 WHERE 孤立 ⚠️</h2>
-    <p>
-      <strong>左边（正确）</strong>：分号在 WHERE 子句之后，UPDATE 只影响指定行。<br>
-      <strong>右边（错误）</strong>：分号在 SET 子句之后、WHERE 之前，UPDATE 将影响全部数据行！<br>
-      错误版本应显示：<span style="color:#cc0000;font-weight:600">红色误放分号</span>、
-      <span style="color:#cc0000;font-weight:600">红色孤立 WHERE 子句</span>、
-      <span style="text-decoration:underline wavy #d97706;font-weight:600">UPDATE 关键字橙色下划线</span>。
-      悬停在红色位置可查看错误提示。
-    </p>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
-      <div>
-        <div style="font-size:0.85rem;color:#008000;font-weight:600;margin-bottom:6px">✓ 正确写法（WHERE 在分号前）</div>
-        <textarea style="min-height:110px">update epc_vehicle_btrid_relation
-set vehicle_model = UPPER(vehicle_model)
-where vehicle_model in ('6E33CA434E', 'F60D2F1F23');</textarea>
+    <!-- 模拟目标页面表单结构 -->
+    <form id="sqlForm" action="#" method="post" onsubmit="return handleFormSubmit(event)">
+      <div class="row" style="border-bottom: 1px dashed lightblue;padding-bottom: 10px;">
+        <div class="col-md-10">
+          <textarea
+            style="height:250px;resize: vertical;overflow: auto;"
+            onselect="sqlQPost()"
+            class="form-control sqlautocomplete"
+            id="sql"
+            name="sql"
+            placeholder='请写sql语句,只支持select,show,describe(desc),默认limit 100, 多条sql语句请用英文分号 ";" 分割，不选中或选中多条提交，默认只执行第一条'></textarea>
+        </div>
+        <div class="col-md-2 pull-left">
+          <div class="btn-group">
+            <button style='height:45px' class="btn btn-sm btn-default" id="check_submit" type="button" onclick="handleSubmit()">提交</button>
+            <button style='height:45px' class="btn btn-sm btn-default" formaction="sqltools_excel" id="check_submit_export" type="submit">导出</button>
+          </div>
+        </div>
+        <input type="hidden" id="select_sql" name="select_sql">
+        <input type="hidden" id="current_erp" name="current_erp" value="">
       </div>
-      <div>
-        <div style="font-size:0.85rem;color:#cc0000;font-weight:600;margin-bottom:6px">✗ 错误写法（SET 后面多了一个分号）</div>
-        <textarea style="min-height:110px">update epc_vehicle_btrid_relation
-set vehicle_model = UPPER(vehicle_model);
-where vehicle_model in ('6E33CA434E', 'F60D2F1F23');</textarea>
+    </form>
+
+    <button class="btn btn-info btn-sm sample-btn" onclick="loadSampleSQL()">载入示例 SQL</button>
+
+    <!-- 调试面板 -->
+    <div class="debug-panel">
+      <h3>调试信息</h3>
+      <div class="debug-row">
+        <span class="debug-label">#sql value</span>
+        <span class="debug-value empty" id="dbg-sql">(空)</span>
+      </div>
+      <div class="debug-row">
+        <span class="debug-label">#select_sql</span>
+        <span class="debug-value empty" id="dbg-select-sql">(空)</span>
+      </div>
+      <div class="debug-row">
+        <span class="debug-label">选区范围</span>
+        <span class="debug-value empty" id="dbg-sel-range">无选区</span>
+      </div>
+      <div class="debug-row">
+        <span class="debug-label">提交事件</span>
+        <span class="debug-value empty" id="dbg-submit">未提交</span>
       </div>
     </div>
-    <p class="note">悬停在红色标记的 <code>;</code> 或 <code>where</code> 上，可看到详细的错误说明。</p>
-  </div>
-
-  <!-- 测试场景 8：UPDATE/DELETE 无 WHERE（全表操作警告）-->
-  <div class="section">
-    <h2>场景 8 · 危险检测 · UPDATE / DELETE 无 WHERE 条件</h2>
-    <p>
-      UPDATE / DELETE 没有 WHERE 子句时，关键字会显示橙色波浪下划线警告。
-      悬停可查看提示。如果是故意全表更新，可以忽略警告。
-    </p>
-    <textarea style="min-height:130px">-- 全表更新（无 WHERE）→ UPDATE 关键字显示橙色警告下划线
-update epc_vehicle_btrid_relation
-set vehicle_model = UPPER(vehicle_model);
-
--- 全表删除（无 WHERE）→ DELETE 关键字显示橙色警告下划线
-delete from epc_vehicle_btrid_relation;
-
--- 有 WHERE 的正常更新 → 无警告
-update epc_vehicle_btrid_relation
-set vehicle_model = UPPER(vehicle_model)
-where vehicle_model in ('6E33CA434E', 'F60D2F1F23');</textarea>
-  </div>
-
-  <!-- 对照组：普通表单（不应激活高亮） -->
-  <div class="section non-sql-section">
-    <h2>对照组 · 普通 textarea（不含 SQL，不应激活高亮）</h2>
-    <p>以下输入框内容不像 SQL，脚本应保持原样，不添加叠层。</p>
-    <textarea placeholder="这是普通备注字段，随意输入文字...">这是一段普通文本，不包含 SQL 关键字结构，高亮脚本不应该处理这个输入框。</textarea>
   </div>
 
   <script>
-    function toggleDark() {
-      document.body.classList.toggle('dark-mode');
+    /**
+     * 模拟目标页面的 sqlQPost 函数
+     * 读取 textarea#sql 的选区，写入 #select_sql 隐藏域
+     */
+    function sqlQPost() {
+      var sqlInput = document.getElementById('sql');
+      var selectSql = document.getElementById('select_sql');
+      if (!sqlInput || !selectSql) return;
+
+      var start = sqlInput.selectionStart || 0;
+      var end = sqlInput.selectionEnd || 0;
+
+      if (start !== end) {
+        selectSql.value = sqlInput.value.substring(start, end);
+      } else {
+        selectSql.value = '';
+      }
+      updateDebug();
     }
-    function clearAll() {
-      document.querySelectorAll('textarea').forEach(function(ta) {
-        ta.value = '';
-        ta.dispatchEvent(new Event('input'));
+
+    /**
+     * 提交按钮处理
+     */
+    function handleSubmit() {
+      var form = document.getElementById('sqlForm');
+      var sqlInput = document.getElementById('sql');
+      var selectSql = document.getElementById('select_sql');
+
+      var dbg = document.getElementById('dbg-submit');
+      var submitType = selectSql.value ? '选中SQL' : '完整SQL';
+      dbg.textContent = '提交 (' + submitType + ') — sql 长度=' + sqlInput.value.length + ', select_sql 长度=' + selectSql.value.length;
+      dbg.classList.remove('empty');
+
+      console.log('[SQL Tools] 提交', {
+        sql: sqlInput.value,
+        select_sql: selectSql.value,
+        current_erp: document.getElementById('current_erp').value
       });
     }
+
+    /**
+     * 表单提交处理（导出按钮触发）
+     */
+    function handleFormSubmit(e) {
+      e.preventDefault();
+      var dbg = document.getElementById('dbg-submit');
+      dbg.textContent = '表单提交 (导出) — action=' + (e.submitter ? e.submitter.getAttribute('formaction') : 'default');
+      dbg.classList.remove('empty');
+      console.log('[SQL Tools] 表单提交', {
+        sql: document.getElementById('sql').value,
+        select_sql: document.getElementById('select_sql').value
+      });
+      return false;
+    }
+
+    /**
+     * 更新调试面板
+     */
+    function updateDebug() {
+      var sqlInput = document.getElementById('sql');
+      var selectSql = document.getElementById('select_sql');
+
+      var dbgSql = document.getElementById('dbg-sql');
+      var dbgSelSql = document.getElementById('dbg-select-sql');
+      var dbgSelRange = document.getElementById('dbg-sel-range');
+
+      var sqlVal = sqlInput ? sqlInput.value : '';
+      var selVal = selectSql ? selectSql.value : '';
+
+      dbgSql.textContent = sqlVal ? (sqlVal.length > 80 ? sqlVal.substring(0, 80) + '... (' + sqlVal.length + ' chars)' : sqlVal) : '(空)';
+      dbgSql.classList.toggle('empty', !sqlVal);
+
+      dbgSelSql.textContent = selVal ? (selVal.length > 80 ? selVal.substring(0, 80) + '... (' + selVal.length + ' chars)' : selVal) : '(空)';
+      dbgSelSql.classList.toggle('empty', !selVal);
+
+      if (sqlInput) {
+        var start = sqlInput.selectionStart || 0;
+        var end = sqlInput.selectionEnd || 0;
+        if (start !== end) {
+          dbgSelRange.textContent = '[' + start + ', ' + end + ') — ' + (end - start) + ' chars';
+          dbgSelRange.classList.remove('empty');
+        } else {
+          dbgSelRange.textContent = '无选区';
+          dbgSelRange.classList.add('empty');
+        }
+      }
+    }
+
+    /**
+     * 载入示例 SQL
+     */
+    function loadSampleSQL() {
+      var sqlInput = document.getElementById('sql');
+      sqlInput.value = [
+        '-- 查询用户表',
+        'SELECT id, name, email, created_at',
+        'FROM users',
+        'WHERE status = "active"',
+        '  AND created_at >= "2024-01-01"',
+        'ORDER BY created_at DESC',
+        'LIMIT 100;',
+        '',
+        '-- 查询订单统计',
+        'SELECT u.name, COUNT(o.id) AS order_count, SUM(o.total) AS total_amount',
+        'FROM users u',
+        'LEFT JOIN orders o ON u.id = o.user_id',
+        'GROUP BY u.id, u.name',
+        'HAVING order_count > 0;',
+        '',
+        'SHOW TABLES;',
+        'DESCRIBE users;'
+      ].join('\n');
+      updateDebug();
+    }
+
+    // 初始化
+    document.addEventListener('DOMContentLoaded', function() {
+      updateDebug();
+    });
   </script>
 </body>
 </html>

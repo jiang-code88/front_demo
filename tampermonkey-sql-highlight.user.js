@@ -1,770 +1,914 @@
 // ==UserScript==
-// @name         SQL Highlight
+// @name         SQL Editor (CodeMirror 6)
 // @namespace    https://github.com/sql-highlight
 // @version      1.0.0
-// @description  自动检测 textarea 中的 SQL 内容并进行实时语法高亮，保留原生编辑体验
+// @description  使用 CodeMirror 6 为 SQL 工具页面提供语法高亮、自动补全、多 Tab 编辑
 // @author       You
-// @match        *://*/*
-// @match        file:///*
-// @grant        GM_registerMenuCommand
+// @match        *://vinops.qipeipu.net/operate/sqltools*
+// @match        file:///*test-sql-highlight.html
+// @include      *test-sql-highlight.html
 // @grant        GM_getValue
 // @grant        GM_setValue
+// @grant        GM_registerMenuCommand
+// @grant        unsafeWindow
 // @run-at       document-idle
 // ==/UserScript==
 
-// @match        *://*/*         匹配所有 HTTP/HTTPS 页面
-// @match        file:///*       匹配本地文件
-// @grant        GM_registerMenuCommand  注册 Tampermonkey 菜单
-// @grant        GM_getValue             读取持久化存储
-// @grant        GM_setValue             写入持久化存储
-// @run-at       document-idle   文档加载完毕后运行
+// @match        *://vinops.qipeipu.net/operate/sqltools*  // 匹配目标运维平台
+// @match        file:///*test-sql-highlight.html           // 匹配本地测试页
+// @include      *test-sql-highlight.html                   // 兜底匹配（Tampermonkey @include 通配）
+// @grant        GM_getValue                                // 读取 Tampermonkey 存储
+// @grant        GM_setValue                                // 写入 Tampermonkey 存储
+// @grant        GM_registerMenuCommand                     // 注册 Tampermonkey 菜单命令
+// @grant        unsafeWindow                               // 访问页面真实 window 对象（调用 sqlQPost）
+// @run-at       document-idle                              // 文档加载完成后执行
 
 (function () {
   'use strict';
 
-  // ══════════════════════════════════════════════════════════════════════════
-  //  架构概览
+  // ════════════════════════════════════════════════════════════════════════
+  //  整体架构说明
+  // ════════════════════════════════════════════════════════════════════════
   //
-  //   ┌─ textarea（z-index:1, color:transparent）──── 用户在此输入
-  //   │         ↓ input/scroll 事件
-  //   └─ pre.sh-backdrop（z-index:0）─────────────── 渲染高亮 HTML
+  //                     ┌─────────────────────────────────────────────────┐
+  //                     │              用户交互层                          │
+  //                     │  ┌─────────────────────────────────────────────┐ │
+  //                     │  │  Tab 栏（新增/切换/关闭）                     │ │
+  //                     │  ├─────────────────────────────────────────────┤ │
+  //                     │  │  CodeMirror 6 编辑器                         │ │
+  //                     │  │  • SQL 语法高亮（MySQL 方言）                │ │
+  //                     │  │  • 自动补全（关键字/表名）                   │ │
+  //                     │  │  • 行号 / 括号匹配 / 代码折叠                 │ │
+  //                     │  │  • 暗色主题（One Dark）                      │ │
+  //                     │  └─────────────────────────────────────────────┘ │
+  //                     └─────────────────────────────────────────────────┘
+  //                                          │
+  //                                          ▼
+  //                     ┌─────────────────────────────────────────────────┐
+  //                     │              同步层                              │
+  //                     │  • CM6 doc → textarea.value（表单提交保障）     │
+  //                     │  • CM6 selection → #select_sql + sqlQPost()    │
+  //                     │  • Tab 状态 → GM_setValue（持久化）            │
+  //                     └─────────────────────────────────────────────────┘
+  //                                          │
+  //                                          ▼
+  //                     ┌─────────────────────────────────────────────────┐
+  //                     │              页面集成层                          │
+  //                     │  • 原生 textarea 隐藏保留（表单提交兼容）        │
+  //                     │  • onselect="sqlQPost()" 代理调用               │
+  //                     │  • MutationObserver SPA 适配                    │
+  //                     └─────────────────────────────────────────────────┘
   //
-  //   两者叠放在 div.sh-wrapper（position:relative）内，字体/内边距完全一致，
-  //   视觉上无缝合并，用户的光标/选区依然正常显示。
-  // ══════════════════════════════════════════════════════════════════════════
+  // ════════════════════════════════════════════════════════════════════════
 
-  // ══════════════════════════════════════════════════════════════════════════
-  //  全局开关（持久化到 Tampermonkey 存储）
-  // ══════════════════════════════════════════════════════════════════════════
-  var ENABLED_KEY = 'sql_hl_enabled';
-  var enabled = GM_getValue(ENABLED_KEY, true);
+  // ════════════════════════════════════════════════════════════════════════
+  //  常量定义
+  // ════════════════════════════════════════════════════════════════════════
 
-  // ══════════════════════════════════════════════════════════════════════════
-  //  辅助：将数组转为 O(1) 查找对象
-  // ══════════════════════════════════════════════════════════════════════════
-  function makeSet(arr) {
-    var obj = Object.create(null);
-    for (var i = 0; i < arr.length; i++) obj[arr[i]] = 1;
-    return obj;
-  }
+  // GM 存储键名
+  var STORAGE_KEY_TABS = 'sql_editor_tabs';
+  var STORAGE_KEY_ENABLED = 'sql_hl_enabled';
 
-  // ══════════════════════════════════════════════════════════════════════════
-  //  SQL 内置函数（优先于关键字检查，显示为黄色）
-  // ══════════════════════════════════════════════════════════════════════════
-  var SQL_FN = makeSet([
-    // 聚合函数
-    'COUNT', 'SUM', 'AVG', 'MAX', 'MIN',
-    'GROUP_CONCAT', 'STRING_AGG', 'ARRAY_AGG', 'LISTAGG', 'BIT_AND', 'BIT_OR',
-    // 字符串函数
-    'CONCAT', 'CONCAT_WS', 'SUBSTRING', 'SUBSTR', 'MID', 'SUBSTRING_INDEX',
-    'LENGTH', 'LEN', 'CHAR_LENGTH', 'CHARACTER_LENGTH', 'BIT_LENGTH', 'OCTET_LENGTH',
-    'UPPER', 'LOWER', 'UCASE', 'LCASE',
-    'TRIM', 'LTRIM', 'RTRIM', 'LPAD', 'RPAD', 'BTRIM', 'INITCAP',
-    'REPLACE', 'TRANSLATE', 'OVERLAY',
-    'POSITION', 'LOCATE', 'CHARINDEX', 'PATINDEX', 'INSTR', 'STRPOS',
-    'REPEAT', 'REPLICATE', 'REVERSE', 'SPACE', 'STUFF',
-    'FORMAT', 'CHAR', 'CHR', 'ASCII', 'ORD', 'UNICODE', 'NCHAR',
-    'SPLIT_PART', 'LEFT', 'RIGHT',
-    'REGEXP_REPLACE', 'REGEXP_LIKE', 'REGEXP_SUBSTR', 'REGEXP_INSTR',
-    'QUOTE_IDENT', 'QUOTE_LITERAL', 'TO_HEX', 'ENCODE', 'DECODE',
-    'SOUNDEX', 'DIFFERENCE',
-    // 日期时间函数
-    'NOW', 'SYSDATE', 'GETDATE', 'GETUTCDATE', 'SYSDATETIME',
-    'DATEADD', 'DATE_ADD', 'ADDDATE', 'DATE_SUB', 'SUBDATE',
-    'DATEDIFF', 'TIMESTAMPDIFF',
-    'DATE_TRUNC', 'DATE_PART', 'EXTRACT', 'DATEPART',
-    'TO_DATE', 'TO_TIMESTAMP', 'TO_CHAR', 'TO_TIME',
-    'DATE_FORMAT', 'TIME_FORMAT', 'STR_TO_DATE',
-    'YEAR', 'MONTH', 'DAY', 'HOUR', 'MINUTE', 'SECOND', 'MICROSECOND',
-    'WEEK', 'WEEKDAY', 'WEEKOFYEAR', 'QUARTER',
-    'DAYOFWEEK', 'DAYOFYEAR', 'DAYOFMONTH',
-    'LAST_DAY', 'EOMONTH', 'MAKEDATE', 'MAKETIME',
-    'UNIX_TIMESTAMP', 'FROM_UNIXTIME', 'CONVERT_TZ', 'TIMESTAMPADD',
-    // 数学函数
-    'ABS', 'CEIL', 'CEILING', 'FLOOR', 'ROUND', 'TRUNC',
-    'POWER', 'POW', 'SQRT', 'EXP', 'LN', 'LOG', 'LOG2', 'LOG10',
-    'MOD', 'SIGN', 'PI', 'RADIANS', 'DEGREES',
-    'SIN', 'COS', 'TAN', 'ASIN', 'ACOS', 'ATAN', 'ATAN2', 'COT',
-    'RAND', 'RANDOM',
-    'GREATEST', 'LEAST',
-    // 条件函数
-    'COALESCE', 'NULLIF', 'IFNULL', 'NVL', 'NVL2', 'IIF', 'ISNULL',
-    'DECODE', 'CHOOSE',
-    // 类型转换函数
-    'CAST', 'CONVERT', 'TRY_CAST', 'TRY_CONVERT',
-    'TO_NUMBER', 'PARSE', 'TRY_PARSE',
-    // 窗口函数
-    'ROW_NUMBER', 'RANK', 'DENSE_RANK', 'NTILE', 'LAG', 'LEAD',
-    'FIRST_VALUE', 'LAST_VALUE', 'NTH_VALUE',
-    'CUME_DIST', 'PERCENT_RANK', 'PERCENTILE_CONT', 'PERCENTILE_DISC',
-    // JSON 函数
-    'JSON_EXTRACT', 'JSON_VALUE', 'JSON_QUERY', 'JSON_OBJECT', 'JSON_ARRAY',
-    'JSON_ARRAYAGG', 'JSON_OBJECTAGG', 'JSON_BUILD_OBJECT', 'JSON_BUILD_ARRAY',
-    'JSON_AGG', 'JSONB_AGG', 'JSON_EACH', 'JSONB_EACH', 'JSON_TABLE',
-    'JSON_CONTAINS', 'JSON_TYPE', 'JSON_KEYS', 'JSON_DEPTH', 'JSON_LENGTH',
-    'JSON_MERGE', 'JSON_REMOVE', 'JSON_SET',
-    // 数组函数
-    'GENERATE_SERIES', 'UNNEST', 'ARRAY_LENGTH', 'CARDINALITY',
-    'ARRAY_TO_STRING', 'STRING_TO_ARRAY', 'ARRAY_APPEND', 'ARRAY_PREPEND', 'ARRAY_CAT',
-    // UUID / 哈希
-    'GEN_RANDOM_UUID', 'UUID_GENERATE_V4', 'NEWID',
-    'MD5', 'SHA1', 'SHA2', 'SHA256', 'HASH', 'HASHBYTES',
-    // 系统信息函数
-    'VERSION', 'CONNECTION_ID', 'FOUND_ROWS', 'LAST_INSERT_ID', 'ROW_COUNT',
-    'PG_TYPEOF', 'TYPEOF',
-    // 字符串转 JSON
-    'ROW_TO_JSON', 'TO_JSON', 'TO_JSONB'
-  ]);
-
-  // ══════════════════════════════════════════════════════════════════════════
-  //  SQL 关键字（显示为蓝色）
-  // ══════════════════════════════════════════════════════════════════════════
-  var SQL_KW = makeSet([
-    // DML
-    'SELECT', 'INSERT', 'UPDATE', 'DELETE', 'MERGE', 'REPLACE',
-    // DDL
-    'CREATE', 'DROP', 'ALTER', 'TRUNCATE', 'RENAME',
-    // 对象类型
-    'TABLE', 'VIEW', 'INDEX', 'DATABASE', 'SCHEMA', 'SEQUENCE',
-    'PROCEDURE', 'FUNCTION', 'TRIGGER', 'PACKAGE', 'SYNONYM',
-    // 核心子句
-    'FROM', 'WHERE', 'HAVING', 'GROUP', 'ORDER', 'BY',
-    'LIMIT', 'OFFSET', 'FETCH', 'NEXT', 'ONLY', 'TOP', 'ROWNUM',
-    'INTO', 'VALUES', 'SET', 'RETURNING', 'OUTPUT',
-    // JOIN
-    'JOIN', 'LEFT', 'RIGHT', 'INNER', 'OUTER', 'FULL', 'CROSS', 'NATURAL',
-    'ON', 'USING',
-    // 集合操作
-    'UNION', 'INTERSECT', 'EXCEPT', 'ALL', 'DISTINCT',
-    // CTE
-    'WITH', 'AS', 'RECURSIVE',
-    // 逻辑条件
-    'AND', 'OR', 'NOT', 'IN', 'IS', 'NULL', 'LIKE', 'ILIKE', 'BETWEEN',
-    'EXISTS', 'ANY', 'SOME',
-    // CASE 表达式
-    'CASE', 'WHEN', 'THEN', 'ELSE', 'END',
-    // 排序
-    'ASC', 'DESC', 'NULLS', 'FIRST', 'LAST',
-    // 事务
-    'BEGIN', 'START', 'COMMIT', 'ROLLBACK', 'TRANSACTION', 'SAVEPOINT', 'WORK',
-    // 窗口函数关键字
-    'OVER', 'PARTITION', 'RANGE', 'ROWS', 'PRECEDING', 'FOLLOWING',
-    'UNBOUNDED', 'CURRENT', 'ROW',
-    // 约束定义
-    'PRIMARY', 'KEY', 'FOREIGN', 'REFERENCES', 'UNIQUE', 'CHECK', 'CONSTRAINT',
-    'DEFAULT', 'NOT', 'AUTO_INCREMENT', 'IDENTITY', 'SERIAL', 'GENERATED', 'ALWAYS',
-    'ADD', 'COLUMN', 'MODIFY', 'CHANGE', 'FIRST',
-    // 数据类型
-    'BOOLEAN', 'BOOL',
-    'INTEGER', 'INT', 'INT2', 'INT4', 'INT8', 'BIGINT', 'SMALLINT', 'TINYINT', 'MEDIUMINT',
-    'FLOAT', 'FLOAT4', 'FLOAT8', 'DOUBLE', 'REAL', 'DECIMAL', 'NUMERIC', 'MONEY',
-    'CHAR', 'VARCHAR', 'NCHAR', 'NVARCHAR', 'TEXT', 'TINYTEXT', 'MEDIUMTEXT', 'LONGTEXT',
-    'BLOB', 'TINYBLOB', 'MEDIUMBLOB', 'LONGBLOB', 'BYTEA', 'BINARY', 'VARBINARY',
-    'DATE', 'TIME', 'TIMESTAMP', 'DATETIME', 'INTERVAL', 'YEAR',
-    'JSON', 'JSONB', 'XML', 'UUID', 'ARRAY', 'ENUM',
-    // 字面量
-    'TRUE', 'FALSE', 'UNKNOWN',
-    // 分析 / 维护
-    'EXPLAIN', 'ANALYZE', 'VACUUM', 'REINDEX', 'REFRESH',
-    // 其他
-    'LATERAL', 'TABLESAMPLE', 'MATCHED',
-    'SHOW', 'DESCRIBE', 'USE', 'CALL', 'EXEC', 'EXECUTE',
-    'GRANT', 'REVOKE', 'DENY',
-    // MySQL 扩展
-    'IGNORE', 'FORCE', 'STRAIGHT_JOIN', 'SQL_NO_CACHE',
-    // 存储过程 / 流程控制
-    'IF', 'ELSEIF', 'ELSIF', 'LOOP', 'WHILE', 'FOR', 'DO',
-    'DECLARE', 'RETURN', 'RAISE', 'EXCEPTION', 'NOTICE',
-    // 其他常用
-    'MATERIALIZED', 'TEMPORARY', 'TEMP', 'UNLOGGED', 'GLOBAL', 'LOCAL',
-    'CASCADE', 'RESTRICT', 'NO', 'ACTION', 'DEFERRABLE', 'INITIALLY', 'DEFERRED',
-    'AT', 'ZONE', 'WITHIN', 'FILTER', 'EXCLUDE',
-    'PIVOT', 'UNPIVOT', 'APPLY', 'CROSS', 'OUTER'
-  ]);
-
-  // ══════════════════════════════════════════════════════════════════════════
-  //  词法分析器（Tokenizer）
-  //  按优先级顺序识别：注释 → 字符串 → 标识符 → 数字 → 关键字/函数 → 运算符 → 标点
-  // ══════════════════════════════════════════════════════════════════════════
-  var WORD_RE = /^[a-zA-Z_@#$][a-zA-Z0-9_@#$]*/;
-  var NUM_RE  = /^(?:0x[0-9a-fA-F]+|\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)/;
-  var WS_RE   = /^\s+/;
-  // 多字符运算符（长的排在前，防止被短的截断）
-  var OP2_RE  = /^(?:->>|->|<=>|<>|<=|>=|!=|\|\||::)/;
-
-  function tokenize(sql) {
-    var tokens = [];
-    var i = 0;
-    var n = sql.length;
-
-    while (i < n) {
-      var ch   = sql[i];
-      var next = sql[i + 1];
-      var j, m, word, upper, type;
-
-      // ── 空白（整批消费）──────────────────────────────
-      if (ch <= ' ') {
-        m = WS_RE.exec(sql.slice(i));
-        tokens.push({ t: 'plain', v: m[0] });
-        i += m[0].length;
-        continue;
-      }
-
-      // ── 块注释 /* ... */ ──────────────────────────────
-      if (ch === '/' && next === '*') {
-        j = sql.indexOf('*/', i + 2);
-        j = j < 0 ? n : j + 2;
-        tokens.push({ t: 'cmt', v: sql.slice(i, j) });
-        i = j;
-        continue;
-      }
-
-      // ── 行注释 -- 或 # ────────────────────────────────
-      if ((ch === '-' && next === '-') || ch === '#') {
-        j = sql.indexOf('\n', i);
-        j = j < 0 ? n : j;
-        tokens.push({ t: 'cmt', v: sql.slice(i, j) });
-        i = j;
-        continue;
-      }
-
-      // ── 单引号字符串 '...' ────────────────────────────
-      if (ch === "'") {
-        j = i + 1;
-        while (j < n) {
-          if (sql[j] === "'" && sql[j + 1] === "'") { j += 2; } // '' 转义
-          else if (sql[j] === "'") { j++; break; }
-          else { j++; }
-        }
-        tokens.push({ t: 'str', v: sql.slice(i, j) });
-        i = j;
-        continue;
-      }
-
-      // ── 反引号标识符 `...` （MySQL）───────────────────
-      if (ch === '`') {
-        j = sql.indexOf('`', i + 1);
-        j = j < 0 ? n : j + 1;
-        tokens.push({ t: 'id', v: sql.slice(i, j) });
-        i = j;
-        continue;
-      }
-
-      // ── 双引号标识符 "..." （SQL 标准 / PostgreSQL）───
-      if (ch === '"') {
-        j = i + 1;
-        while (j < n) {
-          if (sql[j] === '"' && sql[j + 1] === '"') { j += 2; } // "" 转义
-          else if (sql[j] === '"') { j++; break; }
-          else { j++; }
-        }
-        tokens.push({ t: 'id', v: sql.slice(i, j) });
-        i = j;
-        continue;
-      }
-
-      // ── 方括号标识符 [...] （T-SQL / SQL Server）──────
-      if (ch === '[') {
-        j = sql.indexOf(']', i);
-        j = j < 0 ? n - 1 : j;
-        tokens.push({ t: 'id', v: sql.slice(i, j + 1) });
-        i = j + 1;
-        continue;
-      }
-
-      // ── 数字（整数、小数、十六进制、科学计数）────────
-      if ((ch >= '0' && ch <= '9') || (ch === '.' && next >= '0' && next <= '9')) {
-        m = NUM_RE.exec(sql.slice(i));
-        if (m) {
-          tokens.push({ t: 'num', v: m[0] });
-          i += m[0].length;
-          continue;
-        }
-      }
-
-      // ── 单词：关键字 / 内置函数 / 普通标识符 ─────────
-      if ((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') ||
-          ch === '_' || ch === '@' || ch === '#' || ch === '$') {
-        m = WORD_RE.exec(sql.slice(i));
-        if (m) {
-          word  = m[0];
-          upper = word.toUpperCase();
-          // 内置函数优先于关键字
-          type  = SQL_FN[upper] ? 'fn' : SQL_KW[upper] ? 'kw' : 'plain';
-          tokens.push({ t: type, v: word });
-          i += word.length;
-          continue;
-        }
-      }
-
-      // ── 多字符运算符 ─────────────────────────────────
-      m = OP2_RE.exec(sql.slice(i));
-      if (m) {
-        tokens.push({ t: 'op', v: m[0] });
-        i += m[0].length;
-        continue;
-      }
-
-      // ── 单字符运算符 ─────────────────────────────────
-      if ('=<>+-*/%&|^~!\\'.indexOf(ch) !== -1) {
-        tokens.push({ t: 'op', v: ch });
-        i++;
-        continue;
-      }
-
-      // ── 标点符号 ─────────────────────────────────────
-      if ('(),;:.'.indexOf(ch) !== -1) {
-        tokens.push({ t: 'pu', v: ch });
-        i++;
-        continue;
-      }
-
-      // ── 其他字符（原样保留）──────────────────────────
-      tokens.push({ t: 'plain', v: ch });
-      i++;
-    }
-
-    return tokens;
-  }
-
-  // ══════════════════════════════════════════════════════════════════════════
-  //  HTML 渲染器
-  //  将 Token 数组转为带 <span> 标签的高亮 HTML 字符串
-  // ══════════════════════════════════════════════════════════════════════════
-  var T_CLS = {
-    kw:    'sh-kw',
-    fn:    'sh-fn',
-    str:   'sh-str',
-    num:   'sh-num',
-    cmt:   'sh-cmt',
-    op:    'sh-op',
-    id:    'sh-id',
-    pu:    'sh-pu',
-    plain: ''
+  // CM6 模块 URL（esm.sh）
+  // 注意：codemirror 元包不能使用 @6 范围，esm.sh 会错误解析为 CM5 代码（6.65.7）
+  // 不带版本号时 esm.sh 正确解析到 npm latest（6.0.2，CM6 元包）
+  var CM6_URLS = {
+    codemirror: 'https://esm.sh/codemirror',
+    state: 'https://esm.sh/@codemirror/state@6',
+    view: 'https://esm.sh/@codemirror/view@6',
+    langSql: 'https://esm.sh/@codemirror/lang-sql@6',
+    themeOneDark: 'https://esm.sh/@codemirror/theme-one-dark@6'
   };
 
-  function escHtml(s) {
-    return s
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;');
-  }
+  // 编辑器默认高度（与原 textarea 一致）
+  var EDITOR_HEIGHT = '250px';
 
-  function tokensToHTML(tokens) {
-    var parts = [];
-    for (var i = 0; i < tokens.length; i++) {
-      var tok = tokens[i];
-      var esc = escHtml(tok.v);
-      var cls = (T_CLS[tok.t] || '');
-      // 叠加危险标记样式（不替换原有语法颜色类，仅追加）
-      if (tok.danger === 'err')  cls += (cls ? ' ' : '') + 'sh-err';
-      if (tok.danger === 'warn') cls += (cls ? ' ' : '') + 'sh-warn';
-      if (cls) {
-        var attrTitle = tok.tip ? ' title="' + escHtml(tok.tip) + '"' : '';
-        parts.push('<span class="' + cls + '"' + attrTitle + '>' + esc + '</span>');
-      } else {
-        parts.push(esc);
-      }
-    }
-    return parts.join('');
-  }
+  // ════════════════════════════════════════════════════════════════════════
+  //  状态变量
+  // ════════════════════════════════════════════════════════════════════════
 
-  // ══════════════════════════════════════════════════════════════════════════
-  //  SQL 危险模式检测
-  //  在 tokenize() 结果基础上，叠加语义错误 / 危险操作标记
-  //
-  //  检测规则：
-  //    danger:'err'  — 孤立子句（WHERE/HAVING/等 出现在新语句首位）
-  //                    + 导致孤立的那个"误放分号"
-  //    danger:'warn' — 全表操作风险（UPDATE/DELETE 缺少 WHERE 子句）
-  // ══════════════════════════════════════════════════════════════════════════
+  var editor = null;          // CodeMirror EditorView 实例
+  var textarea = null;        // 原始 textarea 元素（#sql）
+  var CM6 = null;             // 加载的 CodeMirror 模块缓存
+  var tabs = [];              // Tab 列表 [{ id, name, content, scrollTop }]
+  var activeTabId = null;     // 当前激活的 Tab ID
+  var nextTabId = 1;          // 下一个 Tab 的 ID（递增不回收）
+  var suppressSync = false;   // 阻止同步（切换 Tab 时避免循环触发）
+  var tabBarEl = null;        // Tab 栏 DOM 元素
+  var wrapperEl = null;       // CM6 wrapper DOM 元素
 
-  // 不能独立成句、只能作为 DML 子句跟随使用的关键字
-  var ORPHAN_KW = makeSet(['WHERE', 'HAVING', 'LIMIT', 'OFFSET', 'FETCH', 'GROUP', 'ORDER']);
+  // ════════════════════════════════════════════════════════════════════════
+  //  CSS 样式注入
+  // ════════════════════════════════════════════════════════════════════════
 
-  // 缺少 WHERE 时会影响全表的危险 DML
-  var FULL_TABLE_DML = makeSet(['UPDATE', 'DELETE']);
-
-  function analyzeDangers(tokens) {
-    // 按 ; 将 token 流分割成独立语句
-    var stmts    = [];  // Array<token[]>
-    var semiToks = [];  // 每条语句结尾的 ; token（最后一条为 null）
-    var cur      = [];
-
-    for (var i = 0; i < tokens.length; i++) {
-      var tok = tokens[i];
-      if (tok.t === 'pu' && tok.v === ';') {
-        stmts.push(cur); semiToks.push(tok); cur = [];
-      } else {
-        cur.push(tok);
-      }
-    }
-    stmts.push(cur);
-    semiToks.push(null);
-
-    for (var s = 0; s < stmts.length; s++) {
-      var stmt      = stmts[s];
-      var semiTok   = semiToks[s];
-      var prevSemi  = s > 0 ? semiToks[s - 1] : null;
-
-      // 找出本语句第一个关键字，以及是否含 WHERE
-      var firstKwTok   = null;
-      var firstKwUpper = null;
-      var hasWhere     = false;
-
-      for (var t = 0; t < stmt.length; t++) {
-        var ttok  = stmt[t];
-        if (ttok.t !== 'kw' && ttok.t !== 'fn') continue;
-        var upper = ttok.v.toUpperCase();
-        if (!firstKwTok) { firstKwTok = ttok; firstKwUpper = upper; }
-        if (upper === 'WHERE') hasWhere = true;
-      }
-
-      if (!firstKwTok) continue; // 空语句 / 纯注释
-
-      // ── 检测 1：孤立子句 ─────────────────────────────────────────────
-      // WHERE / HAVING / GROUP / ORDER 等不能出现在语句的首位
-      if (ORPHAN_KW[firstKwUpper]) {
-        for (var t2 = 0; t2 < stmt.length; t2++) {
-          var tok2 = stmt[t2];
-          if (tok2.t === 'plain') continue;
-          tok2.danger = 'err';
-          if (!tok2.tip) {
-            tok2.tip =
-              '孤立子句：此 ' + tok2.v.toUpperCase() + ' 之前多了一个分号，' +
-              '已将其与 UPDATE/DELETE 语句切断。' +
-              '更新/删除操作将在没有任何 WHERE 条件的情况下执行，影响全部数据行！';
-          }
-        }
-        // 把"提前放置的分号"也标为错误
-        if (prevSemi) {
-          prevSemi.danger = 'err';
-          prevSemi.tip    =
-            '误放的分号！此 ; 提前终止了 UPDATE/DELETE 语句，' +
-            '导致后面的 ' + firstKwUpper + ' 子句变成孤立语句（不属于任何更新语句），' +
-            '更新/删除将影响全部数据行！请删除此处多余的分号。';
-        }
-      }
-
-      // ── 检测 2：UPDATE/DELETE 无 WHERE（全表操作风险）───────────────
-      if (FULL_TABLE_DML[firstKwUpper] && !hasWhere) {
-        // 判断下一语句是否恰好是孤立的 WHERE（说明是典型的"误放分号"场景）
-        var nextStmt = stmts[s + 1] || [];
-        var nextFirstKw = null;
-        for (var t3 = 0; t3 < nextStmt.length; t3++) {
-          if (nextStmt[t3].t === 'kw') { nextFirstKw = nextStmt[t3].v.toUpperCase(); break; }
-        }
-        var isMisplacedSemi = !!(nextFirstKw && ORPHAN_KW[nextFirstKw]);
-
-        firstKwTok.danger = firstKwTok.danger || 'warn';
-        firstKwTok.tip    = firstKwTok.tip || (
-          isMisplacedSemi
-            ? '危险！此 ' + firstKwUpper + ' 因 SET 子句后多了分号而缺少 WHERE 条件，' +
-              '将对全部数据行执行操作！请删除那个多余的 ; 符号。'
-            : '警告：此 ' + firstKwUpper + ' 没有 WHERE 条件，' +
-              '将对表中全部数据行执行操作，请确认是否符合预期。'
-        );
-        // 没有孤立 WHERE 时，结尾的 ; 也加提示（避免覆盖已标为 err 的情况）
-        if (semiTok && !isMisplacedSemi) {
-          semiTok.danger = semiTok.danger || 'warn';
-          semiTok.tip    = semiTok.tip    || firstKwTok.tip;
-        }
-      }
-    }
-
-    return tokens;
-  }
-
-  // ══════════════════════════════════════════════════════════════════════════
-  //  样式同步：将 textarea 的排版属性复制给 pre，使两者像素级对齐
-  // ══════════════════════════════════════════════════════════════════════════
-  var SYNC_PROPS = [
-    'fontFamily', 'fontSize', 'fontWeight', 'fontStyle', 'fontVariant',
-    'lineHeight', 'letterSpacing', 'wordSpacing', 'textIndent',
-    'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft',
-    'borderTopWidth', 'borderRightWidth', 'borderBottomWidth', 'borderLeftWidth',
-    'boxSizing', 'tabSize'
-  ];
-
-  function applySyncStyles(ta, pre) {
-    var cs = window.getComputedStyle(ta);
-    for (var k = 0; k < SYNC_PROPS.length; k++) {
-      try { pre.style[SYNC_PROPS[k]] = cs[SYNC_PROPS[k]]; } catch (e) { /* 跳过不支持的属性 */ }
-    }
-    // 显式宽高：跟随 textarea 尺寸（用户可拖拽调整时也会同步）
-    pre.style.width           = ta.offsetWidth  + 'px';
-    pre.style.height          = ta.offsetHeight + 'px';
-    // 背景色继承自 textarea，保持页面原有风格
-    pre.style.backgroundColor = cs.backgroundColor;
-    // 透明边框（宽度与 textarea 相同，维持 box-sizing 对齐）
-    pre.style.borderStyle     = 'solid';
-    pre.style.borderColor     = 'transparent';
-  }
-
-  // ══════════════════════════════════════════════════════════════════════════
-  //  高亮渲染（将 textarea 内容解析并写入 pre）
-  // ══════════════════════════════════════════════════════════════════════════
-  var taPreMap = new WeakMap(); // textarea → pre 映射
-
-  function renderBackdrop(ta, pre) {
-    // tokenize → 危险模式检测 → HTML 渲染
-    // 末尾追加 '\n ' 防止 pre 最后一行高度偏低导致错位
-    pre.innerHTML  = tokensToHTML(analyzeDangers(tokenize(ta.value))) + '\n ';
-    pre.scrollTop  = ta.scrollTop;
-    pre.scrollLeft = ta.scrollLeft;
-  }
-
-  // ══════════════════════════════════════════════════════════════════════════
-  //  Textarea 增强器
-  //  核心：用 wrapper+pre 叠层替换原 textarea，赋予语法高亮能力
-  // ══════════════════════════════════════════════════════════════════════════
-  function enhanceTextarea(ta) {
-    if (ta.dataset.shActive) return;
-    ta.dataset.shActive = '1';
-
-    var cs = window.getComputedStyle(ta);
-
-    // ── 创建 wrapper div ──────────────────────────────
-    var wrapper = document.createElement('div');
-    wrapper.className = 'sh-wrapper';
-    var disp = cs.display;
-    wrapper.style.display =
-      (disp === 'inline' || disp === 'inline-block' || disp === 'inline-flex')
-        ? 'inline-block' : 'block';
-
-    // 将 textarea 的外边距转移到 wrapper，避免破坏页面布局
-    wrapper.style.marginTop    = cs.marginTop;
-    wrapper.style.marginRight  = cs.marginRight;
-    wrapper.style.marginBottom = cs.marginBottom;
-    wrapper.style.marginLeft   = cs.marginLeft;
-    ta.style.setProperty('margin', '0', 'important');
-
-    ta.parentNode.insertBefore(wrapper, ta);
-    wrapper.appendChild(ta);
-
-    // ── 创建高亮背景层 pre ────────────────────────────
-    var pre = document.createElement('pre');
-    pre.className = 'sh-backdrop';
-    pre.setAttribute('aria-hidden', 'true'); // 无障碍：屏幕阅读器忽略此元素
-    wrapper.insertBefore(pre, ta);           // pre 在 DOM 中排在 ta 前（视觉上在其下方）
-
-    taPreMap.set(ta, pre);
-    applySyncStyles(ta, pre);
-
-    // ── 让 textarea 文字透明，只保留光标和选区 ───────
-    var caretColor = cs.color;
-    ta.style.setProperty('color', 'transparent', 'important');
-    ta.style.setProperty('-webkit-text-fill-color', 'transparent', 'important');
-    ta.style.setProperty('caret-color', caretColor); // 光标保持可见
-    ta.style.setProperty('background',  'transparent', 'important');
-    ta.style.position = 'relative';
-    ta.style.zIndex   = '1';
-
-    // ── 初始渲染 ──────────────────────────────────────
-    renderBackdrop(ta, pre);
-
-    // ── 滚动同步 ──────────────────────────────────────
-    ta.addEventListener('scroll', function () {
-      pre.scrollTop  = ta.scrollTop;
-      pre.scrollLeft = ta.scrollLeft;
-    });
-
-    // ── 尺寸变化同步（用户拖拽 resize 手柄时触发）───
-    if (typeof ResizeObserver !== 'undefined') {
-      new ResizeObserver(function () {
-        applySyncStyles(ta, pre);
-      }).observe(ta);
-    }
-  }
-
-  // ══════════════════════════════════════════════════════════════════════════
-  //  SQL 自动检测
-  //  策略：以 SQL 起始关键字开头，或同时包含 FROM+WHERE / JOIN+ON 组合
-  // ══════════════════════════════════════════════════════════════════════════
-  var SQL_START_RE = /^\s*(SELECT|INSERT|UPDATE|DELETE|CREATE|DROP|ALTER|WITH|EXPLAIN|MERGE)\b/im;
-
-  function isLikelySql(text) {
-    if (!text || text.length < 8) return false;
-    if (SQL_START_RE.test(text)) return true;
-    var up = text.toUpperCase();
-    if (/\bFROM\b/.test(up) && /\bWHERE\b/.test(up)) return true;
-    if (/\bJOIN\b/.test(up) && /\bON\b/.test(up))    return true;
-    return false;
-  }
-
-  var debounceMap = new WeakMap();
-
-  function checkAndEnhance(ta) {
-    if (!enabled || ta.dataset.shActive) return;
-    if (isLikelySql(ta.value)) enhanceTextarea(ta);
-  }
-
-  // ── 为每个 textarea 挂载侦听，支持懒检测（聚焦/输入时触发）
-  function setupTextarea(ta) {
-    if (ta.dataset.shWatched) return;
-    ta.dataset.shWatched = '1';
-
-    // 聚焦时立即检测（页面初始已有内容的情况）
-    ta.addEventListener('focus', function () {
-      checkAndEnhance(ta);
-    });
-
-    // 输入时：若已激活高亮则直接渲染，否则防抖检测
-    ta.addEventListener('input', function () {
-      var pre = taPreMap.get(ta);
-      if (pre) {
-        renderBackdrop(ta, pre);
-      } else {
-        clearTimeout(debounceMap.get(ta));
-        debounceMap.set(ta, setTimeout(function () {
-          checkAndEnhance(ta);
-        }, 500));
-      }
-    });
-
-    // IME 输入法输入结束后也触发渲染
-    ta.addEventListener('compositionend', function () {
-      var pre = taPreMap.get(ta);
-      if (pre) renderBackdrop(ta, pre);
-    });
-
-    // 页面加载时如果 textarea 已有内容则立即检测
-    if (ta.value) checkAndEnhance(ta);
-  }
-
-  // ══════════════════════════════════════════════════════════════════════════
-  //  CSS 注入
-  // ══════════════════════════════════════════════════════════════════════════
   function injectCSS() {
-    if (document.getElementById('sh-styles')) return;
-    var s = document.createElement('style');
-    s.id = 'sh-styles';
-    s.textContent =
-      /* ── 叠层布局 ── */
-      '.sh-wrapper{' +
-        'position:relative!important;' +
-        'vertical-align:bottom;' +           // 行内场景对齐修正
-      '}' +
+    if (document.getElementById('cm-sql-styles')) return;
 
-      '.sh-backdrop{' +
-        'position:absolute!important;' +
-        'top:0!important;' +
-        'left:0!important;' +
-        'margin:0!important;' +
-        'pointer-events:none!important;' +   // 鼠标事件穿透到 textarea
-        'z-index:0!important;' +
-        'overflow:scroll!important;' +       // 允许 scrollTop 同步
-        'scrollbar-width:none!important;' +  // 隐藏滚动条（Firefox）
-        'white-space:pre-wrap!important;' +  // 与 textarea 换行一致
-        'word-wrap:break-word!important;' +
-        'word-break:normal!important;' +
-        'text-align:left!important;' +
-      '}' +
-
-      '.sh-backdrop::-webkit-scrollbar{' +
-        'display:none!important;' +          // 隐藏滚动条（Chrome/Safari）
-      '}' +
-
-      'textarea.sh-active{' +
-        'position:relative!important;' +
-        'z-index:1!important;' +
-        'color:transparent!important;' +
-        '-webkit-text-fill-color:transparent!important;' + // WebKit 额外处理
-        'background:transparent!important;' +
-      '}' +
-
-      /* ── Token 颜色：亮色主题（VS Code Light 风格）── */
-      '.sh-kw{ color:#0000cd; font-weight:600 }' +    // 蓝色 关键字
-      '.sh-fn{ color:#7a3e9d }' +                      // 紫色 内置函数
-      '.sh-str{ color:#a31515 }' +                     // 红色 字符串
-      '.sh-num{ color:#098658 }' +                     // 绿色 数字
-      '.sh-cmt{ color:#008000; font-style:italic }' +  // 绿色斜体 注释
-      '.sh-op{ color:#555555 }' +                      // 灰色 运算符
-      '.sh-id{ color:#001080 }' +                      // 深蓝色 引号标识符
-      '.sh-pu{ color:#666666 }' +                      // 浅灰 标点
-
-      /* ── 危险标记：错误（红色）── */
-      // 孤立子句 / 误放分号：强制覆盖为红色 + 波浪下划线
-      '.sh-err{' +
-        'color:#cc0000!important;' +
-        'text-decoration:underline wavy #cc0000!important;' +
-        'text-decoration-skip-ink:none!important;' +
-      '}' +
-
-      /* ── 危险标记：警告（橙色波浪线，保留原关键字颜色）── */
-      // UPDATE/DELETE 无 WHERE：不改变文字颜色，只加橙色波浪下划线
-      '.sh-warn{' +
-        'text-decoration:underline wavy #d97706!important;' +
-        'text-decoration-skip-ink:none!important;' +
-      '}' +
-
-      /* ── Token 颜色：暗色主题（VS Code Dark 风格）── */
-      '@media(prefers-color-scheme:dark){' +
-        '.sh-kw{ color:#569cd6; font-weight:600 }' +
-        '.sh-fn{ color:#dcdcaa }' +
-        '.sh-str{ color:#ce9178 }' +
-        '.sh-num{ color:#b5cea8 }' +
-        '.sh-cmt{ color:#6a9955; font-style:italic }' +
-        '.sh-op{ color:#d4d4d4 }' +
-        '.sh-id{ color:#9cdcfe }' +
-        '.sh-pu{ color:#d4d4d4 }' +
-        '.sh-err{ color:#ff6b6b!important; text-decoration-color:#ff6b6b!important }' +
-        '.sh-warn{ text-decoration-color:#fb923c!important }' +
-      '}';
-
-    (document.head || document.documentElement).appendChild(s);
+    var style = document.createElement('style');
+    style.id = 'cm-sql-styles';
+    style.textContent = [
+      '/* ── SQL Editor (CodeMirror 6) 样式 ── */',
+      '',
+      '.cm-sql-wrapper {',
+      '  position: relative;',
+      '  display: flex;',
+      '  flex-direction: column;',
+      '  width: 100%;',
+      '  height: ' + EDITOR_HEIGHT + ';',
+      '  min-height: 80px;',
+      '  resize: vertical;',
+      '  overflow: hidden;',
+      '  border: 1px solid #181a1f;',
+      '  border-radius: 4px;',
+      '  background: #282c34;',
+      '  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;',
+      '}',
+      '',
+      '/* ── Tab 栏 ── */',
+      '.cm-tab-bar {',
+      '  display: flex;',
+      '  align-items: center;',
+      '  gap: 2px;',
+      '  background: #21252b;',
+      '  padding: 4px 4px 0 4px;',
+      '  border-bottom: 1px solid #181a1f;',
+      '  flex: 0 0 auto;',
+      '  flex-wrap: wrap;',
+      '}',
+      '',
+      '.cm-tab {',
+      '  display: inline-flex;',
+      '  align-items: center;',
+      '  gap: 4px;',
+      '  padding: 4px 10px;',
+      '  background: #2c313a;',
+      '  color: #abb2bf;',
+      '  border-radius: 4px 4px 0 0;',
+      '  cursor: pointer;',
+      '  font-size: 13px;',
+      '  user-select: none;',
+      '  border: 1px solid transparent;',
+      '  border-bottom: none;',
+      '  white-space: nowrap;',
+      '  transition: background 0.15s, color 0.15s;',
+      '}',
+      '.cm-tab:hover { background: #353b45; color: #d7d7db; }',
+      '.cm-tab.active { background: #282c34; color: #fff; border-color: #181a1f; }',
+      '',
+      '.cm-tab-close {',
+      '  border: none;',
+      '  background: none;',
+      '  color: #5c6370;',
+      '  cursor: pointer;',
+      '  font-size: 14px;',
+      '  padding: 0;',
+      '  line-height: 1;',
+      '  display: inline-flex;',
+      '  align-items: center;',
+      '  justify-content: center;',
+      '  width: 16px;',
+      '  height: 16px;',
+      '  border-radius: 2px;',
+      '  transition: background 0.15s, color 0.15s;',
+      '}',
+      '.cm-tab-close:hover { background: #e06c75; color: #fff; }',
+      '',
+      '.cm-tab-add {',
+      '  display: inline-flex;',
+      '  align-items: center;',
+      '  justify-content: center;',
+      '  width: 24px;',
+      '  height: 24px;',
+      '  background: #2c313a;',
+      '  color: #abb2bf;',
+      '  border: none;',
+      '  border-radius: 4px;',
+      '  cursor: pointer;',
+      '  font-size: 16px;',
+      '  margin-left: 4px;',
+      '  flex: 0 0 auto;',
+      '  transition: background 0.15s, color 0.15s;',
+      '}',
+      '.cm-tab-add:hover { background: #353b45; color: #fff; }',
+      '',
+      '/* ── CM6 编辑器区域 ── */',
+      '.cm-sql-wrapper .cm-editor {',
+      '  flex: 1 1 auto;',
+      '  min-height: 0;',
+      '  background: #282c34;',
+      '}',
+      '.cm-sql-wrapper .cm-editor .cm-scroller { overflow: auto; }',
+      '.cm-sql-wrapper .cm-editor .cm-gutters {',
+      '  border-right: 1px solid #181a1f;',
+      '  background: #282c34;',
+      '}',
+      '.cm-sql-wrapper .cm-editor.cm-focused { outline: none; }',
+      '',
+      '/* ── 加载/错误状态 ── */',
+      '.cm-loading {',
+      '  display: flex;',
+      '  flex: 1 1 auto;',
+      '  align-items: center;',
+      '  justify-content: center;',
+      '  color: #abb2bf;',
+      '  font-size: 14px;',
+      '}',
+      '.cm-loading::before {',
+      '  content: "";',
+      '  width: 16px;',
+      '  height: 16px;',
+      '  margin-right: 8px;',
+      '  border: 2px solid #5c6370;',
+      '  border-top-color: #61afef;',
+      '  border-radius: 50%;',
+      '  animation: cm-spin 0.8s linear infinite;',
+      '}',
+      '@keyframes cm-spin { to { transform: rotate(360deg); } }',
+      '.cm-error {',
+      '  display: flex;',
+      '  flex: 1 1 auto;',
+      '  align-items: center;',
+      '  justify-content: center;',
+      '  color: #e06c75;',
+      '  font-size: 13px;',
+      '  padding: 20px;',
+      '  text-align: center;',
+      '}'
+    ].join('\n');
+    document.head.appendChild(style);
   }
 
-  // ══════════════════════════════════════════════════════════════════════════
-  //  初始化
-  // ══════════════════════════════════════════════════════════════════════════
-  function init() {
-    if (!enabled) return;
+  // ════════════════════════════════════════════════════════════════════════
+  //  CodeMirror 6 动态加载
+  // ════════════════════════════════════════════════════════════════════════
 
+  /**
+   * 使用浏览器原生 import() 从 esm.sh 动态加载 CodeMirror 6 ESM 模块。
+   *
+   * 使用 codemirror 元包（不带 @6 范围，避免 esm.sh 错误解析为 CM5），
+   * 元包理论上 re-export 了 EditorView/EditorState/basicSetup/keymap/placeholder 等。
+   *
+   * 但实测 esm.sh 对该元包的 re-export 解析不稳定，会随机丢失个别具名导出
+   * （曾观察到 EditorState 缺失，也观察到 placeholder 缺失，且并非固定的某一个）。
+   * 因此对元包里缺失的每一项都单独 fallback 到其原始子包
+   * （EditorState → @codemirror/state；keymap/placeholder → @codemirror/view）。
+   *
+   * 加载的模块：
+   * - codemirror (元包 6.0.2): EditorView, basicSetup, keymap, placeholder, EditorState（部分可能缺失）
+   * - @codemirror/state / @codemirror/view: 缺失项的兜底来源
+   * - @codemirror/lang-sql: sql(), MySQL 方言
+   * - @codemirror/theme-one-dark: oneDark 主题
+   *
+   * 失败场景：网络不通、CSP 阻止 import()、esm.sh 不可访问。
+   * 调用方负责 try-catch 并降级为原生 textarea。
+   */
+  async function loadCM6() {
+    var cm = await import(CM6_URLS.codemirror);
+    var sqlMod = await import(CM6_URLS.langSql);
+    var themeMod = await import(CM6_URLS.themeOneDark);
+
+    // 缓存已加载的兜底子包，避免同一子包被 import() 两次
+    var stateMod = null;
+    var viewMod = null;
+
+    var EditorState = cm.EditorState;
+    if (!EditorState) {
+      stateMod = stateMod || await import(CM6_URLS.state);
+      EditorState = stateMod.EditorState;
+    }
+
+    var keymap = cm.keymap;
+    if (!keymap) {
+      viewMod = viewMod || await import(CM6_URLS.view);
+      keymap = viewMod.keymap;
+    }
+
+    var placeholderFn = cm.placeholder;
+    if (!placeholderFn) {
+      viewMod = viewMod || await import(CM6_URLS.view);
+      placeholderFn = viewMod.placeholder;
+    }
+
+    return {
+      EditorView: cm.EditorView,
+      EditorState: EditorState,
+      basicSetup: cm.basicSetup,
+      keymap: keymap,
+      placeholder: placeholderFn,
+      sql: sqlMod.sql,
+      MySQL: sqlMod.MySQL,
+      oneDark: themeMod.oneDark
+    };
+  }
+
+  // ════════════════════════════════════════════════════════════════════════
+  //  Tab 管理
+  // ════════════════════════════════════════════════════════════════════════
+
+  /**
+   * 创建 Tab 栏 DOM 容器（Tab 标签由 renderTabBar 填充）
+   */
+  function createTabBar(wrapper) {
+    tabBarEl = document.createElement('div');
+    tabBarEl.className = 'cm-tab-bar';
+    wrapper.appendChild(tabBarEl);
+  }
+
+  /**
+   * 渲染 Tab 栏：重建所有 Tab 标签 + "+" 按钮
+   */
+  function renderTabBar() {
+    if (!tabBarEl) return;
+    tabBarEl.innerHTML = '';
+
+    // 渲染每个 Tab
+    tabs.forEach(function (tab) {
+      var tabEl = document.createElement('span');
+      tabEl.className = 'cm-tab' + (tab.id === activeTabId ? ' active' : '');
+      tabEl.dataset.tabId = tab.id;
+
+      // Tab 名称
+      var nameEl = document.createElement('span');
+      nameEl.textContent = tab.name;
+      tabEl.appendChild(nameEl);
+
+      // 关闭按钮
+      var closeBtn = document.createElement('button');
+      closeBtn.className = 'cm-tab-close';
+      closeBtn.innerHTML = '&times;';
+      closeBtn.title = '关闭此 Tab';
+      closeBtn.addEventListener('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        closeTab(tab.id);
+      });
+      tabEl.appendChild(closeBtn);
+
+      // 点击 Tab 标签（非关闭按钮）切换
+      tabEl.addEventListener('click', function (e) {
+        if (e.target === closeBtn || closeBtn.contains(e.target)) return;
+        switchTab(tab.id);
+      });
+
+      tabBarEl.appendChild(tabEl);
+    });
+
+    // "+" 按钮（始终在末尾）
+    var addBtn = document.createElement('button');
+    addBtn.className = 'cm-tab-add';
+    addBtn.textContent = '+';
+    addBtn.title = '新建 Tab';
+    addBtn.addEventListener('click', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      addTab();
+    });
+    tabBarEl.appendChild(addBtn);
+  }
+
+  /**
+   * 获取当前激活的 Tab 对象
+   */
+  function getActiveTab() {
+    for (var i = 0; i < tabs.length; i++) {
+      if (tabs[i].id === activeTabId) return tabs[i];
+    }
+    return null;
+  }
+
+  /**
+   * 获取 Tab 在数组中的索引
+   */
+  function getTabIndex(id) {
+    for (var i = 0; i < tabs.length; i++) {
+      if (tabs[i].id === id) return i;
+    }
+    return -1;
+  }
+
+  /**
+   * 新增 Tab
+   * @param {string} content - 初始内容（可选）
+   */
+  function addTab(content) {
+    // 先保存当前 Tab 状态
+    saveCurrentTabState();
+
+    // 创建新 Tab
+    var id = nextTabId++;
+    var tab = {
+      id: id,
+      name: 'Query ' + id,
+      content: content || '',
+      scrollTop: 0
+    };
+    tabs.push(tab);
+
+    // 切换到新 Tab
+    activeTabId = null;
+    switchTab(id);
+
+    // 重新渲染 Tab 栏
+    renderTabBar();
+
+    // 持久化
+    persistTabs();
+
+    console.log('[SQL Editor] 新增 Tab:', tab.name);
+  }
+
+  /**
+   * 关闭 Tab（至少保留 1 个）
+   * @param {number} id - 要关闭的 Tab ID
+   */
+  function closeTab(id) {
+    if (tabs.length <= 1) {
+      console.log('[SQL Editor] 至少保留一个 Tab');
+      return;
+    }
+
+    var idx = getTabIndex(id);
+    if (idx === -1) return;
+
+    var wasActive = (id === activeTabId);
+
+    // 从数组中移除
+    tabs.splice(idx, 1);
+
+    if (wasActive) {
+      // 切换到相邻 Tab（优先同位置，越界则取末尾）
+      var newIdx = Math.min(idx, tabs.length - 1);
+      var newTab = tabs[newIdx];
+      activeTabId = null; // 重置以强制 switchTab 执行加载逻辑
+      switchTab(newTab.id);
+    }
+
+    renderTabBar();
+    persistTabs();
+
+    console.log('[SQL Editor] 关闭 Tab ID:', id);
+  }
+
+  /**
+   * 切换 Tab
+   * @param {number} id - 目标 Tab ID
+   */
+  function switchTab(id) {
+    if (id === activeTabId) return;
+
+    // 保存当前 Tab 的编辑器状态
+    saveCurrentTabState();
+
+    // 查找目标 Tab
+    var tab = null;
+    for (var i = 0; i < tabs.length; i++) {
+      if (tabs[i].id === id) { tab = tabs[i]; break; }
+    }
+    if (!tab) return;
+
+    activeTabId = id;
+
+    // 加载目标 Tab 内容到编辑器
+    loadTabState(tab);
+
+    // 重新渲染 Tab 栏（高亮切换）
+    renderTabBar();
+
+    console.log('[SQL Editor] 切换到 Tab:', tab.name);
+  }
+
+  /**
+   * 保存当前 Tab 的编辑器内容与滚动位置
+   */
+  function saveCurrentTabState() {
+    if (!editor) return;
+    var tab = getActiveTab();
+    if (!tab) return;
+
+    tab.content = editor.state.doc.toString();
+
+    // 保存滚动位置
+    var scroller = editor.dom.querySelector('.cm-scroller');
+    if (scroller) {
+      tab.scrollTop = scroller.scrollTop;
+    }
+  }
+
+  /**
+   * 将 Tab 的内容加载到编辑器（替换全文 + 恢复滚动位置）
+   */
+  function loadTabState(tab) {
+    if (!editor) return;
+
+    suppressSync = true;
+
+    // 替换编辑器全文内容
+    var docLen = editor.state.doc.length;
+    editor.dispatch({
+      changes: { from: 0, to: docLen, insert: tab.content || '' }
+    });
+
+    // 恢复滚动位置
+    var scroller = editor.dom.querySelector('.cm-scroller');
+    if (scroller && tab.scrollTop) {
+      scroller.scrollTop = tab.scrollTop;
+    }
+
+    // 同步到 textarea
+    syncToTextarea();
+
+    // 清除选区同步（新 Tab 无选区，避免旧 Tab 的选区残留）
+    var selectSql = document.getElementById('select_sql');
+    if (selectSql) selectSql.value = '';
+
+    suppressSync = false;
+  }
+
+  /**
+   * 持久化 Tab 数据到 GM 存储
+   */
+  function persistTabs() {
+    saveCurrentTabState();
+    try {
+      GM_setValue(STORAGE_KEY_TABS, JSON.stringify({
+        tabs: tabs,
+        nextTabId: nextTabId
+      }));
+    } catch (e) {
+      console.error('[SQL Editor] 持久化 Tab 失败:', e);
+    }
+  }
+
+  /**
+   * 从 GM 存储恢复 Tab 数据
+   * 如果没有保存的数据，使用 textarea 现有内容创建默认 Tab
+   */
+  function restoreTabs() {
+    var saved = '';
+    try {
+      saved = GM_getValue(STORAGE_KEY_TABS, '');
+    } catch (e) {
+      saved = '';
+    }
+
+    if (saved) {
+      try {
+        var data = JSON.parse(saved);
+        if (data.tabs && data.tabs.length > 0) {
+          tabs = data.tabs;
+          // 恢复 nextTabId（取最大 ID + 1，防止 ID 重复）
+          var maxId = 0;
+          for (var i = 0; i < tabs.length; i++) {
+            if (tabs[i].id > maxId) maxId = tabs[i].id;
+          }
+          nextTabId = data.nextTabId || (maxId + 1);
+          activeTabId = tabs[0].id;
+          return;
+        }
+      } catch (e) {
+        console.warn('[SQL Editor] 恢复 Tab 失败:', e);
+      }
+    }
+
+    // 没有保存的数据：用 textarea 现有内容创建默认 Tab
+    var initialContent = textarea ? textarea.value : '';
+    tabs = [{
+      id: 1,
+      name: 'Query 1',
+      content: initialContent,
+      scrollTop: 0
+    }];
+    nextTabId = 2;
+    activeTabId = 1;
+  }
+
+  // ════════════════════════════════════════════════════════════════════════
+  //  值与选区同步
+  // ════════════════════════════════════════════════════════════════════════
+
+  /**
+   * 同步 CM6 编辑器内容到原始 textarea
+   * 确保表单提交时 #sql 包含最新内容
+   */
+  function syncToTextarea() {
+    if (!editor || !textarea) return;
+    textarea.value = editor.state.doc.toString();
+  }
+
+  /**
+   * 处理 CM6 选区变化：
+   * 1. 更新 #select_sql 隐藏域
+   * 2. 调用页面原有 sqlQPost() 函数（如果存在）
+   *
+   * 这使得页面原有的 "选中 SQL 优先提交" 逻辑在 CM6 下正常工作。
+   */
+  function handleSelectionChange() {
+    if (!editor) return;
+
+    var sel = editor.state.selection.main;
+    var selectedText = (sel.from !== sel.to)
+      ? editor.state.sliceDoc(sel.from, sel.to)
+      : '';
+
+    // 同步选区到 textarea（让 sqlQPost 能正确读取 selectionStart/End）
+    try {
+      if (textarea) {
+        textarea.selectionStart = sel.from;
+        textarea.selectionEnd = sel.to;
+      }
+    } catch (e) {
+      // hidden textarea 在某些浏览器可能不支持选区设置，忽略
+    }
+
+    // 直接更新 #select_sql 隐藏域（兜底，不依赖 sqlQPost）
+    var selectSql = document.getElementById('select_sql');
+    if (selectSql) {
+      selectSql.value = selectedText;
+    }
+
+    // 调用页面原有的 sqlQPost 函数
+    try {
+      if (typeof unsafeWindow.sqlQPost === 'function') {
+        unsafeWindow.sqlQPost();
+      }
+    } catch (e) {
+      // 页面 JS 可能未加载或 sqlQPost 在闭包内，忽略
+    }
+  }
+
+  // ════════════════════════════════════════════════════════════════════════
+  //  Textarea 增强（主函数）
+  // ════════════════════════════════════════════════════════════════════════
+
+  /**
+   * 增强目标 textarea，替换为 CodeMirror 6 编辑器
+   *
+   * 流程：
+   * 1. 注入 CSS
+   * 2. 创建 wrapper 并显示加载状态
+   * 3. 隐藏原 textarea（保留在 DOM 中以兼容表单提交）
+   * 4. 动态加载 CM6 模块
+   * 5. 恢复/创建 Tab 数据
+   * 6. 创建 EditorView
+   * 7. 绑定同步监听器
+   */
+  async function enhanceTextarea(ta) {
+    textarea = ta;
+    textarea.dataset.cmEnhanced = '1';
+
+    // 注入 CSS
     injectCSS();
 
-    // 扫描页面现有 textarea
-    var tas = document.querySelectorAll('textarea');
-    for (var i = 0; i < tas.length; i++) {
-      setupTextarea(tas[i]);
+    // 获取 textarea 的父容器
+    var parent = textarea.parentElement;
+    if (!parent) {
+      console.error('[SQL Editor] textarea 无父容器，无法增强');
+      return;
     }
 
-    // 监听动态新增的 textarea（单页应用、动态表单等场景）
-    var observer = new MutationObserver(function (mutations) {
-      for (var mi = 0; mi < mutations.length; mi++) {
-        var added = mutations[mi].addedNodes;
-        for (var ni = 0; ni < added.length; ni++) {
-          var node = added[ni];
-          if (node.nodeType !== 1) continue; // 只处理元素节点
-          if (node.tagName === 'TEXTAREA') {
-            setupTextarea(node);
-          } else if (node.querySelectorAll) {
-            var found = node.querySelectorAll('textarea');
-            for (var fi = 0; fi < found.length; fi++) {
-              setupTextarea(found[fi]);
-            }
-          }
+    // 创建 wrapper
+    wrapperEl = document.createElement('div');
+    wrapperEl.className = 'cm-sql-wrapper';
+
+    // 显示加载状态
+    var loadingEl = document.createElement('div');
+    loadingEl.className = 'cm-loading';
+    loadingEl.textContent = '正在加载 CodeMirror 6 ...';
+    wrapperEl.appendChild(loadingEl);
+
+    // 插入 wrapper 到 textarea 之前（textarea 隐藏后 wrapper 占据原位置）
+    parent.insertBefore(wrapperEl, textarea);
+
+    // 隐藏原始 textarea（display:none 仍参与表单提交）
+    textarea.style.display = 'none';
+
+    // 创建 Tab 栏容器
+    createTabBar(wrapperEl);
+
+    // ── 动态加载 CodeMirror 6 ──
+    try {
+      CM6 = await loadCM6();
+    } catch (e) {
+      console.error('[SQL Editor] CodeMirror 6 加载失败:', e);
+      // 显示错误信息
+      loadingEl.className = 'cm-error';
+      loadingEl.textContent = 'CodeMirror 6 加载失败: ' + (e.message || e)
+        + '\n请检查网络连接或 esm.sh 是否可访问。';
+      // 3 秒后恢复原生 textarea
+      setTimeout(function () {
+        textarea.style.display = '';
+        textarea.dataset.cmEnhanced = '';
+        if (wrapperEl) {
+          wrapperEl.remove();
+          wrapperEl = null;
         }
-      }
+      }, 3000);
+      return;
+    }
+
+    // 加载成功，验证关键 API 是否存在
+    if (!CM6.EditorView || !CM6.EditorState || !CM6.basicSetup || !CM6.keymap || !CM6.placeholder) {
+      console.error('[SQL Editor] CM6 模块加载不完整，缺少关键 API:', {
+        EditorView: !!CM6.EditorView,
+        EditorState: !!CM6.EditorState,
+        basicSetup: !!CM6.basicSetup,
+        keymap: !!CM6.keymap,
+        placeholder: !!CM6.placeholder
+      });
+      loadingEl.className = 'cm-error';
+      loadingEl.textContent = 'CodeMirror 6 模块加载不完整，缺少关键 API。';
+      setTimeout(function () {
+        textarea.style.display = '';
+        textarea.dataset.cmEnhanced = '';
+        if (wrapperEl) { wrapperEl.remove(); wrapperEl = null; }
+      }, 3000);
+      return;
+    }
+
+    // 移除加载提示
+    loadingEl.remove();
+
+    // 恢复或创建 Tab 数据
+    restoreTabs();
+
+    // 渲染 Tab 栏
+    renderTabBar();
+
+    // 获取初始内容（来自激活的 Tab 或 textarea 现有值）
+    var activeTab = getActiveTab();
+    var initialContent = activeTab ? (activeTab.content || '') : (textarea.value || '');
+
+    // ── 创建 CodeMirror 6 编辑器 ──
+    var EditorView = CM6.EditorView;
+    var EditorState = CM6.EditorState;
+
+    try {
+      editor = new EditorView({
+        state: EditorState.create({
+          doc: initialContent,
+          extensions: [
+            // 基础设置：行号、括号匹配、代码折叠、光标行高亮、历史记录等
+            CM6.basicSetup,
+
+            // SQL 语言支持（MySQL 方言，关键字大写）
+            CM6.sql({
+              dialect: CM6.MySQL,
+              upperCaseKeywords: true
+            }),
+
+            // 暗色主题（One Dark）
+            CM6.oneDark,
+
+            // Placeholder（复用原 textarea 的 placeholder）
+            CM6.placeholder(textarea.placeholder || '请写sql语句...'),
+
+            // 自动换行
+            EditorView.lineWrapping,
+
+            // 自定义主题（尺寸与字体适配）
+            EditorView.theme({
+              '&': {
+                height: '100%',
+                fontSize: '14px'
+              },
+              '.cm-scroller': {
+                overflow: 'auto',
+                fontFamily: '"Fira Code", "Consolas", "Monaco", monospace'
+              },
+              '.cm-content': {
+                fontFamily: '"Fira Code", "Consolas", "Monaco", monospace'
+              },
+              '&.cm-focused': {
+                outline: 'none'
+              }
+            }),
+
+            // 键盘快捷键
+            CM6.keymap.of([
+              {
+                // Ctrl+Enter / Cmd+Enter：提交表单
+                key: 'Ctrl-Enter',
+                mac: 'Cmd-Enter',
+                run: function () {
+                  var btn = document.getElementById('check_submit');
+                  if (btn) btn.click();
+                  return true;
+                }
+              },
+              {
+                // Ctrl+S / Cmd+S：保存 Tab 状态
+                key: 'Ctrl-s',
+                mac: 'Cmd-s',
+                preventDefault: true,
+                run: function () {
+                  persistTabs();
+                  console.log('[SQL Editor] Tab 状态已保存');
+                  return true;
+                }
+              }
+            ]),
+
+            // 更新监听器：值与选区同步
+            EditorView.updateListener.of(function (update) {
+              if (suppressSync) return;
+              if (update.docChanged) {
+                syncToTextarea();
+              }
+              if (update.selectionSet) {
+                handleSelectionChange();
+              }
+            })
+          ]
+        }),
+        parent: wrapperEl
+      });
+    } catch (e) {
+      console.error('[SQL Editor] 编辑器创建失败:', e);
+      var errEl = document.createElement('div');
+      errEl.className = 'cm-error';
+      errEl.textContent = '编辑器创建失败: ' + (e.message || e);
+      wrapperEl.appendChild(errEl);
+      textarea.style.display = '';
+      textarea.dataset.cmEnhanced = '';
+      return;
+    }
+
+    // 初始同步到 textarea
+    syncToTextarea();
+
+    // ── 表单提交前同步（捕获阶段，确保最先执行）──
+    var form = textarea.closest('form');
+    if (form) {
+      form.addEventListener('submit', function () {
+        saveCurrentTabState();
+        syncToTextarea();
+      }, true);
+    }
+
+    // ── 页面卸载前持久化 Tab ──
+    window.addEventListener('beforeunload', function () {
+      persistTabs();
     });
-    observer.observe(document.body || document.documentElement, {
-      childList: true,
-      subtree:   true
-    });
+
+    console.log('[SQL Editor] CodeMirror 6 初始化完成');
   }
 
-  // ══════════════════════════════════════════════════════════════════════════
-  //  Tampermonkey 菜单命令（点击可切换启用/禁用，刷新后生效）
-  // ══════════════════════════════════════════════════════════════════════════
-  GM_registerMenuCommand(
-    (enabled ? '[✓ 已启用] ' : '[  已禁用] ') + 'SQL 语法高亮',
-    function () {
-      enabled = !enabled;
-      GM_setValue(ENABLED_KEY, enabled);
-      alert('SQL 语法高亮已' + (enabled ? '启用' : '禁用') + '，刷新页面后生效。');
-    }
-  );
+  // ════════════════════════════════════════════════════════════════════════
+  //  GM 菜单命令
+  // ════════════════════════════════════════════════════════════════════════
 
-  init();
+  GM_registerMenuCommand('SQL 高亮：启用/禁用', function () {
+    var enabled = !GM_getValue(STORAGE_KEY_ENABLED, true);
+    GM_setValue(STORAGE_KEY_ENABLED, enabled);
+    console.log('[SQL Editor] ' + (enabled ? '已启用' : '已禁用') + '，刷新页面生效');
+    location.reload();
+  });
+
+  GM_registerMenuCommand('SQL 高亮：清除 Tab 数据', function () {
+    GM_setValue(STORAGE_KEY_TABS, '');
+    console.log('[SQL Editor] Tab 数据已清除，刷新页面生效');
+    location.reload();
+  });
+
+  // ════════════════════════════════════════════════════════════════════════
+  //  初始化与 SPA 适配
+  // ════════════════════════════════════════════════════════════════════════
+
+  var initTimer = null;
+
+  /**
+   * 初始化函数：扫描页面上的 textarea#sql 并增强
+   * 使用防抖避免 MutationObserver 频繁触发
+   */
+  function init() {
+    // 检查是否启用（默认启用）
+    if (!GM_getValue(STORAGE_KEY_ENABLED, true)) return;
+
+    // 防抖
+    if (initTimer) clearTimeout(initTimer);
+    initTimer = setTimeout(function () {
+      initTimer = null;
+      var ta = document.querySelector('textarea#sql');
+      if (ta && !ta.dataset.cmEnhanced && !editor) {
+        enhanceTextarea(ta);
+      }
+    }, 100);
+  }
+
+  // MutationObserver 监听动态加载（SPA 适配）
+  var observer = new MutationObserver(function () {
+    init();
+  });
+
+  // 延迟启动：等待 DOM 就绪
+  if (document.body) {
+    observer.observe(document.body, { childList: true, subtree: true });
+    init();
+  } else {
+    document.addEventListener('DOMContentLoaded', function () {
+      observer.observe(document.body, { childList: true, subtree: true });
+      init();
+    });
+  }
 
 })();
