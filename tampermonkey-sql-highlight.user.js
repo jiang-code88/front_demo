@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         SQL Editor (CodeMirror 6)
 // @namespace    https://github.com/sql-highlight
-// @version      1.0.0
-// @description  使用 CodeMirror 6 为 SQL 工具页面提供语法高亮、自动补全、多 Tab 编辑
+// @version      2.0.0
+// @description  使用 CodeMirror 6 为 SQL 工具页面提供语法高亮、自动补全、多 Tab 独立查询
 // @author       You
 // @match        *://vinops.qipeipu.net/operate/sqltools*
 // @match        file:///*test-sql-highlight.html
@@ -17,11 +17,11 @@
 // @match        *://vinops.qipeipu.net/operate/sqltools*  // 匹配目标运维平台
 // @match        file:///*test-sql-highlight.html           // 匹配本地测试页
 // @include      *test-sql-highlight.html                   // 兜底匹配（Tampermonkey @include 通配）
-// @grant        GM_getValue                                // 读取 Tampermonkey 存储
-// @grant        GM_setValue                                // 写入 Tampermonkey 存储
+// @grant        GM_getValue                                // 读取 Tampermonkey 存储（仅用于启用/禁用开关）
+// @grant        GM_setValue                                // 写入 Tampermonkey 存储（仅用于启用/禁用开关）
 // @grant        GM_registerMenuCommand                     // 注册 Tampermonkey 菜单命令
 // @grant        unsafeWindow                               // 访问页面真实 window 对象（调用 sqlQPost）
-// @run-at       document-idle                              // 文档加载完成后执行
+// @run-at       document-idle                               // 文档加载完成后执行
 
 (function () {
   'use strict';
@@ -33,13 +33,15 @@
   //                     ┌─────────────────────────────────────────────────┐
   //                     │              用户交互层                          │
   //                     │  ┌─────────────────────────────────────────────┐ │
-  //                     │  │  Tab 栏（新增/切换/关闭）                     │ │
+  //                     │  │  Tab 栏（新增/切换/关闭/双击重命名）           │ │
   //                     │  ├─────────────────────────────────────────────┤ │
   //                     │  │  CodeMirror 6 编辑器                         │ │
   //                     │  │  • SQL 语法高亮（MySQL 方言）                │ │
-  //                     │  │  • 自动补全（关键字/表名）                   │ │
+  //                     │  │  • 自动补全（关键字 + 当前库表/字段名）       │ │
   //                     │  │  • 行号 / 括号匹配 / 代码折叠                 │ │
   //                     │  │  • 暗色主题（One Dark）                      │ │
+  //                     │  ├─────────────────────────────────────────────┤ │
+  //                     │  │  结果面板（每个 Tab 独立保存查询结果）        │ │
   //                     │  └─────────────────────────────────────────────┘ │
   //                     └─────────────────────────────────────────────────┘
   //                                          │
@@ -48,13 +50,14 @@
   //                     │              同步层                              │
   //                     │  • CM6 doc → textarea.value（表单提交保障）     │
   //                     │  • CM6 selection → #select_sql + sqlQPost()    │
-  //                     │  • Tab 状态 → GM_setValue（持久化）            │
+  //                     │  • Tab 切换 → 真实 #db_name/#database_suffix   │
+  //                     │  • 提交/分页 → AJAX（不再整页刷新）             │
   //                     └─────────────────────────────────────────────────┘
   //                                          │
   //                                          ▼
   //                     ┌─────────────────────────────────────────────────┐
   //                     │              页面集成层                          │
-  //                     │  • 原生 textarea 隐藏保留（表单提交兼容）        │
+  //                     │  • 原生 textarea 隐藏保留（导出仍走真实表单）    │
   //                     │  • onselect="sqlQPost()" 代理调用               │
   //                     │  • MutationObserver SPA 适配                    │
   //                     └─────────────────────────────────────────────────┘
@@ -65,8 +68,7 @@
   //  常量定义
   // ════════════════════════════════════════════════════════════════════════
 
-  // GM 存储键名
-  var STORAGE_KEY_TABS = 'sql_editor_tabs';
+  // GM 存储键名（Tab 数据不再持久化，仅保留脚本启用/禁用开关）
   var STORAGE_KEY_ENABLED = 'sql_hl_enabled';
 
   // CM6 模块 URL（esm.sh）
@@ -77,6 +79,7 @@
     state: 'https://esm.sh/@codemirror/state@6',
     view: 'https://esm.sh/@codemirror/view@6',
     langSql: 'https://esm.sh/@codemirror/lang-sql@6',
+    autocomplete: 'https://esm.sh/@codemirror/autocomplete@6',
     themeOneDark: 'https://esm.sh/@codemirror/theme-one-dark@6'
   };
 
@@ -89,13 +92,37 @@
 
   var editor = null;          // CodeMirror EditorView 实例
   var textarea = null;        // 原始 textarea 元素（#sql）
+  var formEl = null;          // 真实查询表单（QueryToolForm）
   var CM6 = null;             // 加载的 CodeMirror 模块缓存
-  var tabs = [];              // Tab 列表 [{ id, name, content, scrollTop }]
+  var tabs = [];              // Tab 列表
   var activeTabId = null;     // 当前激活的 Tab ID
   var nextTabId = 1;          // 下一个 Tab 的 ID（递增不回收）
   var suppressSync = false;   // 阻止同步（切换 Tab 时避免循环触发）
   var tabBarEl = null;        // Tab 栏 DOM 元素
   var wrapperEl = null;       // CM6 wrapper DOM 元素
+  var resultPanelEl = null;   // 结果面板 DOM 元素
+
+  // 数据库字段/表名补全：以数据库名为 key 缓存 /operate/get_database_tokens 的结果
+  var dbTokensCache = new Map();
+  // 当前用于补全的数据库名（跟随 #db_name 的值 / Tab 切换同步）
+  var completionDbName = '';
+  // 关键字扩展口子：CM6 lang-sql 官方关键字源已覆盖标准 MySQL 关键字，这里只留给
+  // 以后手动补充"CM6 词表里没有、平台特有"的伪关键字/自定义函数名
+  var reserveds = [];
+
+  /**
+   * Tampermonkey 默认在隔离的 JS 沙箱环境执行脚本，直接引用的全局 fetch 可能
+   * 不是页面实际使用/可能被页面自身覆盖的那个 window.fetch（本地测试页会覆盖
+   * window.fetch 来 mock AJAX 响应，如果不走 unsafeWindow.fetch 会打到沙箱自带
+   * 的原生 fetch，导致本地测试 mock 不生效）。统一走 unsafeWindow.fetch，行为
+   * 与页面里其它脚本发起的请求完全一致（cookie/session 也不受沙箱隔离影响）。
+   */
+  function doFetch(url, options) {
+    var f = (typeof unsafeWindow !== 'undefined' && unsafeWindow && unsafeWindow.fetch)
+      ? unsafeWindow.fetch
+      : fetch;
+    return f(url, options);
+  }
 
   // ════════════════════════════════════════════════════════════════════════
   //  CSS 样式注入
@@ -191,6 +218,17 @@
       '}',
       '.cm-tab-add:hover { background: #353b45; color: #fff; }',
       '',
+      '.cm-tab-rename-input {',
+      '  font-size: 13px;',
+      '  padding: 1px 4px;',
+      '  border: 1px solid #61afef;',
+      '  border-radius: 2px;',
+      '  outline: none;',
+      '  width: 84px;',
+      '  background: #fff;',
+      '  color: #111;',
+      '}',
+      '',
       '/* ── CM6 编辑器区域 ── */',
       '.cm-sql-wrapper .cm-editor {',
       '  flex: 1 1 auto;',
@@ -233,6 +271,44 @@
       '  font-size: 13px;',
       '  padding: 20px;',
       '  text-align: center;',
+      '}',
+      '',
+      '/* ── 结果面板（位于真实表单之后，跟随页面浅色风格）── */',
+      '.cm-result-panel {',
+      '  margin-top: 10px;',
+      '  border-top: 2px solid lightblue;',
+      '  padding-top: 10px;',
+      '}',
+      '.cm-result-hint {',
+      '  color: #666;',
+      '  font-size: 13px;',
+      '  margin-bottom: 10px;',
+      '}',
+      '.cm-result-content { min-height: 20px; }',
+      '.cm-result-placeholder {',
+      '  color: #999;',
+      '  font-size: 13px;',
+      '  padding: 12px 0;',
+      '}',
+      '.cm-result-loading {',
+      '  color: #3b82c4;',
+      '  font-size: 13px;',
+      '  padding: 12px 0;',
+      '}',
+      '.cm-result-warn { color: #b71c1c; font-weight: bold; }',
+      '.cm-result-error {',
+      '  border: 1px solid #e06c75;',
+      '  background: #fdecea;',
+      '  border-radius: 4px;',
+      '  padding: 12px 16px;',
+      '  color: #b71c1c;',
+      '}',
+      '.cm-result-error-title { font-weight: bold; margin-bottom: 6px; }',
+      '.cm-result-error-msg {',
+      '  font-family: "Fira Code", "Consolas", "Monaco", monospace;',
+      '  font-size: 13px;',
+      '  word-break: break-all;',
+      '  white-space: pre-wrap;',
       '}'
     ].join('\n');
     document.head.appendChild(style);
@@ -251,12 +327,13 @@
    * 但实测 esm.sh 对该元包的 re-export 解析不稳定，会随机丢失个别具名导出
    * （曾观察到 EditorState 缺失，也观察到 placeholder 缺失，且并非固定的某一个）。
    * 因此对元包里缺失的每一项都单独 fallback 到其原始子包
-   * （EditorState → @codemirror/state；keymap/placeholder → @codemirror/view）。
+   * （EditorState → @codemirror/state；keymap/placeholder/autocompletion → @codemirror/view / @codemirror/autocomplete）。
    *
    * 加载的模块：
    * - codemirror (元包 6.0.2): EditorView, basicSetup, keymap, placeholder, EditorState（部分可能缺失）
    * - @codemirror/state / @codemirror/view: 缺失项的兜底来源
-   * - @codemirror/lang-sql: sql(), MySQL 方言
+   * - @codemirror/lang-sql: sql(), MySQL 方言, keywordCompletionSource（官方关键字补全源）
+   * - @codemirror/autocomplete: autocompletion()（补全框架，多个补全源组合展示）
    * - @codemirror/theme-one-dark: oneDark 主题
    *
    * 失败场景：网络不通、CSP 阻止 import()、esm.sh 不可访问。
@@ -270,6 +347,7 @@
     // 缓存已加载的兜底子包，避免同一子包被 import() 两次
     var stateMod = null;
     var viewMod = null;
+    var autocompleteMod = null;
 
     var EditorState = cm.EditorState;
     if (!EditorState) {
@@ -289,15 +367,80 @@
       placeholderFn = viewMod.placeholder;
     }
 
+    var autocompletionFn = cm.autocompletion;
+    if (!autocompletionFn) {
+      autocompleteMod = autocompleteMod || await import(CM6_URLS.autocomplete);
+      autocompletionFn = autocompleteMod.autocompletion;
+    }
+
     return {
       EditorView: cm.EditorView,
       EditorState: EditorState,
       basicSetup: cm.basicSetup,
       keymap: keymap,
       placeholder: placeholderFn,
+      autocompletion: autocompletionFn,
       sql: sqlMod.sql,
       MySQL: sqlMod.MySQL,
+      keywordCompletionSource: sqlMod.keywordCompletionSource,
       oneDark: themeMod.oneDark
+    };
+  }
+
+  // ════════════════════════════════════════════════════════════════════════
+  //  数据库字段/表名自动补全（CM6 原生补全，修复 CM6 接管后失效的问题）
+  // ════════════════════════════════════════════════════════════════════════
+
+  /**
+   * 确保 completionDbName 指向的数据库已拉取过 token 列表（表名/字段名），
+   * 命中缓存则直接返回，不重复发请求。
+   */
+  function ensureDbTokens(dbName) {
+    completionDbName = dbName || '';
+    if (!completionDbName || dbTokensCache.has(completionDbName)) return;
+
+    var params = new URLSearchParams();
+    params.set('database', completionDbName);
+
+    doFetch('/operate/get_database_tokens', {
+      method: 'POST',
+      body: params,
+      credentials: 'same-origin'
+    }).then(function (res) {
+      return res.json();
+    }).then(function (result) {
+      if (result && result.status === 0 && Array.isArray(result.data)) {
+        dbTokensCache.set(completionDbName, result.data);
+      } else {
+        dbTokensCache.set(completionDbName, []);
+      }
+    }).catch(function (e) {
+      console.warn('[SQL Editor] 获取数据库字段补全失败:', e);
+      dbTokensCache.set(completionDbName, []);
+    });
+  }
+
+  /**
+   * CM6 自定义补全源：只负责"当前所选数据库对应的表/字段名"（以及 reserveds 里
+   * 以后手动补充的扩展词），标准 MySQL 关键字交给 keywordCompletionSource 负责。
+   *
+   * 触发条件与原 jquery.textcomplete 配置保持一致：至少 2 个连续单词字符才触发，
+   * Ctrl+Space（context.explicit）强制触发不受此限制。
+   */
+  function dbTokenCompletionSource(context) {
+    var word = context.matchBefore(/\w*/);
+    if (!word) return null;
+    if (!context.explicit && word.text.length < 2) return null;
+
+    var tokens = reserveds.concat(dbTokensCache.get(completionDbName) || []);
+    if (!tokens.length) return null;
+
+    return {
+      from: word.from,
+      options: tokens.map(function (t) {
+        return { label: t, type: 'keyword' };
+      }),
+      validFor: /^\w*$/
     };
   }
 
@@ -330,6 +473,11 @@
       // Tab 名称
       var nameEl = document.createElement('span');
       nameEl.textContent = tab.name;
+      nameEl.addEventListener('dblclick', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        startRenameTab(tab, nameEl);
+      });
       tabEl.appendChild(nameEl);
 
       // 关闭按钮
@@ -344,7 +492,7 @@
       });
       tabEl.appendChild(closeBtn);
 
-      // 点击 Tab 标签（非关闭按钮）切换
+      // 点击 Tab 标签（非关闭按钮/重命名输入框）切换
       tabEl.addEventListener('click', function (e) {
         if (e.target === closeBtn || closeBtn.contains(e.target)) return;
         switchTab(tab.id);
@@ -364,6 +512,45 @@
       addTab();
     });
     tabBarEl.appendChild(addBtn);
+  }
+
+  /**
+   * 双击 Tab 名称重命名：替换为内联输入框，blur/Enter 提交，Escape 取消
+   */
+  function startRenameTab(tab, nameEl) {
+    var input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'cm-tab-rename-input';
+    input.value = tab.name;
+
+    var cancelled = false;
+
+    function commit() {
+      if (cancelled) return;
+      var val = input.value.trim();
+      if (val) {
+        tab.name = val;
+        tab.customName = true;
+      }
+      renderTabBar();
+    }
+
+    input.addEventListener('blur', commit);
+    input.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        input.blur();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        cancelled = true;
+        renderTabBar();
+      }
+    });
+    input.addEventListener('click', function (e) { e.stopPropagation(); });
+
+    nameEl.replaceWith(input);
+    input.focus();
+    input.select();
   }
 
   /**
@@ -387,6 +574,29 @@
   }
 
   /**
+   * 创建一个新 Tab 的默认数据结构
+   */
+  function createTabData(id, content) {
+    return {
+      id: id,
+      name: 'Query ' + id,
+      customName: false,
+      content: content || '',
+      scrollTop: 0,
+      // 与真实查询表单联动的字段（Tab 切换时保存/恢复）
+      dbName: '',
+      databaseSuffix: '',
+      currentErp: '',
+      // 查询结果相关字段
+      page: 1,
+      resultHtml: '',
+      errorMsg: null,
+      status: 'idle', // idle / loading / done / error / session-expired / net-error
+      requestSeq: 0   // 竞态防护：每次 submitQuery 自增，响应回来时比对
+    };
+  }
+
+  /**
    * 新增 Tab
    * @param {string} content - 初始内容（可选）
    */
@@ -394,14 +604,9 @@
     // 先保存当前 Tab 状态
     saveCurrentTabState();
 
-    // 创建新 Tab
+    // 创建新 Tab（数据库默认置空，强制用户显式选择数据库，与原页面默认一致）
     var id = nextTabId++;
-    var tab = {
-      id: id,
-      name: 'Query ' + id,
-      content: content || '',
-      scrollTop: 0
-    };
+    var tab = createTabData(id, content);
     tabs.push(tab);
 
     // 切换到新 Tab
@@ -410,9 +615,6 @@
 
     // 重新渲染 Tab 栏
     renderTabBar();
-
-    // 持久化
-    persistTabs();
 
     console.log('[SQL Editor] 新增 Tab:', tab.name);
   }
@@ -444,7 +646,6 @@
     }
 
     renderTabBar();
-    persistTabs();
 
     console.log('[SQL Editor] 关闭 Tab ID:', id);
   }
@@ -468,7 +669,7 @@
 
     activeTabId = id;
 
-    // 加载目标 Tab 内容到编辑器
+    // 加载目标 Tab 内容到编辑器 + 联动真实表单字段 + 刷新结果面板
     loadTabState(tab);
 
     // 重新渲染 Tab 栏（高亮切换）
@@ -478,106 +679,112 @@
   }
 
   /**
-   * 保存当前 Tab 的编辑器内容与滚动位置
+   * 保存当前 Tab 的编辑器内容、滚动位置，以及联动的真实表单字段
+   * （#db_name / #database_suffix / #current_erp）
    */
   function saveCurrentTabState() {
-    if (!editor) return;
     var tab = getActiveTab();
     if (!tab) return;
 
-    tab.content = editor.state.doc.toString();
+    if (editor) {
+      tab.content = editor.state.doc.toString();
 
-    // 保存滚动位置
-    var scroller = editor.dom.querySelector('.cm-scroller');
-    if (scroller) {
-      tab.scrollTop = scroller.scrollTop;
+      var scroller = editor.dom.querySelector('.cm-scroller');
+      if (scroller) {
+        tab.scrollTop = scroller.scrollTop;
+      }
     }
+
+    var dbNameEl = document.getElementById('db_name');
+    var suffixEl = document.getElementById('database_suffix');
+    var erpEl = document.getElementById('current_erp');
+    if (dbNameEl) tab.dbName = dbNameEl.value;
+    if (suffixEl) tab.databaseSuffix = suffixEl.value;
+    if (erpEl) tab.currentErp = erpEl.value;
   }
 
   /**
-   * 将 Tab 的内容加载到编辑器（替换全文 + 恢复滚动位置）
+   * 将 Tab 的内容加载到编辑器（替换全文 + 恢复滚动位置），并联动：
+   * - 真实 #db_name / #database_suffix / #current_erp（触发 change 事件，
+   *   让页面自带的 ERP 子库下拉逻辑与我们自己的补全缓存都能正常响应）
+   * - 结果面板（渲染该 Tab 保存的查询结果）
    */
   function loadTabState(tab) {
-    if (!editor) return;
-
     suppressSync = true;
 
-    // 替换编辑器全文内容
-    var docLen = editor.state.doc.length;
-    editor.dispatch({
-      changes: { from: 0, to: docLen, insert: tab.content || '' }
-    });
+    if (editor) {
+      // 替换编辑器全文内容
+      var docLen = editor.state.doc.length;
+      editor.dispatch({
+        changes: { from: 0, to: docLen, insert: tab.content || '' }
+      });
 
-    // 恢复滚动位置
-    var scroller = editor.dom.querySelector('.cm-scroller');
-    if (scroller && tab.scrollTop) {
-      scroller.scrollTop = tab.scrollTop;
+      // 恢复滚动位置
+      var scroller = editor.dom.querySelector('.cm-scroller');
+      if (scroller) {
+        scroller.scrollTop = tab.scrollTop || 0;
+      }
+
+      // 同步到 textarea
+      syncToTextarea();
     }
-
-    // 同步到 textarea
-    syncToTextarea();
 
     // 清除选区同步（新 Tab 无选区，避免旧 Tab 的选区残留）
     var selectSql = document.getElementById('select_sql');
     if (selectSql) selectSql.value = '';
 
+    // 联动真实的数据库选择（下拉框）
+    var dbNameEl = document.getElementById('db_name');
+    if (dbNameEl) {
+      var targetDbName = tab.dbName || '';
+      if (dbNameEl.value !== targetDbName) {
+        dbNameEl.value = targetDbName;
+        // 触发 change：页面自带的 ERP 子库下拉逻辑会响应，我们自己的补全缓存监听也会响应
+        dbNameEl.dispatchEvent(new Event('change'));
+      }
+      // 无论是否触发了 change，都确保补全缓存指向当前数据库（cache 命中则不会重复请求）
+      ensureDbTokens(dbNameEl.value);
+    }
+
+    var erpEl = document.getElementById('current_erp');
+    if (erpEl) erpEl.value = tab.currentErp || '';
+
+    // 已知次要限制（best-effort）：#database_suffix 的 options 是页面异步拉取填充的，
+    // 这里赋值可能在 options 填充完成前落空，仅影响"选了 ERP/erp 且切 Tab 后子库
+    // 后缀没有正确恢复"这一边缘场景，先不写等待/监听逻辑
+    var suffixEl = document.getElementById('database_suffix');
+    if (suffixEl && tab.databaseSuffix) {
+      suffixEl.value = tab.databaseSuffix;
+    }
+
+    // 刷新结果面板为该 Tab 保存的结果
+    renderResultPanel(tab);
+
     suppressSync = false;
   }
 
   /**
-   * 持久化 Tab 数据到 GM 存储
+   * 创建 Tab 1：始终用当前 textarea 内容 + 当前 #db_name 选中值 +
+   * （若页面初次加载即带有结果）解析出的结果片段
    */
-  function persistTabs() {
-    saveCurrentTabState();
-    try {
-      GM_setValue(STORAGE_KEY_TABS, JSON.stringify({
-        tabs: tabs,
-        nextTabId: nextTabId
-      }));
-    } catch (e) {
-      console.error('[SQL Editor] 持久化 Tab 失败:', e);
-    }
-  }
+  function restoreTabs(initialResult) {
+    var dbNameEl = document.getElementById('db_name');
+    var suffixEl = document.getElementById('database_suffix');
+    var erpEl = document.getElementById('current_erp');
 
-  /**
-   * 从 GM 存储恢复 Tab 数据
-   * 如果没有保存的数据，使用 textarea 现有内容创建默认 Tab
-   */
-  function restoreTabs() {
-    var saved = '';
-    try {
-      saved = GM_getValue(STORAGE_KEY_TABS, '');
-    } catch (e) {
-      saved = '';
+    var tab = createTabData(1, textarea ? textarea.value : '');
+    tab.dbName = dbNameEl ? dbNameEl.value : '';
+    tab.databaseSuffix = suffixEl ? suffixEl.value : '';
+    tab.currentErp = erpEl ? erpEl.value : '';
+
+    if (initialResult) {
+      tab.resultHtml = initialResult.html;
+      tab.errorMsg = initialResult.errorMsg || null;
+      tab.status = initialResult.status;
+      tab.page = initialResult.page || 1;
     }
 
-    if (saved) {
-      try {
-        var data = JSON.parse(saved);
-        if (data.tabs && data.tabs.length > 0) {
-          tabs = data.tabs;
-          // 恢复 nextTabId（取最大 ID + 1，防止 ID 重复）
-          var maxId = 0;
-          for (var i = 0; i < tabs.length; i++) {
-            if (tabs[i].id > maxId) maxId = tabs[i].id;
-          }
-          nextTabId = data.nextTabId || (maxId + 1);
-          activeTabId = tabs[0].id;
-          return;
-        }
-      } catch (e) {
-        console.warn('[SQL Editor] 恢复 Tab 失败:', e);
-      }
-    }
-
-    // 没有保存的数据：用 textarea 现有内容创建默认 Tab
-    var initialContent = textarea ? textarea.value : '';
-    tabs = [{
-      id: 1,
-      name: 'Query 1',
-      content: initialContent,
-      scrollTop: 0
-    }];
+    tabs = [tab];
     nextTabId = 2;
     activeTabId = 1;
   }
@@ -588,7 +795,7 @@
 
   /**
    * 同步 CM6 编辑器内容到原始 textarea
-   * 确保表单提交时 #sql 包含最新内容
+   * 确保表单提交（导出）时 #sql 包含最新内容
    */
   function syncToTextarea() {
     if (!editor || !textarea) return;
@@ -637,6 +844,304 @@
   }
 
   // ════════════════════════════════════════════════════════════════════════
+  //  结果解析（AJAX 响应 / 页面初次加载时已有的结果，共用同一套抓取逻辑）
+  // ════════════════════════════════════════════════════════════════════════
+
+  /**
+   * 判断一个结果表格是否是报错形状：仅 2 行、每行仅 1 个单元格、
+   * 第一行文本正好是 "Error"（对应 sqltools_error.html 的结构）。
+   * 命中则返回第二行的错误信息文本，否则返回 null。
+   */
+  function getErrorMessage(table) {
+    var rows = table.querySelectorAll('tr');
+    if (rows.length !== 2) return null;
+    var c0 = rows[0].querySelectorAll('td');
+    var c1 = rows[1].querySelectorAll('td');
+    if (c0.length !== 1 || c1.length !== 1) return null;
+    if (c0[0].textContent.trim() !== 'Error') return null;
+    return c1[0].textContent.trim();
+  }
+
+  /**
+   * 读取分页器里 #pageindex 输入框的当前页码（解析失败则回退为 1）。
+   * 注意："共 N 页" 这段文字不解析（已知会出现 "共 1L页" 这种异常文本）。
+   */
+  function readPageIndexValue(pagerDiv) {
+    var input = pagerDiv.querySelector('#pageindex');
+    var n = input ? parseInt(input.value, 10) : 1;
+    return isNaN(n) ? 1 : n;
+  }
+
+  /**
+   * 精确提取结果表格容器（div[style*="overflow"]）与分页器（div.pager）。
+   * 找不到 div[style*="overflow"] 时返回 null（由调用方决定如何兜底）。
+   */
+  function extractResultBlock(contentEl) {
+    var overflowDiv = contentEl.querySelector('div[style*="overflow"]');
+    if (!overflowDiv) return null;
+
+    var pagerDiv = contentEl.querySelector('div.pager');
+    var table = overflowDiv.querySelector('table');
+    var errorMsg = table ? getErrorMessage(table) : null;
+
+    return {
+      html: overflowDiv.outerHTML + (pagerDiv ? pagerDiv.outerHTML : ''),
+      status: errorMsg ? 'error' : 'done',
+      errorMsg: errorMsg,
+      page: pagerDiv ? readPageIndexValue(pagerDiv) : 1
+    };
+  }
+
+  /**
+   * 兜底：把 form 之后到末尾的所有节点原样拼接为 HTML 字符串
+   */
+  function collectHtmlAfter(form) {
+    var parts = [];
+    var node = form ? form.nextSibling : null;
+    while (node) {
+      if (node.nodeType === 1) {
+        parts.push(node.outerHTML);
+      } else if (node.nodeType === 3 && node.textContent && node.textContent.trim()) {
+        parts.push(node.textContent);
+      }
+      node = node.nextSibling;
+    }
+    return parts.join('');
+  }
+
+  /**
+   * 解析 submitQuery 的 AJAX 响应 HTML，提取结果片段
+   * @returns {sessionExpired: true} | {html, status, errorMsg, page}
+   */
+  function parseSubmitResponse(html) {
+    var doc = new DOMParser().parseFromString(html, 'text/html');
+    var contentEl = doc.querySelector('.content');
+    if (!contentEl) {
+      return { sessionExpired: true };
+    }
+
+    var block = extractResultBlock(contentEl);
+    if (block) return block;
+
+    // 兜底：找不到 div[style*="overflow"]，把 </form> 之后的内容原样保留
+    var form = contentEl.querySelector('form[name="QueryToolForm"]');
+    return {
+      html: collectHtmlAfter(form),
+      status: 'done',
+      errorMsg: null,
+      page: null
+    };
+  }
+
+  /**
+   * 页面初次加载时，如果 .content 里已经带有结果（比如这是一次真实表单提交后的
+   * 整页刷新），提取出来用于播种 Tab 1；没有结果（全新页面）则返回 null。
+   */
+  function captureInitialResult() {
+    var contentEl = document.querySelector('.content');
+    if (!contentEl) return null;
+    return extractResultBlock(contentEl);
+  }
+
+  /**
+   * 移除真实表单之后的所有旧节点（分隔线 / "支持操作" 提示段落 / 服务端渲染的
+   * 结果表格与分页器），交由 resultPanelEl 统一管理，避免重复展示。
+   */
+  function clearNodesAfterForm(form) {
+    if (!form) return;
+    var node = form.nextSibling;
+    while (node) {
+      var next = node.nextSibling;
+      if (node.parentNode) node.parentNode.removeChild(node);
+      node = next;
+    }
+  }
+
+  function escapeHtml(str) {
+    return String(str == null ? '' : str).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  // ════════════════════════════════════════════════════════════════════════
+  //  结果面板
+  // ════════════════════════════════════════════════════════════════════════
+
+  /**
+   * 创建结果面板 DOM，插入到真实表单之后（按 DOM 结构关系定位），并在面板上
+   * 做一次性事件委托实现分页交互（上一页/下一页/跳转页），不随内容刷新重新绑定。
+   */
+  function createResultPanel(form) {
+    resultPanelEl = document.createElement('div');
+    resultPanelEl.className = 'cm-result-panel';
+    resultPanelEl.innerHTML =
+      '<div class="cm-result-hint">支持操作: select，show, describe(desc)</div>' +
+      '<div class="cm-result-content"></div>';
+    form.insertAdjacentElement('afterend', resultPanelEl);
+
+    resultPanelEl.addEventListener('click', function (e) {
+      var prevLink = e.target.closest('#previousPage');
+      var nextLink = e.target.closest('#nextPage');
+      if (!prevLink && !nextLink) return;
+
+      e.preventDefault();
+      var tab = getActiveTab();
+      if (!tab) return;
+
+      var targetPage = (tab.page || 1) + (prevLink ? -1 : 1);
+      if (targetPage < 1) targetPage = 1;
+      submitQuery(tab, { page: targetPage });
+    });
+
+    resultPanelEl.addEventListener('keypress', function (e) {
+      if (e.keyCode !== 13 && e.which !== 13) return;
+      var input = e.target.closest('#pageindex');
+      if (!input) return;
+
+      e.preventDefault();
+      var tab = getActiveTab();
+      if (!tab) return;
+
+      var n = parseInt(input.value, 10);
+      if (isNaN(n) || n < 1) n = 1;
+      submitQuery(tab, { page: n });
+    });
+  }
+
+  /**
+   * 根据 tab.status / tab.resultHtml 渲染结果面板的动态内容区域
+   */
+  function renderResultPanel(tab) {
+    if (!resultPanelEl) return;
+    var contentEl = resultPanelEl.querySelector('.cm-result-content');
+    if (!contentEl) return;
+
+    if (!tab) {
+      contentEl.innerHTML = '';
+      return;
+    }
+
+    switch (tab.status) {
+      case 'loading':
+        contentEl.innerHTML = '<div class="cm-result-loading">查询中...</div>';
+        return;
+      case 'session-expired':
+        contentEl.innerHTML = '<div class="cm-result-placeholder cm-result-warn">会话可能已过期，请手动刷新页面重新登录</div>';
+        return;
+      case 'net-error':
+        contentEl.innerHTML = '<div class="cm-result-placeholder cm-result-warn">' + escapeHtml(tab.errorMsg || '请求失败，请重试') + '</div>';
+        return;
+      case 'error':
+        contentEl.innerHTML =
+          '<div class="cm-result-error">' +
+          '<div class="cm-result-error-title">⚠ 执行出错</div>' +
+          '<div class="cm-result-error-msg">' + escapeHtml(tab.errorMsg || '') + '</div>' +
+          '</div>';
+        return;
+      default:
+        contentEl.innerHTML = tab.resultHtml
+          ? tab.resultHtml
+          : '<div class="cm-result-placeholder">尚未查询，输入 SQL 后点击提交</div>';
+    }
+  }
+
+  /**
+   * 提交期间切换真实"提交"按钮的文案与禁用状态（仅影响当前激活 Tab 的展示）
+   */
+  function setSubmitButtonBusy(busy) {
+    var btn = formEl && formEl.querySelector('#check_submit');
+    if (!btn) return;
+
+    if (busy) {
+      if (btn.dataset.origText === undefined) btn.dataset.origText = btn.textContent;
+      btn.textContent = '查询中...';
+      btn.disabled = true;
+    } else {
+      if (btn.dataset.origText !== undefined) btn.textContent = btn.dataset.origText;
+      btn.disabled = false;
+    }
+  }
+
+  // ════════════════════════════════════════════════════════════════════════
+  //  AJAX 提交
+  // ════════════════════════════════════════════════════════════════════════
+
+  /**
+   * 提交查询（新查询或分页），通过 AJAX 提交到 form.action，解析响应后更新
+   * 该 Tab 的 resultHtml/page/status；仅当该 Tab 仍是当前激活 Tab 且竞态序号
+   * 校验通过时才重新渲染结果区。
+   *
+   * @param {object} tab - 目标 Tab（始终是触发提交时的当前激活 Tab）
+   * @param {object} opts - { page: number }，新查询固定为 1，分页操作递增/指定
+   */
+  function submitQuery(tab, opts) {
+    if (!tab || !formEl) return;
+    opts = opts || {};
+    var page = opts.page != null ? opts.page : 1;
+
+    // 提交前先把编辑器/真实表单的最新状态落回 tab 模型，避免用户在同一个 Tab 里
+    // 改了数据库/SQL 却还没触发过 Tab 切换，导致这里读到的是旧值
+    if (tab.id === activeTabId) {
+      saveCurrentTabState();
+    }
+
+    var seq = ++tab.requestSeq;
+    tab.status = 'loading';
+    tab.page = page;
+
+    var isActive = (tab.id === activeTabId);
+    if (isActive) {
+      renderResultPanel(tab);
+      setSubmitButtonBusy(true);
+    }
+
+    var params;
+    try {
+      params = new URLSearchParams(new FormData(formEl));
+    } catch (e) {
+      params = new URLSearchParams();
+    }
+
+    var selectSqlEl = document.getElementById('select_sql');
+    params.set('db_name', tab.dbName || '');
+    params.set('database_suffix', tab.databaseSuffix || '');
+    params.set('sql', tab.content || '');
+    params.set('select_sql', selectSqlEl ? selectSqlEl.value : '');
+    params.set('current_erp', tab.currentErp || '');
+    params.set('page', String(page));
+
+    doFetch(formEl.action, {
+      method: 'POST',
+      body: params,
+      credentials: 'same-origin'
+    }).then(function (res) {
+      return res.text();
+    }).then(function (text) {
+      if (tab.requestSeq !== seq) return; // 竞态：已有更新的请求发出，丢弃本次响应
+
+      var result = parseSubmitResponse(text);
+      if (result.sessionExpired) {
+        tab.status = 'session-expired';
+      } else {
+        tab.resultHtml = result.html;
+        tab.errorMsg = result.errorMsg || null;
+        tab.status = result.status;
+        if (result.page != null) tab.page = result.page;
+      }
+    }).catch(function (e) {
+      if (tab.requestSeq !== seq) return;
+      tab.status = 'net-error';
+      tab.errorMsg = '请求失败: ' + (e && e.message ? e.message : e);
+    }).then(function () {
+      if (tab.requestSeq !== seq) return;
+      if (tab.id === activeTabId) {
+        renderResultPanel(tab);
+        setSubmitButtonBusy(false);
+      }
+    });
+  }
+
+  // ════════════════════════════════════════════════════════════════════════
   //  Textarea 增强（主函数）
   // ════════════════════════════════════════════════════════════════════════
 
@@ -646,11 +1151,13 @@
    * 流程：
    * 1. 注入 CSS
    * 2. 创建 wrapper 并显示加载状态
-   * 3. 隐藏原 textarea（保留在 DOM 中以兼容表单提交）
+   * 3. 隐藏原 textarea（保留在 DOM 中以兼容表单提交/导出）
    * 4. 动态加载 CM6 模块
-   * 5. 恢复/创建 Tab 数据
-   * 6. 创建 EditorView
-   * 7. 绑定同步监听器
+   * 5. 捕获页面初次加载时已有的查询结果（如果有），清理旧的结果 DOM，
+   *    创建结果面板
+   * 6. 恢复/创建 Tab 数据
+   * 7. 创建 EditorView
+   * 8. 绑定同步监听器、拦截"提交"按钮、绑定分页/数据库切换联动
    */
   async function enhanceTextarea(ta) {
     textarea = ta;
@@ -679,11 +1186,13 @@
     // 插入 wrapper 到 textarea 之前（textarea 隐藏后 wrapper 占据原位置）
     parent.insertBefore(wrapperEl, textarea);
 
-    // 隐藏原始 textarea（display:none 仍参与表单提交）
+    // 隐藏原始 textarea（display:none 仍参与表单提交，导出按钮依赖它）
     textarea.style.display = 'none';
 
     // 创建 Tab 栏容器
     createTabBar(wrapperEl);
+
+    formEl = textarea.closest('form');
 
     // ── 动态加载 CodeMirror 6 ──
     try {
@@ -694,7 +1203,7 @@
       loadingEl.className = 'cm-error';
       loadingEl.textContent = 'CodeMirror 6 加载失败: ' + (e.message || e)
         + '\n请检查网络连接或 esm.sh 是否可访问。';
-      // 3 秒后恢复原生 textarea
+      // 3 秒后恢复原生 textarea（不触碰真实结果区域，原生表单流程完全不受影响）
       setTimeout(function () {
         textarea.style.display = '';
         textarea.dataset.cmEnhanced = '';
@@ -707,13 +1216,16 @@
     }
 
     // 加载成功，验证关键 API 是否存在
-    if (!CM6.EditorView || !CM6.EditorState || !CM6.basicSetup || !CM6.keymap || !CM6.placeholder) {
+    if (!CM6.EditorView || !CM6.EditorState || !CM6.basicSetup || !CM6.keymap || !CM6.placeholder
+      || !CM6.autocompletion || !CM6.keywordCompletionSource) {
       console.error('[SQL Editor] CM6 模块加载不完整，缺少关键 API:', {
         EditorView: !!CM6.EditorView,
         EditorState: !!CM6.EditorState,
         basicSetup: !!CM6.basicSetup,
         keymap: !!CM6.keymap,
-        placeholder: !!CM6.placeholder
+        placeholder: !!CM6.placeholder,
+        autocompletion: !!CM6.autocompletion,
+        keywordCompletionSource: !!CM6.keywordCompletionSource
       });
       loadingEl.className = 'cm-error';
       loadingEl.textContent = 'CodeMirror 6 模块加载不完整，缺少关键 API。';
@@ -728,8 +1240,13 @@
     // 移除加载提示
     loadingEl.remove();
 
+    // ── 捕获页面初次加载时已有的结果（如果有），并清理旧的结果 DOM ──
+    var initialResult = captureInitialResult();
+    clearNodesAfterForm(formEl);
+    createResultPanel(formEl);
+
     // 恢复或创建 Tab 数据
-    restoreTabs();
+    restoreTabs(initialResult);
 
     // 渲染 Tab 栏
     renderTabBar();
@@ -754,6 +1271,16 @@
             CM6.sql({
               dialect: CM6.MySQL,
               upperCaseKeywords: true
+            }),
+
+            // 自动补全：官方关键字源 + 当前数据库的表/字段名源
+            // 注意：override 是"完全替换"语义，必须显式带上官方关键字源，
+            // 否则只放自定义源会导致关键字补全反而消失
+            CM6.autocompletion({
+              override: [
+                CM6.keywordCompletionSource(CM6.MySQL, true),
+                dbTokenCompletionSource
+              ]
             }),
 
             // 暗色主题（One Dark）
@@ -786,23 +1313,12 @@
             // 键盘快捷键
             CM6.keymap.of([
               {
-                // Ctrl+Enter / Cmd+Enter：提交表单
+                // Ctrl+Enter / Cmd+Enter：提交查询
                 key: 'Ctrl-Enter',
                 mac: 'Cmd-Enter',
                 run: function () {
                   var btn = document.getElementById('check_submit');
                   if (btn) btn.click();
-                  return true;
-                }
-              },
-              {
-                // Ctrl+S / Cmd+S：保存 Tab 状态
-                key: 'Ctrl-s',
-                mac: 'Cmd-s',
-                preventDefault: true,
-                run: function () {
-                  persistTabs();
-                  console.log('[SQL Editor] Tab 状态已保存');
                   return true;
                 }
               }
@@ -836,19 +1352,43 @@
     // 初始同步到 textarea
     syncToTextarea();
 
+    // ── 拦截"提交"按钮：改为 AJAX 提交，不再整页刷新 ──
+    // form 里有重复 id="check_submit"（提交/导出各一个），querySelector 取到的
+    // 是第一个即"提交"按钮，与原生 getElementById 行为一致；导出按钮走
+    // formaction="sqltools_excel" 单独定位，不受影响、不拦截
+    if (formEl) {
+      var submitBtn = formEl.querySelector('#check_submit');
+      if (submitBtn) {
+        submitBtn.addEventListener('click', function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          var tab = getActiveTab();
+          if (tab) submitQuery(tab, { page: 1 });
+        }, true);
+      }
+    }
+
+    // ── 数据库切换：更新补全用的 token 缓存（页面自带的 ERP 子库逻辑不受影响）──
+    var dbNameEl = document.getElementById('db_name');
+    if (dbNameEl) {
+      dbNameEl.addEventListener('change', function () {
+        ensureDbTokens(this.value);
+      });
+      ensureDbTokens(dbNameEl.value);
+    }
+
     // ── 表单提交前同步（捕获阶段，确保最先执行）──
-    var form = textarea.closest('form');
-    if (form) {
-      form.addEventListener('submit', function () {
+    // 提交按钮已被上面的拦截逻辑接管，这里主要保障"导出"按钮的真实表单提交
+    // 拿到的是最新内容（虽然 syncToTextarea 已经实时同步，这里再兜底一次）
+    if (formEl) {
+      formEl.addEventListener('submit', function () {
         saveCurrentTabState();
         syncToTextarea();
       }, true);
     }
 
-    // ── 页面卸载前持久化 Tab ──
-    window.addEventListener('beforeunload', function () {
-      persistTabs();
-    });
+    // 渲染初次加载时（若有）捕获到的查询结果
+    renderResultPanel(getActiveTab());
 
     console.log('[SQL Editor] CodeMirror 6 初始化完成');
   }
@@ -861,12 +1401,6 @@
     var enabled = !GM_getValue(STORAGE_KEY_ENABLED, true);
     GM_setValue(STORAGE_KEY_ENABLED, enabled);
     console.log('[SQL Editor] ' + (enabled ? '已启用' : '已禁用') + '，刷新页面生效');
-    location.reload();
-  });
-
-  GM_registerMenuCommand('SQL 高亮：清除 Tab 数据', function () {
-    GM_setValue(STORAGE_KEY_TABS, '');
-    console.log('[SQL Editor] Tab 数据已清除，刷新页面生效');
     location.reload();
   });
 

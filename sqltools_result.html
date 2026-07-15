@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title> </title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="">
+    <meta name="author" content="">
+
+    <!-- Le styles -->
+    <style type="text/css" media="screen">
+        #editor {
+            width:100%;
+            height: 500px;
+        }
+    </style>
+        <style>
+        /* 下拉多选样式 需要引用*/
+        select[multiple]+.layui-form-select>.layui-select-title>input.layui-input{ border-bottom: 0}
+        select[multiple]+.layui-form-select dd{ padding:0;}
+        select[multiple]+.layui-form-select .layui-form-checkbox[lay-skin=primary]{ margin:0 !important; display:block; line-height:36px !important; position:relative; padding-left:26px;}
+        select[multiple]+.layui-form-select .layui-form-checkbox[lay-skin=primary] span{line-height:36px !important;padding-left: 10px; float:none;}
+        select[multiple]+.layui-form-select .layui-form-checkbox[lay-skin=primary] i{ position:absolute; left:10px; top:0; margin-top:9px;}
+        .multiSelect{ line-height:normal; height:auto; padding:4px 10px; overflow:hidden;min-height:38px; margin-top:-38px; left:0; z-index:99;position:relative;background:none;}
+        .multiSelect a{ padding:2px 5px; background:#908e8e; border-radius:2px; color:#fff; display:block; line-height:20px; height:20px; margin:2px 5px 2px 0; float:left;}
+        .multiSelect a span{ float:left;}
+        .multiSelect a i {float:left;display:block;margin:2px 0 0 2px;border-radius:2px;width:8px;height:8px;padding:4px;position:relative;-webkit-transition:all .3s;transition:all .3s}
+        .multiSelect a i:before, .multiSelect a i:after {position:absolute;left:8px;top:2px;content:'';height:12px;width:1px;background-color:#fff}
+        .multiSelect a i:before {-webkit-transform:rotate(45deg);transform:rotate(45deg)}
+        .multiSelect a i:after {-webkit-transform:rotate(-45deg);transform:rotate(-45deg)}
+        .multiSelect a i:hover{ background-color:#545556;}
+        .multiOption{display: inline-block; padding: 0 5px;cursor: pointer; color: #999;}
+        .multiOption:hover{color: #5FB878}
+        @font-face {font-family: "iconfont"; src: url('data:application/x-font-woff;charset=utf-8;base64,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') format('woff')}
+        .iconfont {font-family:"iconfont" !important;font-size:16px;font-style:normal;-webkit-font-smoothing: antialiased;-moz-osx-font-smoothing: grayscale;}
+        .icon-fanxuan:before { content: "\e837"; }
+        .icon-quanxuan:before { content: "\e623"; }
+        .icon-qingkong:before { content: "\e63e"; }
+        /* 下面是页面内样式，无需引用 */
+        .layui-block {
+            margin-bottom: 10px;
+        }
+        .layui-form-label {
+            width: 180px;
+        }
+        .code {
+            color: gray;
+            margin-left: 10px;
+        }
+        .unshow>#result {
+            display: none;
+        }
+        pre { padding: 5px; margin: 5px; }
+        .string { color: green; }
+        .number { color: darkorange; }
+        .boolean { color: blue; }
+        .null { color: magenta; }
+        .key { color: red; }
+    </style>
+<link type="text/css" rel='stylesheet' href="/static/layui/css/layui.css"/>
+    <style>
+        textarea{
+            margin: 0px;
+            padding: 0px;
+            line-height: 30px!important;
+            min-height: 30px!important;
+        }
+        .sel{
+            width: 10px;
+        }
+        .sql{
+           width: 680px;
+           padding: 10px;
+        }
+    </style>
+
+
+    <!-- HTML5 shim, for IE6-8 support of HTML5 elements -->
+    <!--[if lt IE 9]>
+    <script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+
+    <link href="/static/jquery-datetimepicker/css/font-awesome.min.css" rel="stylesheet">
+    <link rel="stylesheet" type="text/css" media="screen" href="/static/jquery-datetimepicker/css/bootstrap.min.css" />
+    <link href="/static/jquery-datetimepicker/css/animate.min.css" rel="stylesheet">
+    <link href="/static/jquery-datetimepicker/css/prettify-1.0.css" rel="stylesheet">
+    <link href="/static/jquery-datetimepicker/css/base.css" rel="stylesheet">
+    <link rel="stylesheet" type="text/css" href="/static/jquery-datetimepicker/css/default.css">
+
+    <link rel="stylesheet" href="/static/css/jquery.autocompleter.css">
+    <!-- Fav and touch icons -->
+    <link rel="shortcut icon" href="/static/ico/favicon.png">
+    <link rel="stylesheet" href="/static/jquery-ui/jquery-ui.min.css">
+    <link rel="stylesheet" href="/static/bootstrap-3.3.5/css/bootstrap.css" />
+    <link rel="stylesheet" href="/static/css/layout.css" />
+    <link rel="stylesheet" href="/static/css/docs.css" />
+    <link rel="stylesheet" href="/static/css/main.css" />
+    <link rel="stylesheet" href="/static/datepicker/css/datepicker.css">
+
+
+    <script type="text/javascript" src="/static/js/jquery-2.1.4.min.js"></script>
+    <script type="text/javascript" src="/static/jquery-ui/jquery-ui.min.js"></script>
+    <script type="text/javascript" src="/static/js/jquery.validate.min.js"></script>
+    <script type="text/javascript" src="/static/bootstrap-3.3.5/js/bootstrap.min.js"></script>
+    <script type="text/javascript" src="/static/js/main.js"></script>
+</head>
+<body>
+
+<div class="z_nav">
+    <a href="#">
+        <img class="z_nav_logo" src="/static/img/logo1.png"> </img>
+    </a>
+    <div class="z_nav_title"><a href="/">运维工具平台</a></div>
+    
+        <a id="command" class="active" href="/operate/sqltools">操作</a>
+        
+        
+        <!--<a class="" href="/account/profile">用户</a> -->
+	
+    
+
+
+    <div class="z_nav_right">
+    
+        <a href="/account/profile"><text style="color:white; padding-right:10px;">jiangrongkang</text></a>
+        <a href="/account/logout"><img id="img_logout" src="/static/img/logout.png"></img></a>
+    
+    </div>
+</div>
+
+<div class="container">
+    
+        
+    
+
+    <div id="error-tip"></div>
+        
+    <style type="text/css">
+ul{
+list-style-type: none;
+}
+#cityList1{
+display: none;
+}
+#cityList2{
+display: none;
+}
+#cityList3{
+display: none;
+}
+#cityList4{
+display: none;
+}
+</style>
+<script type="text/javascript">
+//默认隐藏的
+var hide=true;
+//显示或者隐藏的函数
+function displayOrHide1(){
+var ot=document.getElementById("old-tools");
+if(hide){
+  //显示
+  ot.style.display="block";
+  hide=false;
+}else{
+  //隐藏
+  ot.style.display="none";
+  hide=true;
+}
+}
+var to_hide=true
+function displayDbarchiver(){
+    var obj=document.getElementById("dbarchiver-tools");
+    if(to_hide){
+        //显示
+        obj.style.display="block"
+        to_hide=false
+    }else{
+        //隐藏
+        obj.style.display="none"
+        to_hide=true
+    }
+}
+</script>
+<div class="sidebar leftmenu">
+    <ul id="home-menu" class="nav nav-list" data-cur="sqltools">
+        <!--<li class="">
+            <a href="/operate/init"><span>系统初始化&上下线</span></a>
+        </li>-->
+        
+        
+        <li class="">
+            <a href="/flow/ops_new/index"><span>运维工单</span></a>
+        </li>
+        
+        <!--
+        <li class="">
+            <a href="/operate/pub2"><span>上线&重启</span></a>
+        </li>
+        -->
+        
+        <!---->
+        
+
+        <li class="on">
+            <a href="/operate/sqltools"><span> SQL 查询 </span></a>
+        </li>
+        
+        <li class="">
+            <a href="/dbalter/index?tab=editor"><span> SQL 执行变更 </span></a>
+        </li>
+
+        <li class="">
+            <a href="/flow/dbaccount/index"><span> SQL 账户申请 </span></a>
+        </li>
+        
+    </ul>
+</div>
+
+        
+<div class="content">
+    <form method="POST" name="QueryToolForm" action="sqltools">
+    <div class="row" style="padding-bottom: 10px;" >
+            <div class="col-md-4">
+                <div class="input-group">
+                    <span class="input-group-addon" > 查询 </span>
+                     <select name="db_name" id="db_name" class="form-control">
+                         
+                             <option value=""></option>
+                        
+                             <option value="aito_evo">aito_evo</option>
+                        
+                             <option value="vinanalysis" selected="selected" >vinanalysis</option>
+                        
+                    </select>  
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div id="subDB" class="input-group"  style="display:none" >
+                    <span class="input-group-addon">数据库后缀</span>
+                     <select name="database_suffix" id="database_suffix" class="form-control">
+                    </select>  
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="pull-right">
+                    <i onclick="sqlTemplate();" id="showtemplate" style="font-size:30px; background-color:#fff;color:black" class="layui-icon layui-btn layui-btn-small">&#xe60a;</i>
+                </div>
+                <div class="pull-right" style="margin-right:5px">
+                    <i onclick="addTemplate();" id="addtemplate" style="font-size:29px; background-color:#fff;color:black" class="layui-icon layui-btn layui-btn-small">&#xe608;</i>
+                </div>
+            </div>
+    </div>
+    <div class="row" style="border-bottom: 1px dashed lightblue;padding-bottom: 10px;" >
+            <div class="col-md-10"> 
+                    <textarea style="height:250px;resize: vertical;overflow: auto;" onselect="sqlQPost()" class="form-control sqlautocomplete" id="sql" name="sql" placeholder='请写sql语句,只支持select,show,describe(desc),默认limit 100,
+多条sql语句请用英文分号 ";" 分割，不选中或选中多条提交，默认只执行第一条'>select *
+from qp_brand
+where BrandName = &#39;沃尔沃&#39;</textarea>
+            </div>
+
+            <div class="col-md-2 pull-left">
+                <div class="btn-group">
+                    <button style='height:45px' class="btn btn-sm btn-default" id="check_submit" >提交</button>
+                    <button style='height:45px' class="btn btn-sm btn-default" formaction="sqltools_excel" id="check_submit" type="submit">导出</button>
+                </div>
+            </div>  
+            
+            <input type="hidden" id="select_sql" name="select_sql">
+            <input type="hidden" id="current_erp" name="current_erp" value="">
+
+    </div>
+    </form>
+    
+    <div class="row" style="border-bottom: 2px solid lightblue;padding-bottom: 10px;padding-top: 10px;">
+    </div>
+    <p> 支持操作: select，show, describe(desc) </p>
+
+    
+        <div style="overflow:scroll;">
+            <table class="table table-bordered" style="width:80%;">
+                    <tr>
+                       <td>
+                           BrandID
+                        </td>
+                       <td>
+                           manufacturer
+                        </td>
+                       <td>
+                           BrandName
+                        </td>
+                       <td>
+                           BTRCountry
+                        </td>
+                       <td>
+                           CarLogo
+                        </td>
+                       <td>
+                           Py
+                        </td>
+                       <td>
+                           hot
+                        </td>
+                       <td>
+                           onlineflag
+                        </td>
+                       <td>
+                           accurate_flag
+                        </td>
+                       <td>
+                           status
+                        </td>
+                       <td>
+                           create_time
+                        </td>
+                       <td>
+                           update_time
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           6
+                        </td>
+                       <td>
+                           volvo
+                        </td>
+                       <td>
+                           沃尔沃
+                        </td>
+                       <td>
+                           欧系
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/VOLVO.jpg
+                        </td>
+                       <td>
+                           woerwo
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                    </tr>
+            </table>
+        </div>
+    
+
+    
+    <div class="pager">
+        <ul class="pager">
+            
+            <li>
+                <span> 上一页 </span>
+            </li>
+            
+
+            
+            <li>
+                <span> 下一页 </span>
+            </li>
+            
+
+            <li class="pull-right">
+                第<input name="page" value="1" id="pageindex" style="width:15px;">页,共 1页
+            </li>
+
+            <li>
+
+            </li>
+        </ul>
+    </div>
+    
+</div>
+
+    </div>
+</div>
+
+<div class="footer">
+    <!--<div style="margin-top:10px;">有问题或者建议:&nbsp;&nbsp;<a onclick="$('#suggest').show();$('#suggest textarea').focus();">联系我们</a></div>-->
+    <div style="margin-top:10px;">有问题或者建议:&nbsp;&nbsp;<a href="mailto:tech-ops@qipeipu.com">联系我们</a></div>
+</div>
+
+<!-- Le javascript -->
+
+<script type="text/javascript" src="/static/layer/layer.js"></script>
+<script type="text/javascript" src="/static/layui/layui.js"></script>
+<script type="text/javascript" src="/static/jquery-textcomplete/jquery.textcomplete.js"></script>
+<script type="text/javascript">
+
+    $(document).ready(function(){
+        var database = $(this).find('option:selected').val();
+        if(database=='ERP' || database=='erp'){
+            $('#subDB').css('display', '');
+            $('#database_suffix').empty()
+            $.get('/operate/get_erp', data={"database": database}, function(result){
+                var current_erp = $('#current_erp').val();
+                html = '<option value=""></option>'
+                $.each(result.erp,function(index, value){
+                    if (value == current_erp){
+                        html += '<option value="'+value+'" selected="selected">'+value+'</option>';
+                    }else{
+                        html += '<option value="'+value+'">'+value+'</option>';
+                    }
+                });
+                $('#database_suffix').append(html)
+            });
+        //}else if(database == 'insurance'){
+        //    $('#subDB').css('display', '');
+        //    $('#database_suffix').empty()
+        //    $.get('/operate/get_insurance', data={"database": database}, function(result){
+        //        var current_erp = $('#current_erp').val();
+        //        html = '<option value=""></option>'
+        //        $.each(result.erp,function(index, value){
+        //            if (value == current_erp){
+        //                html += '<option value="'+value+'" selected="selected">'+value+'</option>';
+        //            }else{
+        //                html += '<option value="'+value+'">'+value+'</option>';
+        //            }
+        //        });
+        //        $('#database_suffix').append(html)
+        //    });
+        }else{
+            $('#database_suffix').empty()
+        }
+    });
+
+    function addTemplate () {
+        $.get('/operate/addtemplate', function(result){
+            layer.open({
+              title: "添加模板",
+              type: 2,
+              area: ['850px', '600px'],
+              anim: 4,
+              fixed: false, //不固定
+              maxmin: true,
+              content: '/operate/addtemplate?flag=template'
+            });
+        });
+    }
+    
+    function sqlTemplate () {
+        $.get('/operate/sqltemplate', function(result){
+            layer.open({
+              title: "模板列表",
+              type: 2,
+              area: ['850px', '600px'],
+              fixed: false, //不固定
+              maxmin: true,
+              content: '/operate/sqltemplate?flag=template'
+            });
+        });
+    }
+
+    function sqlQPost () {
+        var select_sql = getSelectionText();
+        $('#select_sql').val(select_sql);
+    }
+    
+    function getSelectionText() {
+      if(window.getSelection) {
+            return window.getSelection().toString();
+      } else if(document.selection && document.selection.createRange) {
+            return document.selection.createRange().text;
+      }
+      return '';
+    }    
+
+    /* ----------------------------- TextArea AutoComplete ------------------------- */
+    var reserveds = [
+        'select'   , 'SELECT',
+        'from'     , 'FROM',
+        'where'    , 'WHERE',
+        'order'    , 'ORDER',
+        'by'       , 'BY',
+        'and'      , 'AND',
+        'or'       , 'OR',
+        'not'      , 'NOT',
+        'distinct' , 'DISTINCT',
+        'all'      , 'ALL',
+        'inner'    , 'INNER',
+        'cross'    , 'CROSS',
+        'limit'    , 'LIMIT',
+        'left'     , 'LEFT',
+        'right'    , 'RIGHT',
+        'join'     , 'JOIN',
+        'on'       , 'ON',
+        'in'       , 'IN',
+        'using'    , 'USING',
+        'outer'    , 'OUTER',
+        'natural'  , 'NATURAL',
+        'explain'  , 'EXPLAIN',
+        'show'     , 'SHOW',
+        'describe' , 'DESCRIBE',
+        'desc'     , 'DESCRIBE',
+    ];
+
+    // $('#limited_db_name').change(function(){
+    $('#db_name').change(function(){
+        var database = $(this).find('option:selected').val();
+        if( database != ""){
+        $.post('/operate/get_database_tokens', {database: database}, function(result){
+            if (result.status == 0){
+                // $('#limited_sql').setAutocomplete(reserveds.concat(result.data));
+                $('#sql').setAutocomplete(reserveds.concat(result.data));
+            }
+        });
+        }
+    });
+
+    $('#db_name').change(function(){
+        var database = $(this).find('option:selected').val();
+        if(database=='ERP' || database=='erp'){
+            $('#subDB').css('display', '');
+            $('#database_suffix').empty()
+            $.get('/operate/get_erp', data={"database": database}, function(result){
+                html = '<option value=""></option>'
+                $.each(result.erp,function(index, value){
+                    html += '<option value="'+value+'">'+value+'</option>';
+                });
+                $('#database_suffix').append(html)
+            });
+        }else{
+            $('#subDB').css('display', 'none');
+            $('#database_suffix').empty()
+        }
+        if( database != ""){
+        $.post('/operate/get_database_tokens', {database: database}, function(result){
+            if (result.status == 0){
+                $('#sql').setAutocomplete(reserveds.concat(result.data));
+            }
+        });
+        }
+    });
+
+    $.fn.setAutocomplete = function(wordlist){
+        $(this).textcomplete([{
+            words: wordlist,
+            match: /\b(\w{2,})$/,
+            search: function (term, callback) {
+                callback($.map(this.words, function (word) {
+                    return word.indexOf(term) === 0 ? word : null;
+                }));
+            },
+            index: 1,
+            replace: function (word) {
+                return word + ' ';
+            }
+        }], {
+            onKeydown: function (e, commands) {
+                if (e.ctrlKey && e.keyCode === 74) {
+                    return commands.KEY_ENTER;
+                }
+            }
+        });
+    }
+
+    function autocompleteInitial(){
+        var database = $('#db_name').find('option:selected').val();
+        if (database != ""){
+            $.post('/operate/get_database_tokens', {database: database}, function(result){
+                if (result.status == 0){
+                    $('#sql').setAutocomplete(reserveds.concat(result.data));
+                }
+            });
+        }
+        else {
+            $('#sql').setAutocomplete(reserveds);
+        }
+
+        // database = $('#limited_db_name').find('option:selected').val();
+        database = $('#db_name').find('option:selected').val();
+        if (database != ""){
+            $.post('/operate/get_database_tokens', {database: database}, function(result){
+                if (result.status == 0){
+                    // $('#limited_sql').setAutocomplete(reserveds.concat(result.data));
+                    $('#sql').setAutocomplete(reserveds.concat(result.data));
+                }
+            });
+        }
+        else{
+            // $('#limited_sql').setAutocomplete(reserveds);
+            $('#sql').setAutocomplete(reserveds);
+        }
+    }
+
+    autocompleteInitial();
+
+    /* ----------------------------------------------------------------------------- */
+
+    /* ----------------------------------------------------------------------------- */
+    $('#previousPage').click(function(){
+        page = document.getElementById('pageindex');
+        document.forms["QueryToolForm"].appendChild(page)
+        document.forms["QueryToolForm"].page.value = Number(parseInt(document.forms["QueryToolForm"].page.value)-1);
+        document.forms["QueryToolForm"].submit();
+    });
+
+    $('#nextPage').click(function(){
+        page = document.getElementById('pageindex');
+        document.forms["QueryToolForm"].appendChild(page)
+        document.forms["QueryToolForm"].page.value = Number(parseInt(document.forms["QueryToolForm"].page.value)+1);
+        document.forms["QueryToolForm"].submit();
+    });
+
+    $(function(){
+        $('#pageindex').bind('keypress',function(event){
+            if(event.keyCode == "13"){
+                page = document.getElementById('pageindex');
+                document.forms["QueryToolForm"].appendChild(page);
+                document.forms["QueryToolForm"].submit();
+            }
+        });
+    });
+    /* ----------------------------------------------------------------------------- */
+</script>
+<script type="text/html" id="box">
+    <div>
+        <ul>
+        </ul>
+    <div>
+</script>
+
+</body>
+</html>

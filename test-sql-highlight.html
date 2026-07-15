@@ -43,6 +43,11 @@
       line-height: 1.6;
     }
     .hint-banner strong { font-weight: 700; }
+    .hint-banner code {
+      background: rgba(255,255,255,.6);
+      padding: 1px 4px;
+      border-radius: 3px;
+    }
     .debug-panel {
       margin-top: 28px;
       background: #fff;
@@ -80,7 +85,12 @@
     .debug-value.empty { color: #9ca3af; font-style: italic; }
     .sample-btn {
       margin-top: 16px;
+      margin-right: 8px;
     }
+    /* 下面这几条只是让容器里那些 CM6 脚本会去操作的原生元素（分隔线/提示段落）
+       在脚本接管前有个基本的样子，脚本会在初始化成功后把它们清理掉，
+       改由自己的结果面板管理 */
+    .content { background: #fff; padding: 20px; border-radius: 8px; }
   </style>
 </head>
 <body>
@@ -88,41 +98,71 @@
     <div class="nav-logo">SQL</div>
     <div>
       <h1>SQL Tools — 测试页</h1>
-      <p>CodeMirror 6 语法高亮油猴脚本验证</p>
+      <p>CodeMirror 6 多 Tab 独立查询 / AJAX 提交 / 自动补全验证</p>
     </div>
   </div>
 
   <div class="container">
     <div class="hint-banner">
       <strong>使用说明：</strong>
-      安装 Tampermonkey 脚本 <code>tampermonkey-sql-highlight.user.js</code> 后，
-      本页面会自动加载 CodeMirror 6 SQL 编辑器。测试项：语法高亮、自动补全、多 Tab、选区同步、表单提交。
+      安装 Tampermonkey 脚本 <code>tampermonkey-sql-highlight.user.js</code> 后，本页面会自动加载
+      CodeMirror 6 SQL 编辑器。本页面用 <code>window.fetch</code> mock 了 <code>sqltools</code>（提交/分页）
+      与 <code>get_database_tokens</code>（自动补全）两个接口，可以在完全离线的情况下验证：
+      多 Tab 独立查询结果、切换 Tab 联动数据库选择、分页、报错渲染、双击重命名、Ctrl+空格触发的字段补全。
+      数据库选 <code>error_db</code> 会模拟报错；选 <code>demo_db</code> 会返回 3 页假数据。
     </div>
 
-    <!-- 模拟目标页面表单结构 -->
-    <form id="sqlForm" action="#" method="post" onsubmit="return handleFormSubmit(event)">
-      <div class="row" style="border-bottom: 1px dashed lightblue;padding-bottom: 10px;">
-        <div class="col-md-10">
-          <textarea
-            style="height:250px;resize: vertical;overflow: auto;"
-            onselect="sqlQPost()"
-            class="form-control sqlautocomplete"
-            id="sql"
-            name="sql"
-            placeholder='请写sql语句,只支持select,show,describe(desc),默认limit 100, 多条sql语句请用英文分号 ";" 分割，不选中或选中多条提交，默认只执行第一条'></textarea>
-        </div>
-        <div class="col-md-2 pull-left">
-          <div class="btn-group">
-            <button style='height:45px' class="btn btn-sm btn-default" id="check_submit" type="button" onclick="handleSubmit()">提交</button>
-            <button style='height:45px' class="btn btn-sm btn-default" formaction="sqltools_excel" id="check_submit_export" type="submit">导出</button>
+    <!-- 模拟目标页面表单结构（与 sqltools.html 保持一致，包括重复 id="check_submit" 这个缺陷） -->
+    <div class="content">
+      <form method="POST" name="QueryToolForm" action="sqltools">
+        <div class="row" style="padding-bottom: 10px;">
+          <div class="col-md-4">
+            <div class="input-group">
+              <span class="input-group-addon"> 查询 </span>
+              <select name="db_name" id="db_name" class="form-control">
+                <option value=""></option>
+                <option value="demo_db">demo_db</option>
+                <option value="error_db">error_db</option>
+              </select>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div id="subDB" class="input-group" style="display:none">
+              <span class="input-group-addon">数据库后缀</span>
+              <select name="database_suffix" id="database_suffix" class="form-control"></select>
+            </div>
           </div>
         </div>
-        <input type="hidden" id="select_sql" name="select_sql">
-        <input type="hidden" id="current_erp" name="current_erp" value="">
-      </div>
-    </form>
+        <div class="row" style="border-bottom: 1px dashed lightblue;padding-bottom: 10px;">
+          <div class="col-md-10">
+            <textarea
+              style="height:250px;resize: vertical;overflow: auto;"
+              onselect="sqlQPost()"
+              class="form-control sqlautocomplete"
+              id="sql"
+              name="sql"
+              placeholder='请写sql语句,只支持select,show,describe(desc),默认limit 100, 多条sql语句请用英文分号 ";" 分割，不选中或选中多条提交，默认只执行第一条'></textarea>
+          </div>
+          <div class="col-md-2 pull-left">
+            <div class="btn-group">
+              <button style='height:45px' class="btn btn-sm btn-default" id="check_submit">提交</button>
+              <button style='height:45px' class="btn btn-sm btn-default" formaction="sqltools_excel" id="check_submit" type="submit">导出</button>
+            </div>
+          </div>
+          <input type="hidden" id="select_sql" name="select_sql">
+          <input type="hidden" id="current_erp" name="current_erp" value="">
+        </div>
+      </form>
 
-    <button class="btn btn-info btn-sm sample-btn" onclick="loadSampleSQL()">载入示例 SQL</button>
+      <div class="row" style="border-bottom: 2px solid lightblue;padding-bottom: 10px;padding-top: 10px;"></div>
+      <p> 支持操作: select，show, describe(desc) </p>
+    </div>
+
+    <div>
+      <button class="btn btn-info btn-sm sample-btn" onclick="loadSampleSQL()">载入示例 SQL</button>
+      <button class="btn btn-default btn-sm sample-btn" onclick="selectDemoDb()">选中 demo_db</button>
+      <button class="btn btn-default btn-sm sample-btn" onclick="selectErrorDb()">选中 error_db（模拟报错）</button>
+    </div>
 
     <!-- 调试面板 -->
     <div class="debug-panel">
@@ -140,13 +180,156 @@
         <span class="debug-value empty" id="dbg-sel-range">无选区</span>
       </div>
       <div class="debug-row">
+        <span class="debug-label">#db_name</span>
+        <span class="debug-value empty" id="dbg-db-name">(空)</span>
+      </div>
+      <div class="debug-row">
+        <span class="debug-label">当前 Tab 数</span>
+        <span class="debug-value empty" id="dbg-tab-count">-</span>
+      </div>
+      <div class="debug-row">
         <span class="debug-label">提交事件</span>
         <span class="debug-value empty" id="dbg-submit">未提交</span>
+      </div>
+      <div class="debug-row">
+        <span class="debug-label">最近 mock 请求</span>
+        <span class="debug-value empty" id="dbg-mock">(无)</span>
       </div>
     </div>
   </div>
 
   <script>
+    /* ═══════════════════════════════════════════════════════════════════
+     * Mock 后端：拦截 window.fetch，模拟 sqltools（提交/分页）与
+     * get_database_tokens（自动补全）两个接口的真实响应结构。
+     *
+     * 关键点：Tampermonkey 脚本默认在隔离的 JS 沙箱里执行，脚本内部调用的
+     * fetch 会显式走 unsafeWindow.fetch（与页面共享同一个 window.fetch），
+     * 所以这里直接覆盖 window.fetch 即可被脚本命中。
+     * ═══════════════════════════════════════════════════════════════════ */
+
+    var ORIGINAL_FETCH = window.fetch.bind(window);
+
+    var TOKENS_BY_DB = {
+      demo_db: ['users', 'orders', 'id', 'name', 'email', 'created_at', 'total_amount', 'user_id'],
+      error_db: ['demo', 'legacy_table']
+    };
+
+    function escapeMockHtml(str) {
+      return String(str == null ? '' : str).replace(/[&<>"']/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+      });
+    }
+
+    function buildPagerHtml(page, totalPages) {
+      var prev = page > 1
+        ? '<li><a href="#" id="previousPage"> 上一页 </a></li>'
+        : '<li><span> 上一页 </span></li>';
+      var next = page < totalPages
+        ? '<li><a href="#" id="nextPage"> 下一页 </a></li>'
+        : '<li><span> 下一页 </span></li>';
+      return '<div class="pager"><ul class="pager">' + prev + next +
+        '<li class="pull-right">第<input name="page" value="' + page + '" id="pageindex" style="width:15px;">页,共 ' + totalPages + '页</li>' +
+        '<li></li></ul></div>';
+    }
+
+    function buildResultTableHtml(dbName, sql, page) {
+      var rows = '';
+      for (var i = 0; i < 5; i++) {
+        var n = (page - 1) * 5 + i + 1;
+        rows += '<tr><td>' + n + '</td><td>demo_row_' + n + '</td><td>' + escapeMockHtml(dbName) + '</td></tr>';
+      }
+      return '<div style="overflow:scroll;"><table class="table table-bordered" style="width:80%;">' +
+        '<tr><td>id</td><td>name</td><td>db</td></tr>' + rows + '</table></div>';
+    }
+
+    function buildErrorTableHtml(msg) {
+      return '<div style="overflow:scroll;"><table class="table table-bordered" style="width:80%;">' +
+        '<tr><td>Error</td></tr><tr><td>' + escapeMockHtml(msg) + '</td></tr></table></div>';
+    }
+
+    function buildFakeResponseHtml(bodyHtml) {
+      return '<!DOCTYPE html><html><body><div class="content">' +
+        '<form method="POST" name="QueryToolForm" action="sqltools"></form>' +
+        '<div class="row" style="border-bottom: 2px solid lightblue;"></div>' +
+        '<p> 支持操作: select，show, describe(desc) </p>' +
+        bodyHtml +
+        '</div></body></html>';
+    }
+
+    function logMock(text) {
+      var dbg = document.getElementById('dbg-mock');
+      if (!dbg) return;
+      dbg.textContent = text;
+      dbg.classList.remove('empty');
+    }
+
+    function mockSqlToolsSubmit(options) {
+      var params = options && options.body;
+      var dbName = (params && params.get) ? (params.get('db_name') || '') : '';
+      var sql = (params && params.get) ? (params.get('sql') || '') : '';
+      var selectSql = (params && params.get) ? (params.get('select_sql') || '') : '';
+      var page = (params && params.get) ? parseInt(params.get('page'), 10) : 1;
+      if (isNaN(page) || page < 1) page = 1;
+
+      logMock('POST sqltools — db_name=' + JSON.stringify(dbName) + ', page=' + page +
+        ', sql长度=' + sql.length + ', select_sql长度=' + selectSql.length);
+
+      return new Promise(function (resolve) {
+        setTimeout(function () {
+          var bodyHtml;
+          if (!dbName) {
+            bodyHtml = buildErrorTableHtml('请先选择数据库');
+          } else if (dbName === 'error_db') {
+            bodyHtml = buildErrorTableHtml("(1146, \"Table '" + dbName + ".demo' doesn't exist\")");
+          } else {
+            var totalPages = 3;
+            if (page > totalPages) page = totalPages;
+            bodyHtml = buildResultTableHtml(dbName, sql, page) + buildPagerHtml(page, totalPages);
+          }
+          var html = buildFakeResponseHtml(bodyHtml);
+          resolve(new Response(html, { status: 200, headers: { 'Content-Type': 'text/html; charset=utf-8' } }));
+        }, 400); // 模拟网络延迟，便于观察"查询中..."状态
+      });
+    }
+
+    function mockGetDatabaseTokens(options) {
+      var params = options && options.body;
+      var dbName = (params && params.get) ? (params.get('database') || '') : '';
+      logMock('POST get_database_tokens — database=' + JSON.stringify(dbName));
+
+      return new Promise(function (resolve) {
+        setTimeout(function () {
+          var tokens = TOKENS_BY_DB[dbName] || [];
+          resolve(new Response(JSON.stringify({ status: 0, data: tokens }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' }
+          }));
+        }, 150);
+      });
+    }
+
+    window.fetch = function (url, options) {
+      options = options || {};
+      var urlStr = String(url);
+
+      if (/get_database_tokens/.test(urlStr)) {
+        return mockGetDatabaseTokens(options);
+      }
+      if (/sqltools_excel/.test(urlStr)) {
+        // 导出走原生表单提交（见下方 onsubmit），理论上不会经过 fetch
+        return ORIGINAL_FETCH(url, options);
+      }
+      if (/sqltools/.test(urlStr)) {
+        return mockSqlToolsSubmit(options);
+      }
+      return ORIGINAL_FETCH(url, options);
+    };
+
+    /* ═══════════════════════════════════════════════════════════════════
+     * 页面自身逻辑（与目标页面保持一致的最小实现）
+     * ═══════════════════════════════════════════════════════════════════ */
+
     /**
      * 模拟目标页面的 sqlQPost 函数
      * 读取 textarea#sql 的选区，写入 #select_sql 隐藏域
@@ -168,36 +351,20 @@
     }
 
     /**
-     * 提交按钮处理
-     */
-    function handleSubmit() {
-      var form = document.getElementById('sqlForm');
-      var sqlInput = document.getElementById('sql');
-      var selectSql = document.getElementById('select_sql');
-
-      var dbg = document.getElementById('dbg-submit');
-      var submitType = selectSql.value ? '选中SQL' : '完整SQL';
-      dbg.textContent = '提交 (' + submitType + ') — sql 长度=' + sqlInput.value.length + ', select_sql 长度=' + selectSql.value.length;
-      dbg.classList.remove('empty');
-
-      console.log('[SQL Tools] 提交', {
-        sql: sqlInput.value,
-        select_sql: selectSql.value,
-        current_erp: document.getElementById('current_erp').value
-      });
-    }
-
-    /**
-     * 表单提交处理（导出按钮触发）
+     * 导出按钮（真实表单提交，formaction=sqltools_excel）：拦截掉，只做日志展示，
+     * 避免本地测试页真的跳转/POST 到一个不存在的地址
      */
     function handleFormSubmit(e) {
       e.preventDefault();
       var dbg = document.getElementById('dbg-submit');
-      dbg.textContent = '表单提交 (导出) — action=' + (e.submitter ? e.submitter.getAttribute('formaction') : 'default');
+      dbg.textContent = '导出（原生表单提交，已拦截）— formaction=' +
+        (e.submitter ? e.submitter.getAttribute('formaction') : '(default)') +
+        ', sql长度=' + document.getElementById('sql').value.length;
       dbg.classList.remove('empty');
-      console.log('[SQL Tools] 表单提交', {
+      console.log('[SQL Tools 测试页] 导出表单提交', {
         sql: document.getElementById('sql').value,
-        select_sql: document.getElementById('select_sql').value
+        select_sql: document.getElementById('select_sql').value,
+        db_name: document.getElementById('db_name').value
       });
       return false;
     }
@@ -208,10 +375,13 @@
     function updateDebug() {
       var sqlInput = document.getElementById('sql');
       var selectSql = document.getElementById('select_sql');
+      var dbNameEl = document.getElementById('db_name');
 
       var dbgSql = document.getElementById('dbg-sql');
       var dbgSelSql = document.getElementById('dbg-select-sql');
       var dbgSelRange = document.getElementById('dbg-sel-range');
+      var dbgDbName = document.getElementById('dbg-db-name');
+      var dbgTabCount = document.getElementById('dbg-tab-count');
 
       var sqlVal = sqlInput ? sqlInput.value : '';
       var selVal = selectSql ? selectSql.value : '';
@@ -233,6 +403,14 @@
           dbgSelRange.classList.add('empty');
         }
       }
+
+      var dbNameVal = dbNameEl ? dbNameEl.value : '';
+      dbgDbName.textContent = dbNameVal || '(空)';
+      dbgDbName.classList.toggle('empty', !dbNameVal);
+
+      var tabCount = document.querySelectorAll('.cm-tab-bar .cm-tab').length;
+      dbgTabCount.textContent = tabCount ? String(tabCount) : '(CM6 尚未初始化)';
+      dbgTabCount.classList.toggle('empty', !tabCount);
     }
 
     /**
@@ -262,9 +440,27 @@
       updateDebug();
     }
 
-    // 初始化
-    document.addEventListener('DOMContentLoaded', function() {
+    /**
+     * 快捷选择数据库（触发 change，联动 CM6 脚本的补全缓存 / 结果面板逻辑）
+     */
+    function selectDemoDb() {
+      var el = document.getElementById('db_name');
+      el.value = 'demo_db';
+      el.dispatchEvent(new Event('change'));
       updateDebug();
+    }
+
+    function selectErrorDb() {
+      var el = document.getElementById('db_name');
+      el.value = 'error_db';
+      el.dispatchEvent(new Event('change'));
+      updateDebug();
+    }
+
+    // 初始化 + 周期性刷新调试面板（Tab 数/db_name 等状态由 CM6 脚本异步驱动）
+    document.addEventListener('DOMContentLoaded', function () {
+      updateDebug();
+      setInterval(updateDebug, 500);
     });
   </script>
 </body>

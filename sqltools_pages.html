@@ -1,0 +1,4399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title> </title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="">
+    <meta name="author" content="">
+
+    <!-- Le styles -->
+    <style type="text/css" media="screen">
+        #editor {
+            width:100%;
+            height: 500px;
+        }
+    </style>
+        <style>
+        /* 下拉多选样式 需要引用*/
+        select[multiple]+.layui-form-select>.layui-select-title>input.layui-input{ border-bottom: 0}
+        select[multiple]+.layui-form-select dd{ padding:0;}
+        select[multiple]+.layui-form-select .layui-form-checkbox[lay-skin=primary]{ margin:0 !important; display:block; line-height:36px !important; position:relative; padding-left:26px;}
+        select[multiple]+.layui-form-select .layui-form-checkbox[lay-skin=primary] span{line-height:36px !important;padding-left: 10px; float:none;}
+        select[multiple]+.layui-form-select .layui-form-checkbox[lay-skin=primary] i{ position:absolute; left:10px; top:0; margin-top:9px;}
+        .multiSelect{ line-height:normal; height:auto; padding:4px 10px; overflow:hidden;min-height:38px; margin-top:-38px; left:0; z-index:99;position:relative;background:none;}
+        .multiSelect a{ padding:2px 5px; background:#908e8e; border-radius:2px; color:#fff; display:block; line-height:20px; height:20px; margin:2px 5px 2px 0; float:left;}
+        .multiSelect a span{ float:left;}
+        .multiSelect a i {float:left;display:block;margin:2px 0 0 2px;border-radius:2px;width:8px;height:8px;padding:4px;position:relative;-webkit-transition:all .3s;transition:all .3s}
+        .multiSelect a i:before, .multiSelect a i:after {position:absolute;left:8px;top:2px;content:'';height:12px;width:1px;background-color:#fff}
+        .multiSelect a i:before {-webkit-transform:rotate(45deg);transform:rotate(45deg)}
+        .multiSelect a i:after {-webkit-transform:rotate(-45deg);transform:rotate(-45deg)}
+        .multiSelect a i:hover{ background-color:#545556;}
+        .multiOption{display: inline-block; padding: 0 5px;cursor: pointer; color: #999;}
+        .multiOption:hover{color: #5FB878}
+        @font-face {font-family: "iconfont"; src: url('data:application/x-font-woff;charset=utf-8;base64,d09GRgABAAAAAAaoAAsAAAAACfwAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAABHU1VCAAABCAAAADMAAABCsP6z7U9TLzIAAAE8AAAARAAAAFZW7kokY21hcAAAAYAAAABwAAABsgdU06BnbHlmAAAB8AAAAqEAAAOUTgbbS2hlYWQAAASUAAAALwAAADYR+R9jaGhlYQAABMQAAAAcAAAAJAfeA4ZobXR4AAAE4AAAABMAAAAUE+kAAGxvY2EAAAT0AAAADAAAAAwB/gLGbWF4cAAABQAAAAAfAAAAIAEVAGhuYW1lAAAFIAAAAUUAAAJtPlT+fXBvc3QAAAZoAAAAPQAAAFBD0CCqeJxjYGRgYOBikGPQYWB0cfMJYeBgYGGAAJAMY05meiJQDMoDyrGAaQ4gZoOIAgCKIwNPAHicY2Bk/s04gYGVgYOpk+kMAwNDP4RmfM1gxMjBwMDEwMrMgBUEpLmmMDgwVLwwZ27438AQw9zA0AAUZgTJAQAokgyoeJzFkTEOgCAQBOdAjTH+wtbezvggKyteTPyFLpyFvsC9DNnbHIEA0AJRzKIBOzCKdqVW88hQ84ZN/UBPUKU85fVcrkvZ27tMc17FR+0NMh2/yf47+quxrtvT6cVJD7pinpzyI3l1ysy5OIQbzBsVxHicZVM9aBRBFJ43c7szyeV2s/97m9zP3ppb5ZID72+9iJfDnyIiGImCMZWFXaKdaSyuESJYCFZpRZBUCpaJcCCKaexsRVHQytrC2/Pt5ZSIy+z3vvnemwfvY4ZIhAw/s33mEoMcJyfJebJCCMgVKCk0B37YqNIKWL5kOabCwiD0eVCqsjPglGTTrrUaZUfmsgoK5KHu11phlYbQbHToaajZOYDsjLeqz83q7BFMumH+fnyRPgGrEMyqnYV4eX7JrBUNsTWl61ldfyhkSRKUplQFNh17QpqYlOOnkupZ+4UTtABT2dC7tJYpzug3txu3c3POBECvB8ZMUXm2pHkarnuebehZPp0RrpcJjpmw9TXtGlO58heCXwpnfcVes7PExknPkVWctFxSIUxANgs4Q9RaglYjjIKwCqGvANfy4NQtBL8DkYaipAVVaGqNVuTnoQBYg8NzHzNaJ7HAdpjFXfF2DSEjxF2ui7T8ifP2CsBiZTCsLCbxCv4UDvlgp+kFgQcHXgAQP64s0gdQdOOKWwSM8CGJz4V4c11gQwc70hTlH4XLv12dbwO052OotGHMYYj8VrwDJQ/eeSXA2Ib24Me42XvX993ECxm96LM+6xKdBCRCNy6TdfSDoxmJFXYBaokV5RL7K/0nOHZ9rBl+chcCP7kVMML6SGHozx8Od3ZvCEvlm5KQ0nxPTJtiLHD7ny1jsnxYsAF7imkq8QVEOBgF5Yh0yNkpPIenN2QAsSdMNX6xu85VC/tiE3Mat6P8JqWM73NLhZ9mzjBy5uAlAlJYBiMRDPQleQ+9FEFfJJImGnHQHWIEmm/5UB8h8uaIIzrc4SEPozByel3oDvFcN+4D+dU/uou/L2xv/1mUQBdTCIN+jGUEgV47UkB+Aw7YpAMAAAB4nGNgZGBgAGLbQwYd8fw2Xxm4WRhA4HrO20sI+n8DCwOzE5DLwcAEEgUAPX4LPgB4nGNgZGBgbvjfwBDDwgACQJKRARWwAgBHCwJueJxjYWBgYH7JwMDCgMAADpsA/QAAAAAAAHYA/AGIAcp4nGNgZGBgYGWIYWBjAAEmIOYCQgaG/2A+AwASVwF+AHicZY9NTsMwEIVf+gekEqqoYIfkBWIBKP0Rq25YVGr3XXTfpk6bKokjx63UA3AejsAJOALcgDvwSCebNpbH37x5Y08A3OAHHo7fLfeRPVwyO3INF7gXrlN/EG6QX4SbaONVuEX9TdjHM6bCbXRheYPXuGL2hHdhDx18CNdwjU/hOvUv4Qb5W7iJO/wKt9Dx6sI+5l5XuI1HL/bHVi+cXqnlQcWhySKTOb+CmV7vkoWt0uqca1vEJlODoF9JU51pW91T7NdD5yIVWZOqCas6SYzKrdnq0AUb5/JRrxeJHoQm5Vhj/rbGAo5xBYUlDowxQhhkiMro6DtVZvSvsUPCXntWPc3ndFsU1P9zhQEC9M9cU7qy0nk6T4E9XxtSdXQrbsuelDSRXs1JErJCXta2VELqATZlV44RelzRiT8oZ0j/AAlabsgAAAB4nGNgYoAALgbsgJWRiZGZkYWRlZGNgbGCuzw1MykzMb8kU1eXs7A0Ma8CiA05CjPz0rPz89IZGADc3QvXAAAA') format('woff')}
+        .iconfont {font-family:"iconfont" !important;font-size:16px;font-style:normal;-webkit-font-smoothing: antialiased;-moz-osx-font-smoothing: grayscale;}
+        .icon-fanxuan:before { content: "\e837"; }
+        .icon-quanxuan:before { content: "\e623"; }
+        .icon-qingkong:before { content: "\e63e"; }
+        /* 下面是页面内样式，无需引用 */
+        .layui-block {
+            margin-bottom: 10px;
+        }
+        .layui-form-label {
+            width: 180px;
+        }
+        .code {
+            color: gray;
+            margin-left: 10px;
+        }
+        .unshow>#result {
+            display: none;
+        }
+        pre { padding: 5px; margin: 5px; }
+        .string { color: green; }
+        .number { color: darkorange; }
+        .boolean { color: blue; }
+        .null { color: magenta; }
+        .key { color: red; }
+    </style>
+<link type="text/css" rel='stylesheet' href="/static/layui/css/layui.css"/>
+    <style>
+        textarea{
+            margin: 0px;
+            padding: 0px;
+            line-height: 30px!important;
+            min-height: 30px!important;
+        }
+        .sel{
+            width: 10px;
+        }
+        .sql{
+           width: 680px;
+           padding: 10px;
+        }
+    </style>
+
+
+    <!-- HTML5 shim, for IE6-8 support of HTML5 elements -->
+    <!--[if lt IE 9]>
+    <script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+
+    <link href="/static/jquery-datetimepicker/css/font-awesome.min.css" rel="stylesheet">
+    <link rel="stylesheet" type="text/css" media="screen" href="/static/jquery-datetimepicker/css/bootstrap.min.css" />
+    <link href="/static/jquery-datetimepicker/css/animate.min.css" rel="stylesheet">
+    <link href="/static/jquery-datetimepicker/css/prettify-1.0.css" rel="stylesheet">
+    <link href="/static/jquery-datetimepicker/css/base.css" rel="stylesheet">
+    <link rel="stylesheet" type="text/css" href="/static/jquery-datetimepicker/css/default.css">
+
+    <link rel="stylesheet" href="/static/css/jquery.autocompleter.css">
+    <!-- Fav and touch icons -->
+    <link rel="shortcut icon" href="/static/ico/favicon.png">
+    <link rel="stylesheet" href="/static/jquery-ui/jquery-ui.min.css">
+    <link rel="stylesheet" href="/static/bootstrap-3.3.5/css/bootstrap.css" />
+    <link rel="stylesheet" href="/static/css/layout.css" />
+    <link rel="stylesheet" href="/static/css/docs.css" />
+    <link rel="stylesheet" href="/static/css/main.css" />
+    <link rel="stylesheet" href="/static/datepicker/css/datepicker.css">
+
+
+    <script type="text/javascript" src="/static/js/jquery-2.1.4.min.js"></script>
+    <script type="text/javascript" src="/static/jquery-ui/jquery-ui.min.js"></script>
+    <script type="text/javascript" src="/static/js/jquery.validate.min.js"></script>
+    <script type="text/javascript" src="/static/bootstrap-3.3.5/js/bootstrap.min.js"></script>
+    <script type="text/javascript" src="/static/js/main.js"></script>
+</head>
+<body>
+
+<div class="z_nav">
+    <a href="#">
+        <img class="z_nav_logo" src="/static/img/logo1.png"> </img>
+    </a>
+    <div class="z_nav_title"><a href="/">运维工具平台</a></div>
+    
+        <a id="command" class="active" href="/operate/sqltools">操作</a>
+        
+        
+        <!--<a class="" href="/account/profile">用户</a> -->
+	
+    
+
+
+    <div class="z_nav_right">
+    
+        <a href="/account/profile"><text style="color:white; padding-right:10px;">jiangrongkang</text></a>
+        <a href="/account/logout"><img id="img_logout" src="/static/img/logout.png"></img></a>
+    
+    </div>
+</div>
+
+<div class="container">
+    
+        
+    
+
+    <div id="error-tip"></div>
+        
+    <style type="text/css">
+ul{
+list-style-type: none;
+}
+#cityList1{
+display: none;
+}
+#cityList2{
+display: none;
+}
+#cityList3{
+display: none;
+}
+#cityList4{
+display: none;
+}
+</style>
+<script type="text/javascript">
+//默认隐藏的
+var hide=true;
+//显示或者隐藏的函数
+function displayOrHide1(){
+var ot=document.getElementById("old-tools");
+if(hide){
+  //显示
+  ot.style.display="block";
+  hide=false;
+}else{
+  //隐藏
+  ot.style.display="none";
+  hide=true;
+}
+}
+var to_hide=true
+function displayDbarchiver(){
+    var obj=document.getElementById("dbarchiver-tools");
+    if(to_hide){
+        //显示
+        obj.style.display="block"
+        to_hide=false
+    }else{
+        //隐藏
+        obj.style.display="none"
+        to_hide=true
+    }
+}
+</script>
+<div class="sidebar leftmenu">
+    <ul id="home-menu" class="nav nav-list" data-cur="sqltools">
+        <!--<li class="">
+            <a href="/operate/init"><span>系统初始化&上下线</span></a>
+        </li>-->
+        
+        
+        <li class="">
+            <a href="/flow/ops_new/index"><span>运维工单</span></a>
+        </li>
+        
+        <!--
+        <li class="">
+            <a href="/operate/pub2"><span>上线&重启</span></a>
+        </li>
+        -->
+        
+        <!---->
+        
+
+        <li class="on">
+            <a href="/operate/sqltools"><span> SQL 查询 </span></a>
+        </li>
+        
+        <li class="">
+            <a href="/dbalter/index?tab=editor"><span> SQL 执行变更 </span></a>
+        </li>
+
+        <li class="">
+            <a href="/flow/dbaccount/index"><span> SQL 账户申请 </span></a>
+        </li>
+        
+    </ul>
+</div>
+
+        
+<div class="content">
+    <form method="POST" name="QueryToolForm" action="sqltools">
+    <div class="row" style="padding-bottom: 10px;" >
+            <div class="col-md-4">
+                <div class="input-group">
+                    <span class="input-group-addon" > 查询 </span>
+                     <select name="db_name" id="db_name" class="form-control">
+                         
+                             <option value=""></option>
+                        
+                             <option value="aito_evo">aito_evo</option>
+                        
+                             <option value="vinanalysis" selected="selected" >vinanalysis</option>
+                         
+                    </select>  
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div id="subDB" class="input-group"  style="display:none" >
+                    <span class="input-group-addon">数据库后缀</span>
+                     <select name="database_suffix" id="database_suffix" class="form-control">
+                    </select>  
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="pull-right">
+                    <i onclick="sqlTemplate();" id="showtemplate" style="font-size:30px; background-color:#fff;color:black" class="layui-icon layui-btn layui-btn-small">&#xe60a;</i>
+                </div>
+                <div class="pull-right" style="margin-right:5px">
+                    <i onclick="addTemplate();" id="addtemplate" style="font-size:29px; background-color:#fff;color:black" class="layui-icon layui-btn layui-btn-small">&#xe608;</i>
+                </div>
+            </div>
+    </div>
+    <div class="row" style="border-bottom: 1px dashed lightblue;padding-bottom: 10px;" >
+            <div class="col-md-10"> 
+                    <textarea style="height:250px;resize: vertical;overflow: auto;" onselect="sqlQPost()" class="form-control sqlautocomplete" id="sql" name="sql" placeholder='请写sql语句,只支持select,show,describe(desc),默认limit 100,
+多条sql语句请用英文分号 ";" 分割，不选中或选中多条提交，默认只执行第一条'>select *
+from qp_brand</textarea>
+            </div>
+
+            <div class="col-md-2 pull-left">
+                <div class="btn-group">
+                    <button style='height:45px' class="btn btn-sm btn-default" id="check_submit" >提交</button>
+                    <button style='height:45px' class="btn btn-sm btn-default" formaction="sqltools_excel" id="check_submit" type="submit">导出</button>
+                </div>
+            </div>  
+            
+            <input type="hidden" id="select_sql" name="select_sql">
+            <input type="hidden" id="current_erp" name="current_erp" value="">
+
+    </div>
+    </form>
+    
+    <div class="row" style="border-bottom: 2px solid lightblue;padding-bottom: 10px;padding-top: 10px;">
+    </div>
+    <p> 支持操作: select，show, describe(desc) </p>
+
+    
+        <div style="overflow:scroll;">
+            <table class="table table-bordered" style="width:80%;">
+                    <tr>
+                       <td>
+                           BrandID
+                        </td>
+                       <td>
+                           manufacturer
+                        </td>
+                       <td>
+                           BrandName
+                        </td>
+                       <td>
+                           BTRCountry
+                        </td>
+                       <td>
+                           CarLogo
+                        </td>
+                       <td>
+                           Py
+                        </td>
+                       <td>
+                           hot
+                        </td>
+                       <td>
+                           onlineflag
+                        </td>
+                       <td>
+                           accurate_flag
+                        </td>
+                       <td>
+                           status
+                        </td>
+                       <td>
+                           create_time
+                        </td>
+                       <td>
+                           update_time
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           bmw
+                        </td>
+                       <td>
+                           宝马
+                        </td>
+                       <td>
+                           欧系
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/BMW.jpg
+                        </td>
+                       <td>
+                           baoma
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           2
+                        </td>
+                       <td>
+                           jeep
+                        </td>
+                       <td>
+                           Jeep
+                        </td>
+                       <td>
+                           美系
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/jeep.jpg
+                        </td>
+                       <td>
+                           jeep
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-08-06 17:21:41
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           3
+                        </td>
+                       <td>
+                           nissan
+                        </td>
+                       <td>
+                           英菲尼迪
+                        </td>
+                       <td>
+                           日系
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/YINGFEINIDI.jpg
+                        </td>
+                       <td>
+                           yingfeinidi
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           4
+                        </td>
+                       <td>
+                           citroenPeugeot
+                        </td>
+                       <td>
+                           标致
+                        </td>
+                       <td>
+                           欧系
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/PEUCEOT.jpg
+                        </td>
+                       <td>
+                           biaozhi
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           5
+                        </td>
+                       <td>
+                           generalMotors
+                        </td>
+                       <td>
+                           雪佛兰
+                        </td>
+                       <td>
+                           美系
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/CHEVROLET.jpg
+                        </td>
+                       <td>
+                           xuefulan
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-08-06 17:21:41
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           6
+                        </td>
+                       <td>
+                           volvo
+                        </td>
+                       <td>
+                           沃尔沃
+                        </td>
+                       <td>
+                           欧系
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/VOLVO.jpg
+                        </td>
+                       <td>
+                           woerwo
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           7
+                        </td>
+                       <td>
+                           volkswagen
+                        </td>
+                       <td>
+                           大众
+                        </td>
+                       <td>
+                           欧系
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/DAZHONG.jpg
+                        </td>
+                       <td>
+                           dazhong
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           8
+                        </td>
+                       <td>
+                           benz
+                        </td>
+                       <td>
+                           奔驰
+                        </td>
+                       <td>
+                           欧系
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/BENGCHI.jpg
+                        </td>
+                       <td>
+                           benchi
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           9
+                        </td>
+                       <td>
+                           volkswagen
+                        </td>
+                       <td>
+                           奥迪
+                        </td>
+                       <td>
+                           欧系
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/AODI.jpg
+                        </td>
+                       <td>
+                           aodi
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           10
+                        </td>
+                       <td>
+                           volkswagen
+                        </td>
+                       <td>
+                           保时捷
+                        </td>
+                       <td>
+                           欧系
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/BAOSHIJIE.jpg
+                        </td>
+                       <td>
+                           baoshijie
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           11
+                        </td>
+                       <td>
+                           honda
+                        </td>
+                       <td>
+                           本田
+                        </td>
+                       <td>
+                           日系
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/HONDA.jpg
+                        </td>
+                       <td>
+                           bentian
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           12
+                        </td>
+                       <td>
+                           toyota
+                        </td>
+                       <td>
+                           丰田
+                        </td>
+                       <td>
+                           日系
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/TOYOTA.jpg
+                        </td>
+                       <td>
+                           fengtian
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           13
+                        </td>
+                       <td>
+                           subaru
+                        </td>
+                       <td>
+                           斯巴鲁
+                        </td>
+                       <td>
+                           日系
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/SUBARU.jpg
+                        </td>
+                       <td>
+                           sibalu
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           14
+                        </td>
+                       <td>
+                           citroenPeugeot
+                        </td>
+                       <td>
+                           雪铁龙
+                        </td>
+                       <td>
+                           欧系
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/CITROEN.jpg
+                        </td>
+                       <td>
+                           xuetielong
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           15
+                        </td>
+                       <td>
+                           toyota
+                        </td>
+                       <td>
+                           雷克萨斯
+                        </td>
+                       <td>
+                           日系
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/LEIKESASI.jpg
+                        </td>
+                       <td>
+                           leikesasi
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           16
+                        </td>
+                       <td>
+                           ford
+                        </td>
+                       <td>
+                           林肯
+                        </td>
+                       <td>
+                           美系
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/LINCOLN.jpg
+                        </td>
+                       <td>
+                           linken
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           17
+                        </td>
+                       <td>
+                           bmw
+                        </td>
+                       <td>
+                           MINI
+                        </td>
+                       <td>
+                           欧系
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/MINI.jpg
+                        </td>
+                       <td>
+                           mini
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           18
+                        </td>
+                       <td>
+                           benz
+                        </td>
+                       <td>
+                           Smart
+                        </td>
+                       <td>
+                           欧系
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/SMART.jpg
+                        </td>
+                       <td>
+                           smart
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           19
+                        </td>
+                       <td>
+                           mitsubishi
+                        </td>
+                       <td>
+                           三菱
+                        </td>
+                       <td>
+                           日系
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/SANLING.jpg
+                        </td>
+                       <td>
+                           sanling
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           20
+                        </td>
+                       <td>
+                           landRover
+                        </td>
+                       <td>
+                           捷豹
+                        </td>
+                       <td>
+                           欧系
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/JIEBAO.jpg
+                        </td>
+                       <td>
+                           jiebao
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           21
+                        </td>
+                       <td>
+                           landRover
+                        </td>
+                       <td>
+                           路虎
+                        </td>
+                       <td>
+                           欧系
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/LUHU.jpg
+                        </td>
+                       <td>
+                           luhu
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-08-06 17:21:41
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           22
+                        </td>
+                       <td>
+                           citroenPeugeot
+                        </td>
+                       <td>
+                           DS
+                        </td>
+                       <td>
+                           欧系
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/DS.jpg
+                        </td>
+                       <td>
+                           ds
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-07-09 14:56:19
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           23
+                        </td>
+                       <td>
+                           nissan
+                        </td>
+                       <td>
+                           日产
+                        </td>
+                       <td>
+                           日系
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/NISSAN.jpg
+                        </td>
+                       <td>
+                           richan
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           24
+                        </td>
+                       <td>
+                           honda
+                        </td>
+                       <td>
+                           讴歌
+                        </td>
+                       <td>
+                           日系
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/OUGE.jpg
+                        </td>
+                       <td>
+                           ouge
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           25
+                        </td>
+                       <td>
+                           ford
+                        </td>
+                       <td>
+                           福特
+                        </td>
+                       <td>
+                           美系
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/GORD.jpg
+                        </td>
+                       <td>
+                           fute
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           26
+                        </td>
+                       <td>
+                           jeep
+                        </td>
+                       <td>
+                           道奇
+                        </td>
+                       <td>
+                           美系
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/DAOQI.jpg
+                        </td>
+                       <td>
+                           daoqi
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-07-09 14:56:19
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           27
+                        </td>
+                       <td>
+                           jeep
+                        </td>
+                       <td>
+                           克莱斯勒
+                        </td>
+                       <td>
+                           美系
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/CHRYSLER.jpg
+                        </td>
+                       <td>
+                           kelaisilei
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-08-06 17:21:41
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           28
+                        </td>
+                       <td>
+                           volkswagen
+                        </td>
+                       <td>
+                           斯柯达
+                        </td>
+                       <td>
+                           欧系
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/SIKEDA.jpg
+                        </td>
+                       <td>
+                           sikeda
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           29
+                        </td>
+                       <td>
+                           hyundaiKia
+                        </td>
+                       <td>
+                           现代
+                        </td>
+                       <td>
+                           韩系
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/XIANDAI.jpg
+                        </td>
+                       <td>
+                           xiandai
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           30
+                        </td>
+                       <td>
+                           mazda
+                        </td>
+                       <td>
+                           马自达
+                        </td>
+                       <td>
+                           日系
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/MAZIDA.jpg
+                        </td>
+                       <td>
+                           mazida
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           31
+                        </td>
+                       <td>
+                           hyundaiKia
+                        </td>
+                       <td>
+                           起亚
+                        </td>
+                       <td>
+                           韩系
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/KIA.jpg
+                        </td>
+                       <td>
+                           qiya
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           32
+                        </td>
+                       <td>
+                           suzuki
+                        </td>
+                       <td>
+                           铃木
+                        </td>
+                       <td>
+                           日系
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/LINGMU.jpg
+                        </td>
+                       <td>
+                           lingmu
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-07-09 14:56:19
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           33
+                        </td>
+                       <td>
+                           generalMotors
+                        </td>
+                       <td>
+                           GMC
+                        </td>
+                       <td>
+                           美系
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/GMC.jpg
+                        </td>
+                       <td>
+                           gmc
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-09-09 11:47:47
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           34
+                        </td>
+                       <td>
+                           generalMotors
+                        </td>
+                       <td>
+                           别克
+                        </td>
+                       <td>
+                           美系
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/BEIKE.jpg
+                        </td>
+                       <td>
+                           bieke
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           35
+                        </td>
+                       <td>
+                           generalMotors
+                        </td>
+                       <td>
+                           悍马
+                        </td>
+                       <td>
+                           美系
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/HANMA.jpg
+                        </td>
+                       <td>
+                           hanma
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-09-09 11:47:47
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           36
+                        </td>
+                       <td>
+                           generalMotors
+                        </td>
+                       <td>
+                           凯迪拉克
+                        </td>
+                       <td>
+                           美系
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/HDLK.jpg
+                        </td>
+                       <td>
+                           kaidilake
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           37
+                        </td>
+                       <td>
+                           generalMotors
+                        </td>
+                       <td>
+                           欧宝
+                        </td>
+                       <td>
+                           欧系
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/OPEL.jpg
+                        </td>
+                       <td>
+                           oubao
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-09-09 11:47:47
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           38
+                        </td>
+                       <td>
+                           generalMotors
+                        </td>
+                       <td>
+                           萨博
+                        </td>
+                       <td>
+                           欧系
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/SAAB.jpg
+                        </td>
+                       <td>
+                           sabo
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-09-09 11:47:47
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           39
+                        </td>
+                       <td>
+                           
+                        </td>
+                       <td>
+                           双龙
+                        </td>
+                       <td>
+                           韩系
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/SL.jpg
+                        </td>
+                       <td>
+                           shuanglong
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-07-09 14:56:19
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           40
+                        </td>
+                       <td>
+                           jeep
+                        </td>
+                       <td>
+                           菲亚特
+                        </td>
+                       <td>
+                           欧系
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/FIAT.jpg
+                        </td>
+                       <td>
+                           feiyate
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-07-09 14:56:19
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           41
+                        </td>
+                       <td>
+                           
+                        </td>
+                       <td>
+                           雷诺
+                        </td>
+                       <td>
+                           欧系
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/LEINOU.jpg
+                        </td>
+                       <td>
+                           leinuo
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-07-09 14:56:19
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           42
+                        </td>
+                       <td>
+                           honda
+                        </td>
+                       <td>
+                           思铭
+                        </td>
+                       <td>
+                           中国
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/SIMING.jpg
+                        </td>
+                       <td>
+                           siming
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           43
+                        </td>
+                       <td>
+                           haima
+                        </td>
+                       <td>
+                           海马
+                        </td>
+                       <td>
+                           中国
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/HAIMA.jpg
+                        </td>
+                       <td>
+                           haima
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           44
+                        </td>
+                       <td>
+                           landwind
+                        </td>
+                       <td>
+                           江铃
+                        </td>
+                       <td>
+                           中国
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/JMC.jpg
+                        </td>
+                       <td>
+                           jiangling
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-07-09 14:56:19
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           45
+                        </td>
+                       <td>
+                           landwind
+                        </td>
+                       <td>
+                           陆风
+                        </td>
+                       <td>
+                           中国
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/LUFENG.jpg
+                        </td>
+                       <td>
+                           lufeng
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-07-09 14:56:19
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           46
+                        </td>
+                       <td>
+                           roewemg
+                        </td>
+                       <td>
+                           荣威
+                        </td>
+                       <td>
+                           中国
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/RONGWEI.jpg
+                        </td>
+                       <td>
+                           rongwei
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           47
+                        </td>
+                       <td>
+                           
+                        </td>
+                       <td>
+                           纳智捷
+                        </td>
+                       <td>
+                           中国
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/NAZHIJIE.jpg
+                        </td>
+                       <td>
+                           nazhijie
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-07-09 14:56:19
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           48
+                        </td>
+                       <td>
+                           changan
+                        </td>
+                       <td>
+                           长安商用
+                        </td>
+                       <td>
+                           中国
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/CHANGANSHANGYONG.jpg
+                        </td>
+                       <td>
+                           changanshangyong
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-07-09 14:56:19
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           49
+                        </td>
+                       <td>
+                           
+                        </td>
+                       <td>
+                           福田
+                        </td>
+                       <td>
+                           中国
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/FUTIAN.jpg
+                        </td>
+                       <td>
+                           futian
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-07-09 14:56:19
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           50
+                        </td>
+                       <td>
+                           
+                        </td>
+                       <td>
+                           东风小康
+                        </td>
+                       <td>
+                           中国
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/DONGFENGXIAOKANG.jpg
+                        </td>
+                       <td>
+                           dongfengxiaokang
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-07-09 14:56:19
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           51
+                        </td>
+                       <td>
+                           sgmw
+                        </td>
+                       <td>
+                           五菱汽车
+                        </td>
+                       <td>
+                           中国
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/WULING.jpg
+                        </td>
+                       <td>
+                           wulingqiche
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-08-06 17:21:41
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           52
+                        </td>
+                       <td>
+                           
+                        </td>
+                       <td>
+                           中兴
+                        </td>
+                       <td>
+                           中国
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/ZHONGXING.jpg
+                        </td>
+                       <td>
+                           zhongxing
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-07-09 14:56:19
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           53
+                        </td>
+                       <td>
+                           chery
+                        </td>
+                       <td>
+                           奇瑞
+                        </td>
+                       <td>
+                           中国
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/QIRUI.jpg
+                        </td>
+                       <td>
+                           qirui
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-07-09 14:56:19
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           54
+                        </td>
+                       <td>
+                           trumpchi
+                        </td>
+                       <td>
+                           广汽传祺
+                        </td>
+                       <td>
+                           中国
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/GUANGQI.jpg
+                        </td>
+                       <td>
+                           guangqichuanqi
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-08-06 17:21:41
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           55
+                        </td>
+                       <td>
+                           
+                        </td>
+                       <td>
+                           观致
+                        </td>
+                       <td>
+                           中国
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/GUANZHI.jpg
+                        </td>
+                       <td>
+                           guanzhi
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-07-09 14:56:19
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           56
+                        </td>
+                       <td>
+                           
+                        </td>
+                       <td>
+                           海格
+                        </td>
+                       <td>
+                           中国
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/HAIGE.jpg
+                        </td>
+                       <td>
+                           haige
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-07-09 14:56:19
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           57
+                        </td>
+                       <td>
+                           
+                        </td>
+                       <td>
+                           威兹曼
+                        </td>
+                       <td>
+                           欧系
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/WEIZIMAN.jpg
+                        </td>
+                       <td>
+                           weiziman
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-07-09 14:56:19
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           58
+                        </td>
+                       <td>
+                           
+                        </td>
+                       <td>
+                           Lorinser罗伦士
+                        </td>
+                       <td>
+                           欧系
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/LAOLUNSHI.jpg
+                        </td>
+                       <td>
+                           lorinserluolunshi
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-08-06 17:21:41
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           59
+                        </td>
+                       <td>
+                           
+                        </td>
+                       <td>
+                           劳斯莱斯
+                        </td>
+                       <td>
+                           欧系
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/LAOSILAISI.jpg
+                        </td>
+                       <td>
+                           laosilaisi
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-07-09 14:56:19
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           60
+                        </td>
+                       <td>
+                           generalMotors
+                        </td>
+                       <td>
+                           大宇
+                        </td>
+                       <td>
+                           韩系
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/DAYU.jpg
+                        </td>
+                       <td>
+                           dayu
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-09-09 11:47:47
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           61
+                        </td>
+                       <td>
+                           
+                        </td>
+                       <td>
+                           法拉利
+                        </td>
+                       <td>
+                           欧系
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/FALALI.jpg
+                        </td>
+                       <td>
+                           falali
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-07-09 14:56:19
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           62
+                        </td>
+                       <td>
+                           
+                        </td>
+                       <td>
+                           玛莎拉蒂
+                        </td>
+                       <td>
+                           欧系
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/MASHALADI.jpg
+                        </td>
+                       <td>
+                           mashaladi
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-07-09 14:56:19
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           63
+                        </td>
+                       <td>
+                           
+                        </td>
+                       <td>
+                           阿斯顿·马丁
+                        </td>
+                       <td>
+                           欧系
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/ASIDUNMADING.jpg
+                        </td>
+                       <td>
+                           asidunmading
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-07-09 14:56:19
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           64
+                        </td>
+                       <td>
+                           
+                        </td>
+                       <td>
+                           迈巴赫
+                        </td>
+                       <td>
+                           欧系
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/MAIBAHE.jpg
+                        </td>
+                       <td>
+                           maibahe
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-07-09 14:56:19
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           65
+                        </td>
+                       <td>
+                           
+                        </td>
+                       <td>
+                           宾利
+                        </td>
+                       <td>
+                           欧系
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/BINLI.jpg
+                        </td>
+                       <td>
+                           binli
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-07-09 14:56:19
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           66
+                        </td>
+                       <td>
+                           
+                        </td>
+                       <td>
+                           兰博基尼
+                        </td>
+                       <td>
+                           欧系
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/LANBOJINI.jpg
+                        </td>
+                       <td>
+                           lanbojini
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-07-09 14:56:19
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           67
+                        </td>
+                       <td>
+                           volkswagen
+                        </td>
+                       <td>
+                           西雅特
+                        </td>
+                       <td>
+                           欧系
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/XIYATE.jpg
+                        </td>
+                       <td>
+                           xiyate
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-07-09 14:56:19
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           68
+                        </td>
+                       <td>
+                           
+                        </td>
+                       <td>
+                           光冈
+                        </td>
+                       <td>
+                           日系
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/GUANGGANG.jpg
+                        </td>
+                       <td>
+                           guanggang
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-07-09 14:56:19
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           69
+                        </td>
+                       <td>
+                           
+                        </td>
+                       <td>
+                           卡尔森
+                        </td>
+                       <td>
+                           欧系
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/QIAERSEN.jpg
+                        </td>
+                       <td>
+                           kaersen
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-08-06 17:21:41
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           70
+                        </td>
+                       <td>
+                           
+                        </td>
+                       <td>
+                           帕加尼
+                        </td>
+                       <td>
+                           欧系
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/PAJIANI.jpg
+                        </td>
+                       <td>
+                           pajiani
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-07-09 14:56:19
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           71
+                        </td>
+                       <td>
+                           
+                        </td>
+                       <td>
+                           布加迪
+                        </td>
+                       <td>
+                           欧系
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/BUJIADI.jpg
+                        </td>
+                       <td>
+                           bujiadi
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-07-09 14:56:19
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           72
+                        </td>
+                       <td>
+                           
+                        </td>
+                       <td>
+                           博速
+                        </td>
+                       <td>
+                           欧系
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/BABOSI.jpg
+                        </td>
+                       <td>
+                           bosu
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-08-06 17:21:41
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           73
+                        </td>
+                       <td>
+                           
+                        </td>
+                       <td>
+                           科尼赛克
+                        </td>
+                       <td>
+                           欧系
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/KENISAIKE.jpg
+                        </td>
+                       <td>
+                           kenisaike
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-07-09 14:56:19
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           74
+                        </td>
+                       <td>
+                           
+                        </td>
+                       <td>
+                           世爵
+                        </td>
+                       <td>
+                           欧系
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/SHIJUE.jpg
+                        </td>
+                       <td>
+                           shijue
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-07-09 14:56:19
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           75
+                        </td>
+                       <td>
+                           
+                        </td>
+                       <td>
+                           如虎
+                        </td>
+                       <td>
+                           欧系
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/RUF.jpg
+                        </td>
+                       <td>
+                           ruhu
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-08-06 17:21:41
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           76
+                        </td>
+                       <td>
+                           
+                        </td>
+                       <td>
+                           莲花跑车
+                        </td>
+                       <td>
+                           欧系
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/LUTESI.jpg
+                        </td>
+                       <td>
+                           lianhuapaoche
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-08-06 17:21:41
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           77
+                        </td>
+                       <td>
+                           
+                        </td>
+                       <td>
+                           迈凯伦
+                        </td>
+                       <td>
+                           欧系
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/MAIKAILUN.jpg
+                        </td>
+                       <td>
+                           maikailun
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-07-09 14:56:19
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           78
+                        </td>
+                       <td>
+                           tesla
+                        </td>
+                       <td>
+                           特斯拉
+                        </td>
+                       <td>
+                           美系
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/TESILA.jpg
+                        </td>
+                       <td>
+                           tesila
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-07-09 14:56:19
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           79
+                        </td>
+                       <td>
+                           jac
+                        </td>
+                       <td>
+                           江淮
+                        </td>
+                       <td>
+                           中国
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/JIANGHUAI.jpg
+                        </td>
+                       <td>
+                           jianghuai
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           80
+                        </td>
+                       <td>
+                           
+                        </td>
+                       <td>
+                           北汽制造
+                        </td>
+                       <td>
+                           中国
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/BEIQIZHIZAO.jpg
+                        </td>
+                       <td>
+                           beiqizhizao
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-07-09 14:56:19
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           81
+                        </td>
+                       <td>
+                           
+                        </td>
+                       <td>
+                           奔腾
+                        </td>
+                       <td>
+                           中国
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/BENTENG.jpg
+                        </td>
+                       <td>
+                           benteng
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-07-09 14:56:19
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           82
+                        </td>
+                       <td>
+                           
+                        </td>
+                       <td>
+                           宝龙
+                        </td>
+                       <td>
+                           中国
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/BAOLONG.jpg
+                        </td>
+                       <td>
+                           baolong
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-07-09 14:56:19
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           83
+                        </td>
+                       <td>
+                           baic
+                        </td>
+                       <td>
+                           北京汽车
+                        </td>
+                       <td>
+                           中国
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/BEIJINGQICHE.jpg
+                        </td>
+                       <td>
+                           beijingqiche
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-07-09 14:56:19
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           84
+                        </td>
+                       <td>
+                           byd
+                        </td>
+                       <td>
+                           比亚迪
+                        </td>
+                       <td>
+                           中国
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/BIYADI.jpg
+                        </td>
+                       <td>
+                           biyadi
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           85
+                        </td>
+                       <td>
+                           changan
+                        </td>
+                       <td>
+                           长安
+                        </td>
+                       <td>
+                           中国
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/CHANGAN.jpg
+                        </td>
+                       <td>
+                           changan
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-07-09 14:56:19
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           86
+                        </td>
+                       <td>
+                           
+                        </td>
+                       <td>
+                           昌河
+                        </td>
+                       <td>
+                           中国
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/CHANGHE.jpg
+                        </td>
+                       <td>
+                           changhe
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-07-09 14:56:19
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           87
+                        </td>
+                       <td>
+                           
+                        </td>
+                       <td>
+                           大迪
+                        </td>
+                       <td>
+                           中国
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/DADI.jpg
+                        </td>
+                       <td>
+                           dadi
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-07-09 14:56:19
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           88
+                        </td>
+                       <td>
+                           dongfeng
+                        </td>
+                       <td>
+                           东风风神
+                        </td>
+                       <td>
+                           中国
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/DONGFENGFENGSHEN.jpg
+                        </td>
+                       <td>
+                           dongfengfengshen
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2026-03-11 11:18:35
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           89
+                        </td>
+                       <td>
+                           
+                        </td>
+                       <td>
+                           上汽大通MAXUS
+                        </td>
+                       <td>
+                           中国
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/SHANGQIDATONGMAXUS.jpg
+                        </td>
+                       <td>
+                           shangqidatongmaxus
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-08-06 17:21:41
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           90
+                        </td>
+                       <td>
+                           
+                        </td>
+                       <td>
+                           东风御风
+                        </td>
+                       <td>
+                           中国
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/DONGFENG.jpg
+                        </td>
+                       <td>
+                           dongfengyufeng
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           91
+                        </td>
+                       <td>
+                           dffx
+                        </td>
+                       <td>
+                           东风风行
+                        </td>
+                       <td>
+                           中国
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/DONGFENGFENGXING.jpg
+                        </td>
+                       <td>
+                           dongfengfengxing
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           92
+                        </td>
+                       <td>
+                           
+                        </td>
+                       <td>
+                           福迪
+                        </td>
+                       <td>
+                           中国
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/FUDI.jpg
+                        </td>
+                       <td>
+                           fudi
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-07-09 14:56:19
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           93
+                        </td>
+                       <td>
+                           
+                        </td>
+                       <td>
+                           一汽
+                        </td>
+                       <td>
+                           中国
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/YIQI.jpg
+                        </td>
+                       <td>
+                           yiqi
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-07-09 14:56:19
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           94
+                        </td>
+                       <td>
+                           
+                        </td>
+                       <td>
+                           华翔富奇
+                        </td>
+                       <td>
+                           中国
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/HUAXIANGFUQI.jpg
+                        </td>
+                       <td>
+                           huaxiangfuqi
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-07-09 14:56:19
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           95
+                        </td>
+                       <td>
+                           geely
+                        </td>
+                       <td>
+                           吉利汽车
+                        </td>
+                       <td>
+                           中国
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/JILIQICHE.jpg
+                        </td>
+                       <td>
+                           jiliqiche
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-08-06 17:21:41
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           96
+                        </td>
+                       <td>
+                           
+                        </td>
+                       <td>
+                           广汽吉奥
+                        </td>
+                       <td>
+                           中国
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/GUANGQIJIAO.jpg
+                        </td>
+                       <td>
+                           guangqijiao
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-07-09 14:56:19
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           97
+                        </td>
+                       <td>
+                           
+                        </td>
+                       <td>
+                           猎豹
+                        </td>
+                       <td>
+                           中国
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/LIEBAOQICHE.jpg
+                        </td>
+                       <td>
+                           liebao
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           98
+                        </td>
+                       <td>
+                           gwm
+                        </td>
+                       <td>
+                           长城
+                        </td>
+                       <td>
+                           中国
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/CHANGCHENG.jpg
+                        </td>
+                       <td>
+                           changcheng
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           99
+                        </td>
+                       <td>
+                           gwm
+                        </td>
+                       <td>
+                           哈弗
+                        </td>
+                       <td>
+                           中国
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/HAFU.jpg
+                        </td>
+                       <td>
+                           hafu
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                    </tr>
+                    <tr>
+                       <td>
+                           100
+                        </td>
+                       <td>
+                           
+                        </td>
+                       <td>
+                           黑豹
+                        </td>
+                       <td>
+                           中国
+                        </td>
+                       <td>
+                           //pic.qipeipu.com/mapps/logo/HEIBAO.jpg
+                        </td>
+                       <td>
+                           heibao
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           0
+                        </td>
+                       <td>
+                           1
+                        </td>
+                       <td>
+                           2025-07-09 10:03:02
+                        </td>
+                       <td>
+                           2025-07-09 14:56:19
+                        </td>
+                    </tr>
+            </table>
+        </div>
+    
+
+    
+    <div class="pager">
+        <ul class="pager">
+            
+            <li>
+                <span> 上一页 </span>
+            </li>
+            
+
+            
+            <li>
+                <a href="#" id="nextPage"> 下一页 </a>
+            </li>
+            
+
+            <li class="pull-right">
+                第<input name="page" value="1" id="pageindex" style="width:15px;">页,共 11页
+            </li>
+
+            <li>
+
+            </li>
+        </ul>
+    </div>
+    
+</div>
+
+    </div>
+</div>
+
+<div class="footer">
+    <!--<div style="margin-top:10px;">有问题或者建议:&nbsp;&nbsp;<a onclick="$('#suggest').show();$('#suggest textarea').focus();">联系我们</a></div>-->
+    <div style="margin-top:10px;">有问题或者建议:&nbsp;&nbsp;<a href="mailto:tech-ops@qipeipu.com">联系我们</a></div>
+</div>
+
+<!-- Le javascript -->
+
+<script type="text/javascript" src="/static/layer/layer.js"></script>
+<script type="text/javascript" src="/static/layui/layui.js"></script>
+<script type="text/javascript" src="/static/jquery-textcomplete/jquery.textcomplete.js"></script>
+<script type="text/javascript">
+
+    $(document).ready(function(){
+        var database = $(this).find('option:selected').val();
+        if(database=='ERP' || database=='erp'){
+            $('#subDB').css('display', '');
+            $('#database_suffix').empty()
+            $.get('/operate/get_erp', data={"database": database}, function(result){
+                var current_erp = $('#current_erp').val();
+                html = '<option value=""></option>'
+                $.each(result.erp,function(index, value){
+                    if (value == current_erp){
+                        html += '<option value="'+value+'" selected="selected">'+value+'</option>';
+                    }else{
+                        html += '<option value="'+value+'">'+value+'</option>';
+                    }
+                });
+                $('#database_suffix').append(html)
+            });
+        //}else if(database == 'insurance'){
+        //    $('#subDB').css('display', '');
+        //    $('#database_suffix').empty()
+        //    $.get('/operate/get_insurance', data={"database": database}, function(result){
+        //        var current_erp = $('#current_erp').val();
+        //        html = '<option value=""></option>'
+        //        $.each(result.erp,function(index, value){
+        //            if (value == current_erp){
+        //                html += '<option value="'+value+'" selected="selected">'+value+'</option>';
+        //            }else{
+        //                html += '<option value="'+value+'">'+value+'</option>';
+        //            }
+        //        });
+        //        $('#database_suffix').append(html)
+        //    });
+        }else{
+            $('#database_suffix').empty()
+        }
+    });
+
+    function addTemplate () {
+        $.get('/operate/addtemplate', function(result){
+            layer.open({
+              title: "添加模板",
+              type: 2,
+              area: ['850px', '600px'],
+              anim: 4,
+              fixed: false, //不固定
+              maxmin: true,
+              content: '/operate/addtemplate?flag=template'
+            });
+        });
+    }
+    
+    function sqlTemplate () {
+        $.get('/operate/sqltemplate', function(result){
+            layer.open({
+              title: "模板列表",
+              type: 2,
+              area: ['850px', '600px'],
+              fixed: false, //不固定
+              maxmin: true,
+              content: '/operate/sqltemplate?flag=template'
+            });
+        });
+    }
+
+    function sqlQPost () {
+        var select_sql = getSelectionText();
+        $('#select_sql').val(select_sql);
+    }
+    
+    function getSelectionText() {
+      if(window.getSelection) {
+            return window.getSelection().toString();
+      } else if(document.selection && document.selection.createRange) {
+            return document.selection.createRange().text;
+      }
+      return '';
+    }    
+
+    /* ----------------------------- TextArea AutoComplete ------------------------- */
+    var reserveds = [
+        'select'   , 'SELECT',
+        'from'     , 'FROM',
+        'where'    , 'WHERE',
+        'order'    , 'ORDER',
+        'by'       , 'BY',
+        'and'      , 'AND',
+        'or'       , 'OR',
+        'not'      , 'NOT',
+        'distinct' , 'DISTINCT',
+        'all'      , 'ALL',
+        'inner'    , 'INNER',
+        'cross'    , 'CROSS',
+        'limit'    , 'LIMIT',
+        'left'     , 'LEFT',
+        'right'    , 'RIGHT',
+        'join'     , 'JOIN',
+        'on'       , 'ON',
+        'in'       , 'IN',
+        'using'    , 'USING',
+        'outer'    , 'OUTER',
+        'natural'  , 'NATURAL',
+        'explain'  , 'EXPLAIN',
+        'show'     , 'SHOW',
+        'describe' , 'DESCRIBE',
+        'desc'     , 'DESCRIBE',
+    ];
+
+    // $('#limited_db_name').change(function(){
+    $('#db_name').change(function(){
+        var database = $(this).find('option:selected').val();
+        if( database != ""){
+        $.post('/operate/get_database_tokens', {database: database}, function(result){
+            if (result.status == 0){
+                // $('#limited_sql').setAutocomplete(reserveds.concat(result.data));
+                $('#sql').setAutocomplete(reserveds.concat(result.data));
+            }
+        });
+        }
+    });
+
+    $('#db_name').change(function(){
+        var database = $(this).find('option:selected').val();
+        if(database=='ERP' || database=='erp'){
+            $('#subDB').css('display', '');
+            $('#database_suffix').empty()
+            $.get('/operate/get_erp', data={"database": database}, function(result){
+                html = '<option value=""></option>'
+                $.each(result.erp,function(index, value){
+                    html += '<option value="'+value+'">'+value+'</option>';
+                });
+                $('#database_suffix').append(html)
+            });
+        }else{
+            $('#subDB').css('display', 'none');
+            $('#database_suffix').empty()
+        }
+        if( database != ""){
+        $.post('/operate/get_database_tokens', {database: database}, function(result){
+            if (result.status == 0){
+                $('#sql').setAutocomplete(reserveds.concat(result.data));
+            }
+        });
+        }
+    });
+
+    $.fn.setAutocomplete = function(wordlist){
+        $(this).textcomplete([{
+            words: wordlist,
+            match: /\b(\w{2,})$/,
+            search: function (term, callback) {
+                callback($.map(this.words, function (word) {
+                    return word.indexOf(term) === 0 ? word : null;
+                }));
+            },
+            index: 1,
+            replace: function (word) {
+                return word + ' ';
+            }
+        }], {
+            onKeydown: function (e, commands) {
+                if (e.ctrlKey && e.keyCode === 74) {
+                    return commands.KEY_ENTER;
+                }
+            }
+        });
+    }
+
+    function autocompleteInitial(){
+        var database = $('#db_name').find('option:selected').val();
+        if (database != ""){
+            $.post('/operate/get_database_tokens', {database: database}, function(result){
+                if (result.status == 0){
+                    $('#sql').setAutocomplete(reserveds.concat(result.data));
+                }
+            });
+        }
+        else {
+            $('#sql').setAutocomplete(reserveds);
+        }
+
+        // database = $('#limited_db_name').find('option:selected').val();
+        database = $('#db_name').find('option:selected').val();
+        if (database != ""){
+            $.post('/operate/get_database_tokens', {database: database}, function(result){
+                if (result.status == 0){
+                    // $('#limited_sql').setAutocomplete(reserveds.concat(result.data));
+                    $('#sql').setAutocomplete(reserveds.concat(result.data));
+                }
+            });
+        }
+        else{
+            // $('#limited_sql').setAutocomplete(reserveds);
+            $('#sql').setAutocomplete(reserveds);
+        }
+    }
+
+    autocompleteInitial();
+
+    /* ----------------------------------------------------------------------------- */
+
+    /* ----------------------------------------------------------------------------- */
+    $('#previousPage').click(function(){
+        page = document.getElementById('pageindex');
+        document.forms["QueryToolForm"].appendChild(page)
+        document.forms["QueryToolForm"].page.value = Number(parseInt(document.forms["QueryToolForm"].page.value)-1);
+        document.forms["QueryToolForm"].submit();
+    });
+
+    $('#nextPage').click(function(){
+        page = document.getElementById('pageindex');
+        document.forms["QueryToolForm"].appendChild(page)
+        document.forms["QueryToolForm"].page.value = Number(parseInt(document.forms["QueryToolForm"].page.value)+1);
+        document.forms["QueryToolForm"].submit();
+    });
+
+    $(function(){
+        $('#pageindex').bind('keypress',function(event){
+            if(event.keyCode == "13"){
+                page = document.getElementById('pageindex');
+                document.forms["QueryToolForm"].appendChild(page);
+                document.forms["QueryToolForm"].submit();
+            }
+        });
+    });
+    /* ----------------------------------------------------------------------------- */
+</script>
+<script type="text/html" id="box">
+    <div>
+        <ul>
+        </ul>
+    <div>
+</script>
+
+</body>
+</html>
