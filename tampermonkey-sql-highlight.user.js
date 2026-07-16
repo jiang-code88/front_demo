@@ -9,6 +9,7 @@
 // @include      *test-sql-highlight.html
 // @grant        GM_getValue
 // @grant        GM_setValue
+// @grant        GM_deleteValue
 // @grant        GM_registerMenuCommand
 // @grant        unsafeWindow
 // @run-at       document-idle
@@ -17,8 +18,9 @@
 // @match        *://vinops.qipeipu.net/operate/sqltools*  // 匹配目标运维平台
 // @match        file:///*test-sql-highlight.html           // 匹配本地测试页
 // @include      *test-sql-highlight.html                   // 兜底匹配（Tampermonkey @include 通配）
-// @grant        GM_getValue                                // 读取 Tampermonkey 存储（仅用于启用/禁用开关）
-// @grant        GM_setValue                                // 写入 Tampermonkey 存储（仅用于启用/禁用开关）
+// @grant        GM_getValue                                // 读取 Tampermonkey 存储（启用/禁用开关 + Tab 输入状态）
+// @grant        GM_setValue                                // 写入 Tampermonkey 存储（启用/禁用开关 + Tab 输入状态）
+// @grant        GM_deleteValue                             // 清除已保存的 Tab 输入状态（菜单命令用）
 // @grant        GM_registerMenuCommand                     // 注册 Tampermonkey 菜单命令
 // @grant        unsafeWindow                               // 访问页面真实 window 对象（调用 sqlQPost）
 // @run-at       document-idle                               // 文档加载完成后执行
@@ -68,8 +70,12 @@
   //  常量定义
   // ════════════════════════════════════════════════════════════════════════
 
-  // GM 存储键名（Tab 数据不再持久化，仅保留脚本启用/禁用开关）
+  // GM 存储键名：脚本启用/禁用开关
   var STORAGE_KEY_ENABLED = 'sql_hl_enabled';
+  // GM 存储键名：Tab 输入状态（SQL 文本/所选数据库/Tab 名称），不含查询结果
+  var STORAGE_KEY_TABS = 'sql_hl_tabs_v1';
+  // 持久化写入防抖延迟（打字期间高频触发时降低写入频率）
+  var PERSIST_DEBOUNCE_MS = 400;
 
   // CM6 模块 URL（esm.sh）
   // 注意：codemirror 元包不能使用 @6 范围，esm.sh 会错误解析为 CM5 代码（6.65.7）
@@ -101,6 +107,10 @@
   var tabBarEl = null;        // Tab 栏 DOM 元素
   var wrapperEl = null;       // CM6 wrapper DOM 元素
   var resultPanelEl = null;   // 结果面板 DOM 元素
+  var persistTimer = null;    // Tab 输入状态持久化的防抖定时器
+  // "清除已保存的 Tab 数据" 菜单命令触发 reload 前置位：防止 reload 前的
+  // beforeunload 兜底持久化把刚清除的存储重新写回去
+  var suppressPersistOnUnload = false;
 
   // 数据库字段/表名补全：以数据库名为 key 缓存 /operate/get_database_tokens 的结果
   var dbTokensCache = new Map();
@@ -309,6 +319,19 @@
       '  font-size: 13px;',
       '  word-break: break-all;',
       '  white-space: pre-wrap;',
+      '}',
+      '',
+      '/* ── 未选择数据库时的临时高亮 ── */',
+      '.cm-db-highlight {',
+      '  outline: 2px solid #e06c75;',
+      '  border-radius: 3px;',
+      '}',
+      '',
+      '/* ── 查询中按钮变为可点击的"取消查询" ── */',
+      '.cm-btn-busy {',
+      '  background: #f5a623 !important;',
+      '  color: #fff !important;',
+      '  border-color: #d4881a !important;',
       '}'
     ].join('\n');
     document.head.appendChild(style);
@@ -445,6 +468,98 @@
   }
 
   // ════════════════════════════════════════════════════════════════════════
+  //  Tab 输入状态持久化（仅 SQL 文本/所选数据库/Tab 名称，不含查询结果）
+  // ════════════════════════════════════════════════════════════════════════
+
+  /**
+   * 把 tabs 数组精简为只包含"输入状态"的快照（不含 resultHtml/status/page/
+   * errorMsg/requestSeq/abortController 等查询结果与运行态字段），连同
+   * activeTabId、nextTabId 一起打包，用于 GM 持久化。
+   */
+  function serializeTabsSnapshot() {
+    return {
+      activeTabId: activeTabId,
+      nextTabId: nextTabId,
+      tabs: tabs.map(function (t) {
+        return {
+          id: t.id,
+          name: t.name,
+          customName: t.customName,
+          content: t.content,
+          dbName: t.dbName,
+          databaseSuffix: t.databaseSuffix,
+          currentErp: t.currentErp
+        };
+      })
+    };
+  }
+
+  /**
+   * 立即持久化（低频操作：切换/新建/关闭/重命名 Tab、切换数据库时调用）
+   */
+  function persistTabsNow() {
+    try {
+      GM_setValue(STORAGE_KEY_TABS, JSON.stringify(serializeTabsSnapshot()));
+    } catch (e) {
+      console.warn('[SQL Editor] 持久化 Tab 状态失败:', e);
+    }
+  }
+
+  /**
+   * 防抖持久化（打字期间高频触发，降低写入频率）
+   */
+  function persistTabsDebounced() {
+    if (persistTimer) clearTimeout(persistTimer);
+    persistTimer = setTimeout(function () {
+      persistTimer = null;
+      persistTabsNow();
+    }, PERSIST_DEBOUNCE_MS);
+  }
+
+  /**
+   * 尝试从 GM 存储恢复 Tab 输入状态。
+   * @returns {boolean} 是否成功恢复（形状校验通过且至少有一个 Tab）
+   */
+  function tryRestorePersistedTabs() {
+    var raw;
+    try {
+      raw = GM_getValue(STORAGE_KEY_TABS, null);
+    } catch (e) {
+      return false;
+    }
+    if (!raw) return false;
+
+    var snapshot;
+    try {
+      snapshot = JSON.parse(raw);
+    } catch (e) {
+      console.warn('[SQL Editor] 已保存的 Tab 数据解析失败，忽略:', e);
+      return false;
+    }
+    if (!snapshot || !Array.isArray(snapshot.tabs) || snapshot.tabs.length === 0) return false;
+
+    var restoredTabs = snapshot.tabs.map(function (t) {
+      var tab = createTabData(t.id, t.content || '');
+      tab.name = t.name || tab.name;
+      tab.customName = !!t.customName;
+      tab.dbName = t.dbName || '';
+      tab.databaseSuffix = t.databaseSuffix || '';
+      tab.currentErp = t.currentErp || '';
+      return tab;
+    });
+
+    var maxId = restoredTabs.reduce(function (max, t) { return Math.max(max, t.id); }, 0);
+
+    tabs = restoredTabs;
+    nextTabId = Math.max(Number(snapshot.nextTabId) || 0, maxId + 1);
+
+    var restoredActiveId = Number(snapshot.activeTabId);
+    activeTabId = getTabIndex(restoredActiveId) !== -1 ? restoredActiveId : tabs[0].id;
+
+    return true;
+  }
+
+  // ════════════════════════════════════════════════════════════════════════
   //  Tab 管理
   // ════════════════════════════════════════════════════════════════════════
 
@@ -533,6 +648,7 @@
         tab.customName = true;
       }
       renderTabBar();
+      persistTabsNow();
     }
 
     input.addEventListener('blur', commit);
@@ -591,8 +707,9 @@
       page: 1,
       resultHtml: '',
       errorMsg: null,
-      status: 'idle', // idle / loading / done / error / session-expired / net-error
-      requestSeq: 0   // 竞态防护：每次 submitQuery 自增，响应回来时比对
+      status: 'idle', // idle / loading / done / error / cancelled / session-expired / net-error
+      requestSeq: 0,  // 竞态防护：每次 submitQuery 自增，响应回来时比对
+      abortController: null // 取消查询用：submitQuery 发起时创建，cancelQuery/请求结束后清空
     };
   }
 
@@ -615,6 +732,8 @@
 
     // 重新渲染 Tab 栏
     renderTabBar();
+
+    persistTabsNow();
 
     console.log('[SQL Editor] 新增 Tab:', tab.name);
   }
@@ -647,6 +766,8 @@
 
     renderTabBar();
 
+    persistTabsNow();
+
     console.log('[SQL Editor] 关闭 Tab ID:', id);
   }
 
@@ -674,6 +795,8 @@
 
     // 重新渲染 Tab 栏（高亮切换）
     renderTabBar();
+
+    persistTabsNow();
 
     console.log('[SQL Editor] 切换到 Tab:', tab.name);
   }
@@ -760,14 +883,26 @@
     // 刷新结果面板为该 Tab 保存的结果
     renderResultPanel(tab);
 
+    // 同步提交按钮的忙碌态：修复"从正在查询的 Tab 切到空闲 Tab，按钮还残留
+    // 着查询中/取消查询文案"的问题
+    setSubmitButtonBusy(tab.status === 'loading');
+
     suppressSync = false;
   }
 
   /**
-   * 创建 Tab 1：始终用当前 textarea 内容 + 当前 #db_name 选中值 +
-   * （若页面初次加载即带有结果）解析出的结果片段
+   * 恢复 Tab 数据：优先从 GM 持久化存储恢复之前保存的多 Tab 输入状态
+   * （SQL 文本/所选数据库/Tab 名称，不含查询结果——刷新后结果留空，需要重新
+   * 点提交才能看到，避免展示过期数据）；恢复失败/无数据时，兜底创建 Tab 1：
+   * 用当前 textarea 内容 + 当前 #db_name 选中值 +（若页面初次加载即带有结果）
+   * 解析出的结果片段。
    */
   function restoreTabs(initialResult) {
+    if (tryRestorePersistedTabs()) {
+      console.log('[SQL Editor] 已恢复 ' + tabs.length + ' 个保存的 Tab');
+      return;
+    }
+
     var dbNameEl = document.getElementById('db_name');
     var suffixEl = document.getElementById('database_suffix');
     var erpEl = document.getElementById('current_erp');
@@ -986,7 +1121,7 @@
 
       e.preventDefault();
       var tab = getActiveTab();
-      if (!tab) return;
+      if (!tab || tab.status === 'loading') return; // 上一次查询/分页还没结束或取消，避免重复请求
 
       var targetPage = (tab.page || 1) + (prevLink ? -1 : 1);
       if (targetPage < 1) targetPage = 1;
@@ -1000,7 +1135,7 @@
 
       e.preventDefault();
       var tab = getActiveTab();
-      if (!tab) return;
+      if (!tab || tab.status === 'loading') return; // 上一次查询/分页还没结束或取消，避免重复请求
 
       var n = parseInt(input.value, 10);
       if (isNaN(n) || n < 1) n = 1;
@@ -1031,6 +1166,9 @@
       case 'net-error':
         contentEl.innerHTML = '<div class="cm-result-placeholder cm-result-warn">' + escapeHtml(tab.errorMsg || '请求失败，请重试') + '</div>';
         return;
+      case 'cancelled':
+        contentEl.innerHTML = '<div class="cm-result-placeholder">已取消查询，可修改 SQL 后重新提交</div>';
+        return;
       case 'error':
         contentEl.innerHTML =
           '<div class="cm-result-error">' +
@@ -1046,7 +1184,9 @@
   }
 
   /**
-   * 提交期间切换真实"提交"按钮的文案与禁用状态（仅影响当前激活 Tab 的展示）
+   * 提交期间切换真实"提交"按钮的文案与样式（仅影响当前激活 Tab 的展示）。
+   * 按钮在查询期间**保持可点击**（不 disable），点击即触发取消——见提交按钮
+   * click 绑定处的二态分支，这样才能让用户在长查询等待期间改 SQL 重新提交。
    */
   function setSubmitButtonBusy(busy) {
     var btn = formEl && formEl.querySelector('#check_submit');
@@ -1054,11 +1194,34 @@
 
     if (busy) {
       if (btn.dataset.origText === undefined) btn.dataset.origText = btn.textContent;
-      btn.textContent = '查询中...';
-      btn.disabled = true;
+      btn.textContent = '取消查询';
+      btn.classList.add('cm-btn-busy');
     } else {
       if (btn.dataset.origText !== undefined) btn.textContent = btn.dataset.origText;
-      btn.disabled = false;
+      btn.classList.remove('cm-btn-busy');
+    }
+  }
+
+  /**
+   * 未选择数据库时的提示：临时高亮 #db_name 下拉框（1.5s 后自动移除）并
+   * focus，同时在结果面板内嵌一条红色提示文字。不改变 tab.status/resultHtml
+   * ——这只是一次性的操作反馈，不是查询状态，避免污染持久化模型或误导后续渲染。
+   */
+  function showDbRequiredHint() {
+    var dbNameEl = document.getElementById('db_name');
+    if (dbNameEl) {
+      dbNameEl.classList.add('cm-db-highlight');
+      dbNameEl.focus();
+      setTimeout(function () {
+        dbNameEl.classList.remove('cm-db-highlight');
+      }, 1500);
+    }
+
+    if (resultPanelEl) {
+      var contentEl = resultPanelEl.querySelector('.cm-result-content');
+      if (contentEl) {
+        contentEl.innerHTML = '<div class="cm-result-placeholder cm-result-warn">请先选择要查询的数据库</div>';
+      }
     }
   }
 
@@ -1085,9 +1248,19 @@
       saveCurrentTabState();
     }
 
+    // 未选择数据库：不发起请求，内嵌提示 + 高亮下拉框。这一处守卫同时覆盖
+    // "点击提交"和"分页/跳转页"两条调用路径，不需要在多处重复判断
+    if (!tab.dbName) {
+      showDbRequiredHint();
+      return;
+    }
+
     var seq = ++tab.requestSeq;
     tab.status = 'loading';
     tab.page = page;
+
+    var controller = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+    tab.abortController = controller;
 
     var isActive = (tab.id === activeTabId);
     if (isActive) {
@@ -1113,11 +1286,12 @@
     doFetch(formEl.action, {
       method: 'POST',
       body: params,
-      credentials: 'same-origin'
+      credentials: 'same-origin',
+      signal: controller ? controller.signal : undefined
     }).then(function (res) {
       return res.text();
     }).then(function (text) {
-      if (tab.requestSeq !== seq) return; // 竞态：已有更新的请求发出，丢弃本次响应
+      if (tab.requestSeq !== seq) return; // 竞态：已有更新的请求发出（或已被取消），丢弃本次响应
 
       var result = parseSubmitResponse(text);
       if (result.sessionExpired) {
@@ -1129,16 +1303,42 @@
         if (result.page != null) tab.page = result.page;
       }
     }).catch(function (e) {
-      if (tab.requestSeq !== seq) return;
+      if (tab.requestSeq !== seq) return; // 同上：包含用户主动取消（AbortError）的情形，无需特殊处理
       tab.status = 'net-error';
       tab.errorMsg = '请求失败: ' + (e && e.message ? e.message : e);
     }).then(function () {
+      // 用 controller 身份比对而非直接置空：避免这是一次已被取消/竞态淘汰的
+      // 旧请求收尾时，误把同一个 tab 上后续新请求刚创建的 abortController 清空
+      if (tab.abortController === controller) tab.abortController = null;
       if (tab.requestSeq !== seq) return;
       if (tab.id === activeTabId) {
         renderResultPanel(tab);
         setSubmitButtonBusy(false);
       }
     });
+  }
+
+  /**
+   * 取消正在等待的查询（长查询不想再等，可立即改 SQL 重新提交）。
+   * 只中止前端对本次响应的等待，不保证服务端真的停止执行（没有可用的
+   * 服务端 kill-query 接口）。
+   */
+  function cancelQuery(tab) {
+    if (!tab || tab.status !== 'loading') return;
+
+    if (tab.abortController) {
+      tab.abortController.abort();
+      tab.abortController = null;
+    }
+    // 让原请求即使之后才 resolve/reject，也会因序号不匹配被 submitQuery 里的
+    // 竞态校验丢弃，不需要单独处理 AbortError
+    tab.requestSeq++;
+    tab.status = 'cancelled';
+
+    if (tab.id === activeTabId) {
+      renderResultPanel(tab);
+      setSubmitButtonBusy(false);
+    }
   }
 
   // ════════════════════════════════════════════════════════════════════════
@@ -1329,6 +1529,13 @@
               if (suppressSync) return;
               if (update.docChanged) {
                 syncToTextarea();
+                // Tab 数据模型里的 content 平时只在切换 Tab 时才更新，必须随
+                // 打字实时更新，否则持久化写入的会是滞后的旧内容
+                var activeTab = getActiveTab();
+                if (activeTab) {
+                  activeTab.content = update.state.doc.toString();
+                  persistTabsDebounced();
+                }
               }
               if (update.selectionSet) {
                 handleSelectionChange();
@@ -1363,7 +1570,14 @@
           e.preventDefault();
           e.stopPropagation();
           var tab = getActiveTab();
-          if (tab) submitQuery(tab, { page: 1 });
+          if (!tab) return;
+          // 查询期间该按钮变身为"取消查询"；Ctrl+Enter 内部就是 btn.click()，
+          // 所以查询期间按 Ctrl+Enter 也会自动变成取消，行为一致
+          if (tab.status === 'loading') {
+            cancelQuery(tab);
+          } else {
+            submitQuery(tab, { page: 1 });
+          }
         }, true);
       }
     }
@@ -1373,6 +1587,12 @@
     if (dbNameEl) {
       dbNameEl.addEventListener('change', function () {
         ensureDbTokens(this.value);
+        // 用户手动切换数据库下拉框：同步进当前 Tab 模型并立即持久化
+        var activeTab = getActiveTab();
+        if (activeTab) {
+          activeTab.dbName = this.value;
+          persistTabsNow();
+        }
       });
       ensureDbTokens(dbNameEl.value);
     }
@@ -1386,6 +1606,14 @@
         syncToTextarea();
       }, true);
     }
+
+    // ── 刷新/关闭页面前兜底持久化一次 ──
+    // 防抖定时器可能还没触发（比如用户打完字立刻刷新），这里做最后一次同步保存
+    window.addEventListener('beforeunload', function () {
+      if (suppressPersistOnUnload) return;
+      saveCurrentTabState();
+      persistTabsNow();
+    });
 
     // 渲染初次加载时（若有）捕获到的查询结果
     renderResultPanel(getActiveTab());
@@ -1401,6 +1629,18 @@
     var enabled = !GM_getValue(STORAGE_KEY_ENABLED, true);
     GM_setValue(STORAGE_KEY_ENABLED, enabled);
     console.log('[SQL Editor] ' + (enabled ? '已启用' : '已禁用') + '，刷新页面生效');
+    location.reload();
+  });
+
+  GM_registerMenuCommand('SQL 高亮：清除已保存的 Tab 数据', function () {
+    // 先置位，防止即将触发的 beforeunload 兜底持久化把刚清除的存储重新写回去
+    suppressPersistOnUnload = true;
+    if (persistTimer) {
+      clearTimeout(persistTimer);
+      persistTimer = null;
+    }
+    GM_deleteValue(STORAGE_KEY_TABS);
+    console.log('[SQL Editor] 已清除保存的 Tab 数据，刷新页面生效');
     location.reload();
   });
 

@@ -108,8 +108,11 @@
       安装 Tampermonkey 脚本 <code>tampermonkey-sql-highlight.user.js</code> 后，本页面会自动加载
       CodeMirror 6 SQL 编辑器。本页面用 <code>window.fetch</code> mock 了 <code>sqltools</code>（提交/分页）
       与 <code>get_database_tokens</code>（自动补全）两个接口，可以在完全离线的情况下验证：
-      多 Tab 独立查询结果、切换 Tab 联动数据库选择、分页、报错渲染、双击重命名、Ctrl+空格触发的字段补全。
-      数据库选 <code>error_db</code> 会模拟报错；选 <code>demo_db</code> 会返回 3 页假数据。
+      多 Tab 独立查询结果、切换 Tab 联动数据库选择、分页、报错渲染、双击重命名、Ctrl+空格触发的字段补全、
+      刷新页面后 Tab 内容自动恢复、未选数据库时的红色提示、长查询取消。
+      数据库选 <code>error_db</code> 会模拟报错；选 <code>demo_db</code> 会返回 3 页假数据；
+      选 <code>slow_db</code> 会模拟一个 8 秒才返回的长查询，可用于测试点击"取消查询"；
+      不选数据库直接点提交会看到红色提示。
     </div>
 
     <!-- 模拟目标页面表单结构（与 sqltools.html 保持一致，包括重复 id="check_submit" 这个缺陷） -->
@@ -123,6 +126,7 @@
                 <option value=""></option>
                 <option value="demo_db">demo_db</option>
                 <option value="error_db">error_db</option>
+                <option value="slow_db">slow_db（模拟长查询）</option>
               </select>
             </div>
           </div>
@@ -162,6 +166,7 @@
       <button class="btn btn-info btn-sm sample-btn" onclick="loadSampleSQL()">载入示例 SQL</button>
       <button class="btn btn-default btn-sm sample-btn" onclick="selectDemoDb()">选中 demo_db</button>
       <button class="btn btn-default btn-sm sample-btn" onclick="selectErrorDb()">选中 error_db（模拟报错）</button>
+      <button class="btn btn-warning btn-sm sample-btn" onclick="selectSlowDb()">选中 slow_db（模拟长查询，用于测试取消/未选数据库校验）</button>
     </div>
 
     <!-- 调试面板 -->
@@ -212,8 +217,12 @@
 
     var TOKENS_BY_DB = {
       demo_db: ['users', 'orders', 'id', 'name', 'email', 'created_at', 'total_amount', 'user_id'],
-      error_db: ['demo', 'legacy_table']
+      error_db: ['demo', 'legacy_table'],
+      slow_db: ['big_table', 'archive_log']
     };
+
+    // slow_db 模拟长查询的响应延迟（毫秒），方便手动验证"取消查询"交互
+    var SLOW_DB_DELAY_MS = 8000;
 
     function escapeMockHtml(str) {
       return String(str == null ? '' : str).replace(/[&<>"']/g, function (c) {
@@ -275,6 +284,8 @@
       logMock('POST sqltools — db_name=' + JSON.stringify(dbName) + ', page=' + page +
         ', sql长度=' + sql.length + ', select_sql长度=' + selectSql.length);
 
+      var delay = (dbName === 'slow_db') ? SLOW_DB_DELAY_MS : 400; // slow_db 模拟长查询，便于验证"取消查询"
+
       return new Promise(function (resolve) {
         setTimeout(function () {
           var bodyHtml;
@@ -289,7 +300,7 @@
           }
           var html = buildFakeResponseHtml(bodyHtml);
           resolve(new Response(html, { status: 200, headers: { 'Content-Type': 'text/html; charset=utf-8' } }));
-        }, 400); // 模拟网络延迟，便于观察"查询中..."状态
+        }, delay);
       });
     }
 
@@ -453,6 +464,13 @@
     function selectErrorDb() {
       var el = document.getElementById('db_name');
       el.value = 'error_db';
+      el.dispatchEvent(new Event('change'));
+      updateDebug();
+    }
+
+    function selectSlowDb() {
+      var el = document.getElementById('db_name');
+      el.value = 'slow_db';
       el.dispatchEvent(new Event('change'));
       updateDebug();
     }
