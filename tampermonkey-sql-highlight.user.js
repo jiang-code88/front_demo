@@ -1627,6 +1627,27 @@
     // 初始同步到 textarea
     syncToTextarea();
 
+    // ── 暴露 AutoFill Helper 适配器（可选协议，见 tampermonkey-autofill.user.js）──
+    // 挂载到 .cm-content（浏览器 focus/blur/input 事件实际派发到的节点），
+    // 让第三方脚本无需了解 CM6 内部实现即可读写编辑器内容。setRange 走
+    // editor.dispatch()，与用户真实输入走同一条状态更新通道，本脚本自身的
+    // updateListener（同步 textarea / 持久化 Tab / 触发 lint 等）会自动跟着
+    // 触发，不需要额外补发 input/change 事件。
+    var cmContentEl = editor.dom.querySelector('.cm-content');
+    if (cmContentEl) {
+      cmContentEl.__afhAdapter = {
+        getValue: function () { return editor.state.doc.toString(); },
+        getSelectionStart: function () { return editor.state.selection.main.head; },
+        setRange: function (start, end, text) {
+          editor.dispatch({
+            changes: { from: start, to: end, insert: text },
+            selection: { anchor: start + text.length }
+          });
+        },
+        focus: function () { editor.focus(); }
+      };
+    }
+
     // ── 拦截"提交"按钮：改为 AJAX 提交，不再整页刷新 ──
     // form 里有重复 id="check_submit"（提交/导出各一个），querySelector 取到的
     // 是第一个即"提交"按钮，与原生 getElementById 行为一致；导出按钮走

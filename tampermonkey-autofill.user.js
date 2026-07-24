@@ -95,6 +95,55 @@
   ].join(',');
 
   // ════════════════════════════════════════════════════════════════════════
+  //  适配器协议（Adapter Protocol）
+  //  用于兼容非原生 input/textarea 的可编辑控件（如 CodeMirror 6 等富文本/代码
+  //  编辑器）。任何第三方脚本只需在其可聚焦的 DOM 节点上挂载
+  //  el.__afhAdapter = { getValue, getSelectionStart, setRange, focus }，
+  //  即可让该节点被 AutoFill Helper 当作可填充目标处理，无需 AutoFill Helper
+  //  感知具体是什么编辑器实现，两者完全解耦。
+  // ════════════════════════════════════════════════════════════════════════
+
+  /**
+   * 获取元素上挂载的适配器（若存在且形状合法）
+   * @param {HTMLElement} el
+   * @returns {Object|null} 适配器对象，或 null
+   */
+  function getAdapter(el) {
+    var a = el && el.__afhAdapter;
+    return (a && typeof a.getValue === 'function') ? a : null;
+  }
+
+  /**
+   * 判断元素是否为可填充目标：原生 input/textarea，或挂载了合法适配器的元素
+   * @param {HTMLElement} el
+   * @returns {boolean}
+   */
+  function isFillTarget(el) {
+    return !!(el && el.matches && (el.matches(INPUT_SELECTOR) || getAdapter(el)));
+  }
+
+  /**
+   * 通用取值：有适配器走适配器，否则走原生 .value
+   * @param {HTMLElement} el
+   * @returns {string}
+   */
+  function getElValue(el) {
+    var a = getAdapter(el);
+    return a ? a.getValue() : el.value;
+  }
+
+  /**
+   * 通用取光标位置：有适配器走适配器，否则走原生 .selectionStart
+   * @param {HTMLElement} el
+   * @returns {number}
+   */
+  function getElCaret(el) {
+    var a = getAdapter(el);
+    if (a) return a.getSelectionStart();
+    return (typeof el.selectionStart === 'number') ? el.selectionStart : getElValue(el).length;
+  }
+
+  // ════════════════════════════════════════════════════════════════════════
   //  数据读写层（Data Layer）
   //  负责与 Tampermonkey 存储进行交互，提供数据的 CRUD 操作
   // ════════════════════════════════════════════════════════════════════════
@@ -1065,8 +1114,8 @@
   }, true);
   
   document.addEventListener('focusin', function (e) {
-    // e.target 存在，且支持 matches 方法，且匹配选择器，检查聚焦的元素是否是表单输入框
-    if (e.target && e.target.matches && e.target.matches(INPUT_SELECTOR)) {
+    // 检查聚焦的元素是否是表单输入框，或挂载了适配器的可编辑控件
+    if (isFillTarget(e.target)) {
       // 如果是，调用 showIcon() 显示图标，传递鼠标位置
       showIcon(e.target, lastMousePos);
     }
@@ -1082,7 +1131,7 @@
    */
   // 监听输入框失焦
   document.addEventListener('focusout', function (e) {
-    if (e.target && e.target.matches && e.target.matches(INPUT_SELECTOR)) {
+    if (isFillTarget(e.target)) {
       scheduleHideIcon();
     }
   }, true);
@@ -1092,7 +1141,7 @@
     // 跳过由 fillInput/fillInlineInput 派发的合成 input 事件，避免循环触发
     if (isFilling) return;
     var t = e.target;
-    if (!(t && t.matches && t.matches(INPUT_SELECTOR))) return;
+    if (!isFillTarget(t)) return;
     clearTimeout(inputDebounceTimer);
     inputDebounceTimer = setTimeout(function () {
       handleInlineInput(t);
@@ -1506,7 +1555,7 @@
     valInput.className = 'afh-finput afh-finput-ta';
     valInput.placeholder = '填入内容';
     valInput.value = editingItem ? editingItem.value
-                   : (activeInput ? activeInput.value : '');
+                   : (activeInput ? getElValue(activeInput) : '');
 
     var row = document.createElement('div');
     row.className = 'afh-frow';
@@ -1569,6 +1618,14 @@
    * @param {string} value - 要填入的值
    */
   function fillInput(el, value) {
+    // 适配器目标（如 CM6 编辑器）：整体替换全文
+    var adapter = getAdapter(el);
+    if (adapter) {
+      adapter.setRange(0, adapter.getValue().length, value);
+      if (adapter.focus) adapter.focus();
+      return;
+    }
+
     el.focus();
     try {
       // 获取原型上的 value 属性描述符（解决某些框架的限制）
@@ -1598,9 +1655,10 @@
    * @returns {Object} { lineStart, lineEnd, lineTerm, wholeTerm }
    */
   function getInlineQuery(el) {
-    var value = el.value;
-    // selectionStart 在某些 input 类型（如 number）下为 null，回退到末尾
-    var caret = (typeof el.selectionStart === 'number') ? el.selectionStart : value.length;
+    var value = getElValue(el);
+    // selectionStart 在某些 input 类型（如 number）下为 null，回退到末尾；
+    // 适配器目标（如 CM6 编辑器）走 getElCaret 里的适配器分支
+    var caret = getElCaret(el);
     // 当前行起点：光标前最近一个换行符之后
     var lineStart = value.lastIndexOf('\n', caret - 1) + 1;
     // 当前行终点：光标后最近一个换行符（无则到结尾）
@@ -1677,7 +1735,7 @@
    * @param {string} matchType - 'whole' | 'line'
    */
   function fillInlineInput(el, item, matchType) {
-    var value = el.value;
+    var value = getElValue(el);
     var start, end;
     if (matchType === 'line' && inlineCtx) {
       start = inlineCtx.lineStart;
@@ -1687,6 +1745,16 @@
       start = 0;
       end   = value.length;
     }
+
+    // 适配器目标（如 CM6 编辑器）：按区间替换，适配器内部的状态更新通道会
+    // 自动触发其自身的响应式逻辑（同步/持久化/lint 等），无需再派发合成事件
+    var adapter = getAdapter(el);
+    if (adapter) {
+      adapter.setRange(start, end, item.value);
+      if (adapter.focus) adapter.focus();
+      return;
+    }
+
     var newVal  = value.slice(0, start) + item.value + value.slice(end);
     var caretPos = start + item.value.length;
 
@@ -1798,7 +1866,7 @@
   function handleInlineInput(el) {
     if (isFilling) return;
     // 输入清空：关闭面板
-    if (el.value === '') { closePanel(); return; }
+    if (getElValue(el) === '') { closePanel(); return; }
 
     inlineCtx = getInlineQuery(el);
     var domain = getCurrentDomain();
