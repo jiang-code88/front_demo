@@ -707,7 +707,7 @@
       page: 1,
       resultHtml: '',
       errorMsg: null,
-      status: 'idle', // idle / loading / done / error / cancelled / session-expired / net-error
+      status: 'idle', // idle / loading / done / error / cancelled / session-expired / net-error / no-permission
       requestSeq: 0,  // 竞态防护：每次 submitQuery 自增，响应回来时比对
       abortController: null // 取消查询用：submitQuery 发起时创建，cancelQuery/请求结束后清空
     };
@@ -998,6 +998,23 @@
   }
 
   /**
+   * 检测响应 HTML 里是否带有"无权限"提示条（对应 sqltools_no_permission.html
+   * 的 `<div class="alert alert-message">`：位于 `.container` 内、`.content`
+   * 之外，跟结果表格是完全独立的两块 DOM，且没有权限时表单本身仍会正常渲染，
+   * 所以不能靠"有没有结果表格"来判断，必须单独检测这个提示条）。
+   * 命中则返回提示文案（已去掉关闭按钮 "×" 的文本），未命中返回 null。
+   */
+  function getPermissionDeniedMessage(doc) {
+    var alertEl = doc.querySelector('.alert.alert-message');
+    if (!alertEl) return null;
+    var clone = alertEl.cloneNode(true);
+    var closeBtn = clone.querySelector('.close');
+    if (closeBtn) closeBtn.remove();
+    var text = clone.textContent.replace(/\s+/g, ' ').trim();
+    return text || '没有权限访问该数据库';
+  }
+
+  /**
    * 读取分页器里 #pageindex 输入框的当前页码（解析失败则回退为 1）。
    * 注意："共 N 页" 这段文字不解析（已知会出现 "共 1L页" 这种异常文本）。
    */
@@ -1053,6 +1070,11 @@
     var contentEl = doc.querySelector('.content');
     if (!contentEl) {
       return { sessionExpired: true };
+    }
+
+    var permissionMsg = getPermissionDeniedMessage(doc);
+    if (permissionMsg) {
+      return { noPermission: true, errorMsg: permissionMsg };
     }
 
     var block = extractResultBlock(contentEl);
@@ -1165,6 +1187,11 @@
         return;
       case 'net-error':
         contentEl.innerHTML = '<div class="cm-result-placeholder cm-result-warn">' + escapeHtml(tab.errorMsg || '请求失败，请重试') + '</div>';
+        return;
+      case 'no-permission':
+        // 效果与"未选择数据库"提示统一：结果面板内嵌一条红色提示文字，
+        // 具体文案取自页面 `.alert-message` 里的真实提示，不写死
+        contentEl.innerHTML = '<div class="cm-result-placeholder cm-result-warn">' + escapeHtml(tab.errorMsg || '没有权限访问该数据库') + '</div>';
         return;
       case 'cancelled':
         contentEl.innerHTML = '<div class="cm-result-placeholder">已取消查询，可修改 SQL 后重新提交</div>';
@@ -1296,6 +1323,9 @@
       var result = parseSubmitResponse(text);
       if (result.sessionExpired) {
         tab.status = 'session-expired';
+      } else if (result.noPermission) {
+        tab.status = 'no-permission';
+        tab.errorMsg = result.errorMsg;
       } else {
         tab.resultHtml = result.html;
         tab.errorMsg = result.errorMsg || null;

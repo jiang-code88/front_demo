@@ -112,6 +112,7 @@
       刷新页面后 Tab 内容自动恢复、未选数据库时的红色提示、长查询取消。
       数据库选 <code>error_db</code> 会模拟报错；选 <code>demo_db</code> 会返回 3 页假数据；
       选 <code>slow_db</code> 会模拟一个 8 秒才返回的长查询，可用于测试点击"取消查询"；
+      选 <code>no_permission_db</code> 会模拟无数据库权限（对应真实平台的 <code>sqltools_no_permission.html</code>）；
       不选数据库直接点提交会看到红色提示。
     </div>
 
@@ -127,6 +128,7 @@
                 <option value="demo_db">demo_db</option>
                 <option value="error_db">error_db</option>
                 <option value="slow_db">slow_db（模拟长查询）</option>
+                <option value="no_permission_db">no_permission_db（模拟无权限）</option>
               </select>
             </div>
           </div>
@@ -167,6 +169,7 @@
       <button class="btn btn-default btn-sm sample-btn" onclick="selectDemoDb()">选中 demo_db</button>
       <button class="btn btn-default btn-sm sample-btn" onclick="selectErrorDb()">选中 error_db（模拟报错）</button>
       <button class="btn btn-warning btn-sm sample-btn" onclick="selectSlowDb()">选中 slow_db（模拟长查询，用于测试取消/未选数据库校验）</button>
+      <button class="btn btn-default btn-sm sample-btn" onclick="selectNoPermissionDb()">选中 no_permission_db（模拟无权限）</button>
     </div>
 
     <!-- 调试面板 -->
@@ -257,13 +260,24 @@
         '<tr><td>Error</td></tr><tr><td>' + escapeMockHtml(msg) + '</td></tr></table></div>';
     }
 
-    function buildFakeResponseHtml(bodyHtml) {
-      return '<!DOCTYPE html><html><body><div class="content">' +
+    // 无权限提示条 HTML：与真实平台 sqltools_no_permission.html 结构一致
+    // （位于 .container 内、.content 之外，跟结果表格是完全独立的两块 DOM）
+    function buildNoPermissionAlertHtml() {
+      return '<div class="alert alert-message">' +
+        '<button type="button" class="close" data-dismiss="alert">&times;</button>' +
+        "<div align=\"center\" style='font-size:15px'>没有申请SQL账户权限或者已过期，请前往申请查询权限.</div>" +
+        '</div>';
+    }
+
+    function buildFakeResponseHtml(bodyHtml, alertHtml) {
+      return '<!DOCTYPE html><html><body><div class="container">' +
+        (alertHtml || '') +
+        '<div class="content">' +
         '<form method="POST" name="QueryToolForm" action="sqltools"></form>' +
         '<div class="row" style="border-bottom: 2px solid lightblue;"></div>' +
         '<p> 支持操作: select，show, describe(desc) </p>' +
         bodyHtml +
-        '</div></body></html>';
+        '</div></div></body></html>';
     }
 
     function logMock(text) {
@@ -289,8 +303,13 @@
       return new Promise(function (resolve) {
         setTimeout(function () {
           var bodyHtml;
+          var alertHtml = '';
           if (!dbName) {
             bodyHtml = buildErrorTableHtml('请先选择数据库');
+          } else if (dbName === 'no_permission_db') {
+            // 无权限场景：表单正常渲染，但没有结果表格，取而代之的是页面顶部的提示条
+            bodyHtml = '';
+            alertHtml = buildNoPermissionAlertHtml();
           } else if (dbName === 'error_db') {
             bodyHtml = buildErrorTableHtml("(1146, \"Table '" + dbName + ".demo' doesn't exist\")");
           } else {
@@ -298,7 +317,7 @@
             if (page > totalPages) page = totalPages;
             bodyHtml = buildResultTableHtml(dbName, sql, page) + buildPagerHtml(page, totalPages);
           }
-          var html = buildFakeResponseHtml(bodyHtml);
+          var html = buildFakeResponseHtml(bodyHtml, alertHtml);
           resolve(new Response(html, { status: 200, headers: { 'Content-Type': 'text/html; charset=utf-8' } }));
         }, delay);
       });
@@ -471,6 +490,13 @@
     function selectSlowDb() {
       var el = document.getElementById('db_name');
       el.value = 'slow_db';
+      el.dispatchEvent(new Event('change'));
+      updateDebug();
+    }
+
+    function selectNoPermissionDb() {
+      var el = document.getElementById('db_name');
+      el.value = 'no_permission_db';
       el.dispatchEvent(new Event('change'));
       updateDebug();
     }
