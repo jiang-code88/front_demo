@@ -2,7 +2,7 @@
 // @name         SQL Editor (CodeMirror 6)
 // @namespace    https://github.com/sql-highlight
 // @version      2.0.0
-// @description  使用 CodeMirror 6 为 SQL 工具页面提供语法高亮、自动补全、多 Tab 独立查询
+// @description  使用 CodeMirror 6 为 SQL 工具页面提供语法高亮、自动补全、语法诊断、多 Tab 独立查询
 // @author       You
 // @match        *://vinops.qipeipu.net/operate/sqltools*
 // @match        file:///*test-sql-highlight.html
@@ -40,6 +40,7 @@
   //                     │  │  CodeMirror 6 编辑器                         │ │
   //                     │  │  • SQL 语法高亮（MySQL 方言）                │ │
   //                     │  │  • 自动补全（关键字 + 当前库表/字段名）       │ │
+  //                     │  │  • 语法诊断（真实 MySQL 解析，波浪线+图标）   │ │
   //                     │  │  • 行号 / 括号匹配 / 代码折叠                 │ │
   //                     │  │  • 暗色主题（One Dark）                      │ │
   //                     │  ├─────────────────────────────────────────────┤ │
@@ -86,7 +87,11 @@
     view: 'https://esm.sh/@codemirror/view@6',
     langSql: 'https://esm.sh/@codemirror/lang-sql@6',
     autocomplete: 'https://esm.sh/@codemirror/autocomplete@6',
-    themeOneDark: 'https://esm.sh/@codemirror/theme-one-dark@6'
+    themeOneDark: 'https://esm.sh/@codemirror/theme-one-dark@6',
+    // SQL 语法诊断：0.x 阶段的包，次版本号也可能有破坏性变更，显式锁定版本号
+    sqlLintPkg: 'https://esm.sh/@marimo-team/codemirror-sql@0.3.0',
+    // lintGutter() 未被 @marimo-team/codemirror-sql 重新导出，需单独加载
+    lint: 'https://esm.sh/@codemirror/lint@6'
   };
 
   // 编辑器默认高度（与原 textarea 一致）
@@ -358,6 +363,9 @@
    * - @codemirror/lang-sql: sql(), MySQL 方言, keywordCompletionSource（官方关键字补全源）
    * - @codemirror/autocomplete: autocompletion()（补全框架，多个补全源组合展示）
    * - @codemirror/theme-one-dark: oneDark 主题
+   * - @marimo-team/codemirror-sql: sqlExtension()/NodeSqlParser（真实 MySQL 语法诊断，
+   *   底层是 node-sql-parser，首次真正跑 lint 时才会懒加载该依赖，不影响初次加载耗时）
+   * - @codemirror/lint: lintGutter()（诊断行号栏图标，未被上面的包重新导出，需单独取）
    *
    * 失败场景：网络不通、CSP 阻止 import()、esm.sh 不可访问。
    * 调用方负责 try-catch 并降级为原生 textarea。
@@ -366,6 +374,8 @@
     var cm = await import(CM6_URLS.codemirror);
     var sqlMod = await import(CM6_URLS.langSql);
     var themeMod = await import(CM6_URLS.themeOneDark);
+    var sqlLintMod = await import(CM6_URLS.sqlLintPkg);
+    var lintMod = await import(CM6_URLS.lint);
 
     // 缓存已加载的兜底子包，避免同一子包被 import() 两次
     var stateMod = null;
@@ -406,7 +416,10 @@
       sql: sqlMod.sql,
       MySQL: sqlMod.MySQL,
       keywordCompletionSource: sqlMod.keywordCompletionSource,
-      oneDark: themeMod.oneDark
+      oneDark: themeMod.oneDark,
+      sqlExtension: sqlLintMod.sqlExtension,
+      NodeSqlParser: sqlLintMod.NodeSqlParser,
+      lintGutter: lintMod.lintGutter
     };
   }
 
@@ -1447,7 +1460,8 @@
 
     // 加载成功，验证关键 API 是否存在
     if (!CM6.EditorView || !CM6.EditorState || !CM6.basicSetup || !CM6.keymap || !CM6.placeholder
-      || !CM6.autocompletion || !CM6.keywordCompletionSource) {
+      || !CM6.autocompletion || !CM6.keywordCompletionSource
+      || !CM6.sqlExtension || !CM6.NodeSqlParser || !CM6.lintGutter) {
       console.error('[SQL Editor] CM6 模块加载不完整，缺少关键 API:', {
         EditorView: !!CM6.EditorView,
         EditorState: !!CM6.EditorState,
@@ -1455,7 +1469,10 @@
         keymap: !!CM6.keymap,
         placeholder: !!CM6.placeholder,
         autocompletion: !!CM6.autocompletion,
-        keywordCompletionSource: !!CM6.keywordCompletionSource
+        keywordCompletionSource: !!CM6.keywordCompletionSource,
+        sqlExtension: !!CM6.sqlExtension,
+        NodeSqlParser: !!CM6.NodeSqlParser,
+        lintGutter: !!CM6.lintGutter
       });
       loadingEl.className = 'cm-error';
       loadingEl.textContent = 'CodeMirror 6 模块加载不完整，缺少关键 API。';
@@ -1512,6 +1529,27 @@
                 dbTokenCompletionSource
               ]
             }),
+
+            // SQL 语法诊断：真实 MySQL 方言解析（node-sql-parser），只做语法检查，
+            // 不启用依赖表结构 schema 的语义检查/hover/跳转（当前 dbTokensCache 是
+            // 扁平 token 列表，没有表-字段从属关系，做语义检查容易误报）
+            CM6.sqlExtension({
+              enableSemanticLinting: false,
+              enableHover: false,
+              enableNavigation: false,
+              enableGutterMarkers: false,
+              linterConfig: {
+                delay: 500,
+                parser: new CM6.NodeSqlParser({
+                  getParserOptions: function () {
+                    return { database: 'MySQL' };
+                  }
+                })
+              }
+            }),
+
+            // 诊断行号栏图标（悬浮可看错误详情）
+            CM6.lintGutter(),
 
             // 暗色主题（One Dark）
             CM6.oneDark,
