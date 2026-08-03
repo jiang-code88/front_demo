@@ -1,0 +1,305 @@
+import csv
+import os
+import sys
+
+from datetime import datetime
+
+from common.connection_config import get_dict_cursor
+from common.file_config import execute_sql_file, load_local_data_infile_inner, execute_sql, distinct_file
+from common.path_config import get_data_basic_path, get_cache_basic_path
+from common.epc_vehicle_series_update import insertVehicleSeries
+
+DATA_BASE_PATH = os.path.join(get_data_basic_path(), '{{BRAND_EN}}')
+DATA_CACHE_PATH = os.path.join(get_cache_basic_path(), '{{BRAND_EN}}')
+
+vehicle_data_file = 'raw_ve_data.csv'
+
+raw_group_data_file = 'raw_group_data.csv'
+raw_parts_data_file = 'raw_parts_data.csv'
+raw_hotspot_data_file = 'raw_hotspot_data.csv'
+
+
+def get_brand_dict_cursor():
+    return get_dict_cursor("{{BRAND_EN}}_evo")
+
+
+def get_largest_date_dir():
+    numeric_directories = []
+    for entry in os.listdir(DATA_BASE_PATH):
+        full_path = os.path.join(DATA_BASE_PATH, entry)
+        if os.path.isdir(full_path) and entry.isdigit():
+            numeric_directories.append(int(entry))
+    if not numeric_directories:
+        raise RuntimeError(f"{DATA_BASE_PATH} 下不存在数字日期目录")
+    return str(max(numeric_directories))
+
+
+def get_source_file_path(file_name):
+    return os.path.join(DATA_BASE_PATH, get_largest_date_dir(), "data", file_name)
+
+
+def get_cache_file_path(file_name):
+    directory_path = os.path.join(DATA_CACHE_PATH, get_largest_date_dir(), "data")
+    os.makedirs(directory_path, exist_ok=True)
+    return os.path.join(directory_path, file_name)
+
+
+def _write_source_to_cache_utf8(source_path, cache_path):
+    last_error = None
+    for encoding in ('utf-8', 'gbk'):
+        try:
+            with open(source_path, 'r', encoding=encoding, newline='') as file_in:
+                with open(cache_path, 'w', encoding='utf-8', newline='') as file_out:
+                    for line in file_in:
+                        file_out.write(line)
+            return
+        except UnicodeDecodeError as e:
+            last_error = e
+    raise RuntimeError(
+        f"无法将源文件转为 UTF-8：{source_path}（日期目录 {get_largest_date_dir()}），"
+        f"已尝试编码：utf-8、gbk"
+    ) from last_error
+
+
+def prepare_cache_file(file_name):
+    source_path = get_source_file_path(file_name)
+    cache_path = get_cache_file_path(file_name)
+    _write_source_to_cache_utf8(source_path, cache_path)
+    distinct_csv_records(cache_path)
+    return cache_path
+
+
+def distinct_csv_records(file):
+    backup = file + ".bak"
+    seen = set()
+    with open(file, 'r', encoding='utf-8', newline='') as infile, \
+            open(backup, 'w', encoding='utf-8', newline='') as outfile:
+        reader = csv.reader(infile)
+        writer = csv.writer(outfile)
+        for row in reader:
+            row_tuple = tuple(row)
+            if row_tuple not in seen:
+                writer.writerow(row)
+                seen.add(row_tuple)
+    os.replace(backup, file)
+
+
+groups_csv_field_names = ['channel',
+                          'catalog',
+                          "group_level", "group_path", "parent_group_path",
+                          'group_no', 'group_order', "group_name", 'group_desc',
+                          'group_image_uri', 'group_image_id', 'group_features',
+                          ]
+parts_csv_field_names = ['channel',
+                         'catalog',
+                         'group_path',
+                         "parts_order", "parts_position", "parts_code", "parts_quantity", "parts_name",
+                         "parts_remark",
+                         "parts_features"
+                         ]
+hotspot_csv_field_names = ['channel',
+                           'catalog',
+                           'group_path', "parts_position", 'top_left_x', 'top_left_y',
+                           'bottom_right_x', 'bottom_right_y',
+                           ]
+
+vehicle_csv_field_names = ['vehicle_model', 'features', 'brand', 'catalog']
+
+
+def load_group():
+    load(get_brand_dict_cursor(), 'raw_group_data', raw_group_data_file, groups_csv_field_names)
+
+
+def load_parts():
+    load(get_brand_dict_cursor(), 'raw_parts_data', raw_parts_data_file, parts_csv_field_names)
+
+
+def load_hotspot():
+    load(get_brand_dict_cursor(), 'raw_hotspot_data', raw_hotspot_data_file, hotspot_csv_field_names)
+
+
+def load_vehicle(table_name):
+    load(get_brand_dict_cursor(), table_name, vehicle_data_file, vehicle_csv_field_names)
+
+
+def detect_newline(path):
+    with open(path, 'rb') as f:
+        for chunk in iter(lambda: f.read(4096), b''):
+            if b'\r\n' in chunk:
+                return '\\r\\n'
+            if b'\n' in chunk:
+                return '\\n'
+            if b'\r' in chunk:
+                return '\\r'
+    return None
+
+
+def load(cursor, table_name, file_name, csv_field_names):
+    file_path = prepare_cache_file(file_name)
+    newline = detect_newline(file_path)
+    print("newline:%s" % newline)
+    load_local_data_infile_inner(cursor, file_path, table_name,
+                                 ['`' + field_name + '`' for field_name in csv_field_names], True,
+                                 True, newline)
+
+
+def output_miss_data(writer, data, type, error_msg):
+    result = []
+    for d in data:
+        result.append({
+            "catalog": d['car_series'],
+            "group_path": d['group_path_origin'],
+            "group_name": d['group_name'],
+            "group_image_id": d['group_image_id'],
+            "group_level": d['group_level'],
+            "error_type": type,
+            "error_msg": error_msg
+        })
+    writer.writerows(result)
+
+
+def raw_data_check(group_level):
+    cursor = get_brand_dict_cursor()
+    lack_sub_group_sql = '''
+          SELECT DISTINCT
+            C.car_series,
+            A.group_path_origin,
+            A.group_name,
+            A.group_image_id,
+            A.group_level
+          FROM
+            raw_group_data A
+            LEFT JOIN raw_group_data B ON A.catalog = B.catalog
+            AND A.group_path = B.parent_group_path
+            JOIN epc_vehicle C ON c.vehicle_model = A.catalog
+          WHERE
+            A.group_level = 1
+            AND B.id IS NULL;
+    '''
+    lack_parts_group_sql = '''
+      SELECT DISTINCT
+        C.car_series,
+        A.group_path_origin,
+        A.group_name,
+        A.group_image_id,
+        A.group_level
+      FROM
+        raw_group_data A
+        LEFT JOIN raw_parts_data B ON A.catalog = B.catalog
+        AND A.group_path = B.group_path
+        JOIN epc_vehicle C ON c.vehicle_model = A.catalog
+      WHERE
+        A.group_level = {group_level}
+        AND B.id IS NULL;
+    '''
+
+    lack_image_group_sql = '''
+      SELECT DISTINCT
+        C.car_series,
+        A.group_path_origin,
+        A.group_name,
+        A.group_image_id,
+        A.group_level
+      FROM
+        raw_group_data A
+        LEFT JOIN epc_image_path B ON A.group_image_id = CONCAT(B.`originPath`, ".", B.originSuffix)
+        JOIN epc_vehicle C ON C.vehicle_model = A.catalog
+      WHERE B.id IS NULL
+      AND A.group_level != 1
+    '''
+    lack_hotspot_group_sql = '''
+      SELECT DISTINCT
+        C.car_series,
+        A.group_path_origin,
+        A.group_name,
+        A.group_image_id,
+        A.group_level
+      FROM
+        raw_group_data A
+        LEFT JOIN raw_hotspot_data h ON A.group_image_id = h.group_path
+        JOIN epc_vehicle C on C.vehicle_model = A.catalog
+      WHERE
+        A.group_level = 2
+        AND h.id IS NULL;
+    '''
+
+    cursor.execute(lack_sub_group_sql)
+    result = cursor.fetchall()
+    if not os.path.exists(DATA_CACHE_PATH):
+        os.mkdir(DATA_CACHE_PATH)
+    with open(os.path.join(DATA_CACHE_PATH, r'midss_data.csv'), 'w', encoding='utf-8', newline='') as csvfile:
+        error_content_field_names = ['catalog', 'group_path', 'group_name', 'group_image_id', 'group_level',
+                                     'error_type', 'error_msg']
+        writer = csv.DictWriter(csvfile, fieldnames=error_content_field_names)
+        writer.writeheader()
+        output_miss_data(writer, result, 'no_sub_group', '无子组的组')
+        cursor.execute(lack_parts_group_sql.format(group_level=group_level))
+        result = cursor.fetchall()
+        output_miss_data(writer, result, 'empty_parts', '无配件的组')
+        cursor.execute(lack_image_group_sql)
+        result = cursor.fetchall()
+        output_miss_data(writer, result, 'lack_image', '缺少图片的组')
+        cursor.execute(lack_hotspot_group_sql.format(group_level=group_level))
+        result = cursor.fetchall()
+        output_miss_data(writer, result, 'lack_hot_spot_data', '缺少热点数据的组')
+
+
+if __name__ == '__main__':
+
+    step = None
+    if len(sys.argv) > 1:
+        step = sys.argv[1]
+    now = datetime.now()
+    date_time_str = now.strftime("%Y%m%d%H%M")
+    print(date_time_str)
+    if not step or step == 'check':
+        load_group()
+        load_parts()
+        load_hotspot()
+        load_vehicle('raw_ve')
+
+    if not step or step == 'process':
+        with open(file="sql/{{BRAND_EN}}.sql", mode="r", encoding="utf-8") as file:
+            execute_sql_file(get_brand_dict_cursor(), file)
+
+        table_fields = ['车型名称']
+        query_vehiser_series_sql = '''
+          SELECT
+            '{{BRAND_EN}}_evo' as analyser,
+            features ->> '$.brand' as brand,
+            SUBSTRING_INDEX(SUBSTRING_INDEX(car_series, '/', 3), '/', -1) AS "车型名称",
+            vehicle_model AS vehicle_model,
+            '{}' AS features
+          FROM
+            epc_vehicle
+          order by 3,4
+        '''
+        cursor = get_brand_dict_cursor()
+        cursor.execute(query_vehiser_series_sql)
+        vehicleSeries = cursor.fetchall()
+        insertVehicleSeries(vehicleSeries, table_fields)
+
+    if not step or step == 'mapping':
+        cursor = get_brand_dict_cursor()
+
+        with open(file="sql/v2_dc_parts_{{BRAND_EN}}.sql", mode="r", encoding="utf-8") as file:
+            execute_sql_file(cursor, file)
+
+        execute_sql(cursor, "select max(id) max_id from dc_parts_info_{{BRAND_EN}}_load;")
+        max_id = cursor.fetchone()["max_id"]
+        if not max_id:
+            max_id = 0
+        cursor.execute("SHOW COLUMNS FROM dc_parts_info_{{BRAND_EN}}_new")
+        columns = [row["Field"] for row in cursor.fetchall()]
+        filtered_columns = [col for col in columns if col != "id"]
+        insert_column_list = ", ".join(filtered_columns)
+        execute_sql(cursor, "truncate dc_parts_info_{{BRAND_EN}}_new;")
+        execute_sql(cursor, f"ALTER TABLE dc_parts_info_{{BRAND_EN}}_new auto_increment = {max_id + 1}")
+        execute_sql(cursor, f"""
+            INSERT INTO dc_parts_info_{{BRAND_EN}}_new({insert_column_list})
+            SELECT {insert_column_list}
+            FROM dc_parts_info_{{BRAND_EN}}
+            WHERE parts_id not in (SELECT parts_id from dc_parts_info_{{BRAND_EN}}_load);
+        """)
+
+        raw_data_check(2)

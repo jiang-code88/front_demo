@@ -1,0 +1,51 @@
+# {{BRAND_CN}}（{{BRAND_EN}}）EPC 数据清洗
+
+数据库：`{{BRAND_EN}}_evo`
+
+## 数据目录
+
+将 CSV 放入版本子目录（取最大数字版本号）：
+
+```
+{data_basic_path}/{{BRAND_EN}}/{版本号}/data/
+  raw_group_data.csv
+  raw_hotspot_data.csv
+  raw_parts_data.csv
+  raw_ve_data.csv
+```
+
+## 建表
+
+执行 [sql/init_tables.sql](sql/init_tables.sql) 创建 epc_* 表、raw 表与 dc_parts 表：
+
+- epc：`epc_dict`、`epc_feature`、`epc_group`、`epc_group_parts`、`epc_image`、`epc_image_hotspot`、`epc_parts`、`epc_parts_id_epc_parts_id_relation`、`epc_vehicle`、`epc_vehicle_group`、`epc_vehicle_group_parts`、`epc_vehicle_id_btr_id_mj_relation`、`epc_vin`、`epc_vin_vehicle`
+- raw：`raw_catalog_mapping`、`raw_group_data`、`raw_parts_data`、`raw_hotspot_data`、`raw_ve`
+- dc：`dc_parts_info_{{BRAND_EN}}`、`dc_parts_info_{{BRAND_EN}}_load`、`dc_parts_info_{{BRAND_EN}}_new`、`dc_parts_image_{{BRAND_EN}}`、`dc_parts_image_hotspot_{{BRAND_EN}}`
+
+```sql
+-- 在 {{BRAND_EN}}_evo 库执行
+source sql/init_tables.sql;
+```
+
+## 执行步骤
+
+在 `brand/{{BRAND_EN}}` 目录下：
+
+```bash
+# 1. 导入 raw 数据
+python {{BRAND_EN}}.py check
+
+# 2. 清洗 epc
+python {{BRAND_EN}}.py process
+
+# 3. 主名映射 dc_parts
+python {{BRAND_EN}}.py mapping
+```
+
+或使用 shell：`check.sh` / `process.sh` / `mapping.sh`。
+
+## 平台注册
+
+执行 [sql/other.sql](sql/other.sql) 注册 `{{BRAND_EN}}_evo` 分析器，并更新 `vinanalysis.qp_brand`（BrandID={{BRAND_ID}}）。
+
+> **注意**：`other.sql` 中 `伟成，麻烦...` 之后的部分为运维手动执行内容，请勿在自动化脚本中执行。

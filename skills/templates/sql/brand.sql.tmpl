@@ -1,0 +1,254 @@
+UPDATE raw_ve SET catalog_origin = catalog;
+UPDATE raw_group_data SET catalog_origin = catalog, group_path_origin = group_path;
+UPDATE raw_parts_data SET catalog_origin = catalog, group_path_origin = group_path;
+UPDATE raw_hotspot_data SET catalog_origin = catalog, group_path_origin = group_path;
+
+UPDATE raw_parts_data SET parts_code=TRIM(UPPER(
+        REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(parts_code,
+        '!', ''), '@', ''),'#', ''), '$', ''), '%', ''), '^', ''), '&', ''),'*', ''), '(', ''), ')', ''), '-', '')
+));
+
+-- 清除不可见字符(换行符、制表符、回车符)
+UPDATE raw_parts_data
+SET parts_name = trim(REPLACE(REPLACE(REPLACE(IFNULL(parts_name, ''), CHAR(9), ''), CHAR(10), ''), CHAR(13), ''));
+
+UPDATE raw_parts_data
+SET parts_position = trim(REPLACE(REPLACE(REPLACE(IFNULL(parts_position, ''), CHAR(9), ''), CHAR(10), ''), CHAR(13), ''));
+
+UPDATE raw_parts_data
+SET parts_remark = trim(REPLACE(REPLACE(REPLACE(IFNULL(parts_remark, ''), CHAR(9), ''), CHAR(10), ''), CHAR(13), ''));
+
+UPDATE raw_group_data
+SET group_name = trim(REPLACE(REPLACE(REPLACE(IFNULL(group_name, ''), CHAR(9), ''), CHAR(10), ''), CHAR(13), ''));
+
+UPDATE raw_group_data
+SET group_no = trim(REPLACE(REPLACE(REPLACE(IFNULL(group_no, ''), CHAR(9), ''), CHAR(10), ''), CHAR(13), ''));
+
+UPDATE raw_group_data
+SET group_desc = trim(REPLACE(REPLACE(REPLACE(IFNULL(group_desc, ''), CHAR(9), ''), CHAR(10), ''), CHAR(13), ''));
+
+
+UPDATE raw_parts_data
+SET parts_features = JSON_SET(
+        COALESCE(parts_features, '{}'),
+        '$.remark',
+        parts_remark
+                     );
+
+truncate epc_image;
+insert into epc_image(name, `desc`, uri)
+select distinct group_image_id, group_image_uri, ''
+from raw_group_data
+where group_image_id != '';
+
+
+UPDATE epc_image,epc_image_path
+set uri=resultPath
+where name = CONCAT(`originPath`,".",originSuffix);
+
+update raw_group_data r ,epc_image i
+set r.group_epc_image_id=i.id
+where name = group_image_id
+and group_image_uri = `desc`;
+
+TRUNCATE epc_group;
+-- 主组
+INSERT INTO `epc_group`(`code`, `name`, `desc`, `parent_id`, `level`, `has_child`, `image_id`, `features`)
+SELECT DISTINCT '',
+                group_name,
+                group_no,
+                0,
+                1,
+                1,
+                ifnull(group_epc_image_id,0),
+                json_array(group_image_id)
+FROM raw_group_data
+where group_level = 1;
+
+
+UPDATE raw_group_data raw ,epc_group g
+set raw.group_id=g.id
+WHERE g.name = raw.group_name
+  and g.`desc` = raw.group_no
+  and g.features = json_array(group_image_id)
+  and g.level = 1
+  and raw.group_level = 1;
+
+
+UPDATE raw_group_data raw_p ,raw_group_data raw_g
+set raw_g.parent_group_id=raw_p.group_id
+WHERE raw_g.parent_group_path = raw_p.group_path
+and raw_p.catalog = raw_g.catalog;
+
+-- 图组
+INSERT INTO `epc_group`(`code`, `name`, `desc`, `parent_id`, `level`, `has_child`, `image_id`, `features`)
+SELECT DISTINCT g.group_no,
+                g.group_name,
+                g.group_desc,
+                g.parent_group_id,
+                2,
+                0,
+                ifnull(group_epc_image_id, 0),
+                json_array(group_image_id)
+FROM raw_group_data g
+where g.group_level = 2;
+
+
+
+UPDATE raw_group_data raw ,epc_group g
+set raw.group_id=g.id
+WHERE g.code = raw.group_no
+  and g.name = raw.group_name
+  and g.`desc` = raw.group_desc
+  and g.features = json_array(group_image_id)
+  and g.level = 2
+  and g.parent_id = raw.parent_group_id
+  and raw.group_level = 2;
+;
+
+
+-- 车型和组的关系
+TRUNCATE epc_vehicle_group;
+;
+INSERT ignore into epc_vehicle_group(vehicle_model, group_id, `order`, features)
+SELECT DISTINCT catalog, group_id, group_order, 'null'
+FROM raw_group_data;
+
+
+UPDATE raw_group_data g ,raw_parts_data r
+set r.group_id=g.group_id
+WHERE g.group_path = r.group_path
+and g.catalog = r.catalog
+and g.group_level=2;
+
+UPDATE raw_group_data g ,raw_parts_data r
+set r.group_id=g.group_id
+WHERE g.group_path = r.group_path
+and g.catalog = r.catalog
+and r.group_id is NULL
+and g.group_level=2;
+
+truncate epc_parts;
+INSERT INTO epc_parts(parts_code, origin_parts_code, epc_parts_name, remark, date_from, date_to, features)
+SELECT distinct parts_code,
+                parts_code,
+                parts_name,
+                '',
+               '1000-01-01',
+                '9999-12-31',
+                parts_features
+FROM raw_parts_data;
+
+
+DROP procedure if exists pro_epc_parts;
+# SQL PROCEDURE BEGIN #
+CREATE  PROCEDURE `pro_epc_parts`()
+begin
+    DECLARE range_end int;
+    DECLARE range_index int;
+    DECLARE range_incrment int;
+    set range_end = (SELECT MAX(id) from raw_parts_data);
+    set range_index = 0;
+    set range_incrment = 1000;
+
+    REPEAT
+        UPDATE raw_parts_data raw ,epc_parts p
+        SET raw.epc_parts_id=p.id
+    WHERE raw.parts_code = p.parts_code
+		AND p.origin_parts_code = raw.parts_code
+		AND p.epc_parts_name = raw.parts_name
+		AND p.features = raw.parts_features
+        AND raw.id >= range_index
+        AND raw.id < range_index + range_incrment;
+        SET range_index = range_index + range_incrment;
+        COMMIT;
+    UNTIL range_index > range_end END REPEAT;
+end;
+# SQL PROCEDURE FINISH #
+;
+
+call pro_epc_parts();
+
+UPDATE epc_parts SET parts_code=common_evo.alphanum(parts_code);
+
+
+truncate epc_vehicle_group_parts;
+insert into epc_vehicle_group_parts(vehicle_model, group_id, parts_id, actual_position, display_position, quantity,
+                                    features, `order`)
+select distinct g.catalog,
+                g.group_id,
+                epc_parts_id,
+                parts_position,
+                parts_position,
+                parts_quantity,
+                parts_features,
+                parts_order
+FROM raw_group_data g
+JOIN raw_parts_data r
+WHERE g.group_path = r.group_path
+and g.catalog = r.catalog;
+
+
+
+truncate epc_group_parts;
+insert into epc_group_parts(group_id, parts_id, actual_position)
+select distinct group_id, parts_id, actual_position FROM epc_vehicle_group_parts;
+
+
+UPDATE raw_group_data g ,raw_hotspot_data r
+set r.group_id=g.group_id,
+    r.image_id=g.group_epc_image_id
+WHERE g.catalog = r.catalog
+and g.group_path = r.group_path;
+
+
+truncate epc_image_hotspot;
+insert into epc_image_hotspot(image_id, position, top_left_x, top_left_y, bottom_right_x, bottom_right_y)
+select distinct i.image_id, parts_position, top_left_x, top_left_y, bottom_right_x, bottom_right_y
+from raw_hotspot_data i
+where i.image_id is not null;
+
+
+truncate epc_vehicle;
+INSERT INTO epc_vehicle (NO, vehicle_model, car_series, sales_version, date_from, date_to, area, transmission, engine, door_number, catalog, features)
+SELECT MD5(vehicle_model),
+       vehicle_model,
+       '',
+       '',
+       '1000-01-01',
+       '9999-12-31',
+       '',
+       '',
+       '',
+       '',
+       catalog,
+       JSON_OBJECT('brand', brand)
+FROM raw_ve;
+
+insert into epc_image(name, `desc`, uri)
+select name, '', ''
+from epc_group
+where level = 1;
+
+update epc_group t1 join epc_image t2 on t1.name = t2.name
+set t1.image_id = t2.id
+where t1.level = 1;
+
+update epc_image set uri = 'icon/1aa236fb8d0eea74b2b2242951f1233f.png' where name like '%动力%';
+update epc_image set uri = 'icon/1a126996312157ed192186703684e976.png' where name like '%底盘%';
+update epc_image set uri = 'icon/828ce4b2c71e3e388a6dc3cc54b08f03.png' where name like '%电器%';
+update epc_image set uri = 'icon/828ce4b2c71e3e388a6dc3cc54b08f03.png' where name like '%电气%';
+update epc_image set uri = 'icon/43fd92267834683e4155ee079f41762f.png' where name like '%内饰%';
+update epc_image set uri = 'icon/1aa236fb8d0eea74b2b2242951f1233f.png' where name like '%发动机%';
+update epc_image set uri = 'icon/81e5e7a641b60d4d804e0b17ed53a66a.png' where name like '%空调%';
+update epc_image set uri = 'icon/120b294c11a6ad08926a76180efbd2e9.png' where name like '%其他%';
+update epc_image set uri = 'icon/120b294c11a6ad08926a76180efbd2e9.png' where name like '%辅助材料%';
+update epc_image set uri = 'icon/120b294c11a6ad08926a76180efbd2e9.png' where name like '%工具%';
+update epc_image set uri = 'icon/85be4822976a60cc39b7e52bcd4f7ddf.png' where name like '%车身%';
+update epc_image set uri = 'icon/85be4822976a60cc39b7e52bcd4f7ddf.png' where name like '%外饰%';
+update epc_image set uri = 'icon/85be4822976a60cc39b7e52bcd4f7ddf.png' where name like '%四门两盖%';
+update epc_image set uri = 'icon/1a126996312157ed192186703684e976.png' where name like '%变速箱%';
+update epc_image set uri = 'icon/120b294c11a6ad08926a76180efbd2e9.png' where name like '%其它%';
+update epc_image set uri = 'icon/1a126996312157ed192186703684e976.png' where name like '%传动系统%';
+update epc_image set uri = 'icon/120b294c11a6ad08926a76180efbd2e9.png' where name like '%常用保养件%';
+update epc_image set uri = 'icon/120b294c11a6ad08926a76180efbd2e9.png' where name like '%特种%';

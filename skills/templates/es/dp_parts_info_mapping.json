@@ -1,0 +1,43 @@
+﻿{
+  "settings": {
+    "index": {
+      "number_of_shards": "5",
+      "number_of_replicas": "1"
+    }
+  },
+  "mappings": {
+    "{{MANUFACTURER}}": {
+      "properties": {
+        "@timestamp": { "type": "date" },
+        "@version": { "type": "text", "fields": { "keyword": { "type": "keyword", "ignore_above": 256 } } },
+        "brand": { "type": "keyword" },
+        "btr_parts_name": { "type": "keyword" },
+        "car_info": { "type": "keyword" },
+        "create_time": { "type": "date" },
+        "dir_list": { "type": "keyword" },
+        "direction": { "type": "keyword" },
+        "epc_desc": { "type": "keyword" },
+        "epc_name": { "type": "keyword" },
+        "feature_name": { "type": "keyword" },
+        "id": { "type": "long" },
+        "image_code": { "type": "keyword" },
+        "image_id": { "type": "keyword" },
+        "install_num": { "type": "keyword" },
+        "last_modifier": { "type": "text", "fields": { "keyword": { "type": "keyword", "ignore_above": 256 } } },
+        "main_group_desc": { "type": "keyword" },
+        "main_group_name": { "type": "keyword" },
+        "main_group_no": { "type": "keyword" },
+        "parts_code": { "type": "keyword" },
+        "parts_code_flag": { "type": "long" },
+        "parts_id": { "type": "keyword" },
+        "position": { "type": "keyword" },
+        "specification": { "type": "keyword" },
+        "status": { "type": "keyword" },
+        "sub_group_desc": { "type": "text", "fields": { "keyword": { "type": "keyword", "ignore_above": 256 } } },
+        "sub_group_name": { "type": "keyword" },
+        "sub_group_no": { "type": "keyword" },
+        "update_time": { "type": "date" }
+      }
+    }
+  }
+}

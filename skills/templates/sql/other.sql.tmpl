@@ -1,0 +1,245 @@
+-- ========== 以下由脚本自动执行 ==========
+
+-- common_evo.btr_analyser_config
+INSERT INTO `common_evo`.`btr_analyser_config` (`manufacturer`, `priority`, `name`, `analyser_bean`,
+                                                `db_url`, `db_user`, `db_password`, `db_publickey`,
+                                                `config`, `status`)
+VALUES ('{{MANUFACTURER}}', 1, '{{BRAND_EN}}_evo', '{{BRAND_EN}}_evo',
+        'jdbc:mysql://192.168.0.150:3319/{{BRAND_EN}}_evo?characterEncoding=UTF-8', 'evt',
+        'EgKjpfLJvbaO2w3amai6kAVKs5dyUMITE8VMck4bOgtLbx1SpFT4JC/BL2ZMqlAlUzqRB1Hy3jJlIPcMu8gRfg==',
+        'MFwwDQYJKoZIhvcNAQEBBQADSwAwSAJBAIX5K9AMbU9qBhpgdTUaW5HSu7N1R0mCUtLl430Sf4Qtr9OEZ35LMR71T2wMk77iRokC5zz6aG+nMdupV/UJiBMCAwEAAQ==',
+        '{}', 1)
+ON DUPLICATE KEY UPDATE manufacturer = VALUES(manufacturer),
+                        priority     = VALUES(priority),
+                        db_url       = VALUES(db_url),
+                        db_user      = VALUES(db_user),
+                        db_password  = VALUES(db_password),
+                        db_publickey = VALUES(db_publickey),
+                        config       = VALUES(config),
+                        status       = VALUES(status)
+;
+
+-- common_evo.btr_analyser_chain
+INSERT INTO `common_evo`.`btr_analyser_chain` (`manufacturer`, `brand_names`, `tag`, `analyser_chain`, `remark`, `status`) VALUES
+('{{MANUFACTURER}}', '*', '*', '[{"analysers": ["{{BRAND_EN}}_evo"]}, {"analysers": ["btr-vin"]}, {"analysers": ["zqy"]}, {"analysers": ["vds"]}]', '', 1);
+
+
+-- 修改品牌车厂归属（仅在用户确认需要修改时执行）
+UPDATE `vinanalysis`.`qp_brand`
+SET `manufacturer` = '{{MANUFACTURER}}'
+WHERE `BrandID` = {{BRAND_ID}};
+
+-- common_evo.btr_manufacturer_config
+INSERT INTO `common_evo`.`btr_manufacturer_config` (`manufacturer`, `type`, `config`, `status`)
+VALUES ('{{MANUFACTURER}}',
+        1,
+        '{"partsConfig": {"remarkExtendFields": []}, "maxReturnSize": "100", "vehicleConfig": {"pickLevels": [1], "yearConfig": {}}, "maxReturnGroupSize": 5}',
+        1);
+
+INSERT INTO `common_evo`.`btr_brand_config` (`car_brand_id`, `car_brand_name`, `type`, `config`, `status`)
+VALUES ({{BRAND_ID}}, '{{BRAND_CN}}', 1, '[{"field": "vehicleName", "title": "车型名称", "searchable": true}]', 1);
+INSERT INTO `common_evo`.`btr_brand_config` (`car_brand_id`, `car_brand_name`, `type`, `config`, `status`)
+VALUES ({{BRAND_ID}}, '{{BRAND_CN}}', 2, '[{"field": "displayPosition", "title": "位置", "columnStyle": {"width": "80px"}}, {"field": "partsCode", "title": "零件OE号", "needCopy": true, "columnStyle": {"width": "140px"}}, {"field": "standardPartsNames", "title": "标准名称", "columnStyle": {"width": "150px"}, "needPopover": true}, {"field": "epcPartsName", "title": "原厂名称", "columnStyle": {"width": "90px", "textAlign": "left"}}, {"field": "quantity", "title": "数量", "columnStyle": {"width": "40px"}}]', 1);
+
+
+INSERT INTO `common_evo`.`epc_vehicle_series` (`parent_id`, `level`, `has_child`, `order`,
+                                               `title`, `value`, `features`, `status`)
+VALUES (0, 1, 1, {{EPC_SERIES_ORDER}}, '品牌', '{{BRAND_CN}}', '{}', 1);
+
+
+-- ========== 以下由运维手动执行，自动化脚本请勿执行 ==========
+
+伟成，麻烦在vindb【线上】和【线下】库新增一个库：
+{{BRAND_EN}}_evo
+用来存放{{BRAND_CN}} epc 数据。
+
+【线下库】
+- 授权给 evt 这个账户权限
+- 新增到jenkins 授权中  http://192.168.0.199:60000/jenkins/job/grant/
+
+【线上库】
+- 创建一个 {{BRAND_EN}}_evo 用户，授权 DDL，DML 权限
+- 新增到 vinops 查询列表
+
+【视图】
+- 线上 vindb 的 parts_mapping 库中创建该表
+CREATE TABLE `{{MANUFACTURER}}_parts_mapping_v2` (
+              `id` int(11) NOT NULL AUTO_INCREMENT,
+              `parts_id` char(32) NOT NULL DEFAULT '',
+              `parts_code` varchar(50) NOT NULL DEFAULT '',
+              `btr_parts_name` varchar(50) NOT NULL DEFAULT '' COMMENT '主名',
+              `status` int(11) NOT NULL DEFAULT '0' COMMENT '0 未应用 1 已应用',
+              `dir_list` varchar(64) NOT NULL DEFAULT '' COMMENT '车型目录',
+              `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+              `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+              PRIMARY KEY (`id`),
+              UNIQUE KEY `uk_partsId_btrPartsName` (`parts_id`,`btr_parts_name`) USING BTREE,
+              KEY `idx_btrPartsName_dirList` (`btr_parts_name`,`dir_list`),
+              KEY `idx_updateTime` (`update_time`),
+              KEY `idx_partscode_btrpartsname` (`parts_code`,`btr_parts_name`),
+              KEY `idx_partsid_dirlist` (`parts_id`,`dir_list`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='{{BRAND_CN}}主名映射表';
+
+- 新建的库麻烦再创建一下视图
+CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`127.0.0.1` SQL SECURITY INVOKER VIEW `epc_parts_mapping` AS
+SELECT
+    `parts_mapping`.`{{MANUFACTURER}}_parts_mapping_v2`.`id` AS `id`,
+    `parts_mapping`.`{{MANUFACTURER}}_parts_mapping_v2`.`parts_id` AS `parts_id`,
+    `parts_mapping`.`{{MANUFACTURER}}_parts_mapping_v2`.`dir_list` AS `dir_list`,
+    `parts_mapping`.`{{MANUFACTURER}}_parts_mapping_v2`.`parts_code` AS `parts_code`,
+    `parts_mapping`.`{{MANUFACTURER}}_parts_mapping_v2`.`btr_parts_name` AS `btr_parts_name`,
+    `parts_mapping`.`{{MANUFACTURER}}_parts_mapping_v2`.`status` AS `status`,
+    `parts_mapping`.`{{MANUFACTURER}}_parts_mapping_v2`.`create_time` AS `create_time`,
+    `parts_mapping`.`{{MANUFACTURER}}_parts_mapping_v2`.`update_time` AS `update_time`
+FROM
+    `parts_mapping`.`{{MANUFACTURER}}_parts_mapping_v2`;
+
+-- ==========
+
+-- ES => 内网 mysql
+-- partsmapping.bp_synchronous_config
+INSERT INTO `partsmapping`.`bp_synchronous_config` (`carFactory`, `columns`, `brands`, `status`)
+VALUES ('{{MANUFACTURER}}',
+        'parts_id,btr_parts_name,dir_list,parts_code',
+        '{{BRAND_CN}}',
+        0); -- 注意：未开启同步
+
+-- 内网 mysql => 线上/线下 mysql
+-- carvin.dc_sync_config
+INSERT INTO `carvin`.`dc_sync_config` (status, status_column, date_column, source_table_name, key_column,
+                                       source_db_name, id_column, status_column_enable_status,
+                                       sync_configs, stage_db_name, target_db_name, select_columns, name,
+                                       prepare_wait_for_source_table_names, prepareSql)
+VALUES (1,
+        'status',
+        'update_time',
+        '{{MANUFACTURER}}_parts_mapping_v2',
+        'parts_id,btr_parts_name',
+        'partsmapping',
+        'id',
+        1,
+        'sync_conf_199.conf', -- 注意：只同步线下环境
+        'test',
+        'parts_mapping',
+        '*',
+        '{{BRAND_CN}}v2映射',
+        '',
+        '');
+
+
+
+-- 主名映射平台的配置表：
+-- partsmapping.dc_carfactory_config
+insert into partsmapping.dc_carfactory_config(car_factory, display_name, brand_name,
+                                              rule_search, rule_list, rule_all_list,
+                                              parts_search, image_search, parts_list,
+                                              image_list, parts_image_all_list, export_parts_list,
+                                              createRuleLimit, status)
+VALUES ('{{MANUFACTURER}}',
+        '{{BRAND_CN}}',
+        '{{BRAND_CN}}',
+        '[{"label": "目录号", "dataName": "dirList", "placeholder": "目录号"}, {"label": "图ID", "dataName": "imageId", "placeholder": "图ID"}, {"label": "位置号", "dataName": "position", "placeholder": "位置号"}, {"label": "selector", "dataName": "imageCode", "limitFlag": "0,1,2,3", "placeholder": "图号"}, {"label": "selector", "dataName": "partsCode", "limitFlag": "0,1,2,3", "placeholder": "编码"}, {"label": "selector", "dataName": "btrPartsName", "limitFlag": "0,1,2,3", "placeholder": "主名"}, {"label": "selector", "dataName": "epcName", "limitFlag": "0,1,2,3", "placeholder": "EPC名称"}, {"label": "selector", "dataName": "epcDesc", "limitFlag": "0,1,2,3", "placeholder": "详细描述"}, {"label": "selector", "dataName": "specification", "limitFlag": "0,1,2,3", "placeholder": "备注"}, {"label": "selector", "dataName": "subGroupName", "limitFlag": "0,1,2,3", "placeholder": "分组名称"}, {"label": "selector", "dataName": "mainGroupName", "limitFlag": "0,1,2,3", "placeholder": "主组EPC名称"}, {"label": "数量", "dataName": "installNum", "placeholder": "数量"}, {"label": "规则级别", "dataName": "level", "inputType": "number", "placeholder": "规则级别"}, {"label": "规则ID", "dataName": "ruleId", "placeholder": "规则ID"}, {"label": "创建人", "dataName": "doUser", "placeholder": "创建人"}, {"label": "创建时间", "dataName": "createTime", "placeholder": "创建时间"}]',
+        '[{"label": "主名", "dataName": "btrPartsName"}, {"label": "规则ID", "dataName": "ruleId"}, {"label": "车型信息", "dataName": "carInfo"}, {"label": "目录号", "dataName": "dirList"}, {"label": "图ID", "dataName": "imageId"}, {"label": "图号", "dataName": "imageCode"}, {"label": "位置号", "dataName": "position"}, {"label": "编码", "dataName": "partsCode"}, {"label": "主组号", "dataName": "mainGroupNo"}, {"label": "主组EPC名称", "dataName": "mainGroupName"}, {"label": "分组号", "dataName": "subGroupNo"}, {"label": "分组名称", "dataName": "subGroupName"}, {"label": "EPC名称", "dataName": "epcName"}, {"label": "详细描述", "dataName": "epcDesc"}, {"label": "备注", "dataName": "specification"}, {"label": "数量", "dataName": "installNum"}, {"label": "规则级别", "dataName": "level"}, {"label": "创建人", "dataName": "doUser"}, {"label": "创建时间", "dataName": "createTime"}]',
+        '[{"label": "主名", "dataName": "btrPartsName"}, {"label": "规则ID", "dataName": "ruleId"}, {"label": "车型信息", "dataName": "carInfo"}, {"label": "目录号", "dataName": "dirList"}, {"label": "图ID", "dataName": "imageId"}, {"label": "图号", "dataName": "imageCode"}, {"label": "位置号", "dataName": "position"}, {"label": "编码", "dataName": "partsCode"}, {"label": "主组号", "dataName": "mainGroupNo"}, {"label": "主组EPC名称", "dataName": "mainGroupName"}, {"label": "分组号", "dataName": "subGroupNo"}, {"label": "分组名称", "dataName": "subGroupName"}, {"label": "EPC名称", "dataName": "epcName"}, {"label": "详细描述", "dataName": "epcDesc"}, {"label": "备注", "dataName": "specification"}, {"label": "数量", "dataName": "installNum"}, {"label": "规则级别", "dataName": "level"}, {"label": "创建人", "dataName": "doUser"}, {"label": "创建时间", "dataName": "createTime"}]',
+        '[{"label": "目录号", "dataName": "dirList", "placeholder": "目录号"}, {"label": "图ID", "dataName": "imageId", "placeholder": "图ID"}, {"label": "selector", "dataName": "imageCode", "limitFlag": "0,1,2,3", "placeholder": "图号"}, {"label": "位置号", "dataName": "position", "placeholder": "位置号"}, {"label": "selector", "dataName": "partsCode", "limitFlag": "0,1,2,3", "placeholder": "编码"}, {"label": "selector", "dataName": "btrPartsName", "limitFlag": "0,1,2,3", "placeholder": "主名"}, {"label": "selector", "dataName": "epcName", "limitFlag": "0,1,2,3", "placeholder": "EPC名称"}, {"label": "selector", "dataName": "epcDesc", "limitFlag": "0,1,2,3", "placeholder": "详细描述"}, {"label": "selector", "dataName": "specification", "limitFlag": "0,1,2,3", "placeholder": "备注"}, {"label": "selector", "dataName": "subGroupName", "limitFlag": "0,1,2,3", "placeholder": "分组名称"}, {"label": "selector", "dataName": "subGroupNo", "limitFlag": "0,1,2,3", "placeholder": "分组号"}, {"label": "selector", "dataName": "mainGroupName", "limitFlag": "0,1,2,3", "placeholder": "主组EPC名称"}, {"label": "数量", "dataName": "installNum", "placeholder": "数量"}, {"label": "规则级别", "dataName": "level", "placeholder": "规则级别"}, {"label": "规则ID", "dataName": "ruleId", "placeholder": "规则ID"}, {"label": "创建人", "dataName": "doUser", "placeholder": "创建人"}, {"label": "创建时间", "dataName": "createTime", "placeholder": "创建时间"}]',
+        '[{"label": "目录号", "dataName": "dirList", "placeholder": "目录号"}, {"label": "图ID", "dataName": "imageId", "placeholder": "图ID"}, {"label": "selector", "dataName": "imageCode", "limitFlag": "0,1,2,3", "placeholder": "图号"}, {"label": "位置号", "dataName": "position", "placeholder": "位置号"}, {"label": "selector", "dataName": "partsCode", "limitFlag": "0,1,2,3", "placeholder": "编码"}, {"label": "selector", "dataName": "btrPartsName", "limitFlag": "0,1,2,3", "placeholder": "主名"}, {"label": "selector", "dataName": "epcName", "limitFlag": "0,1,2,3", "placeholder": "EPC名称"}, {"label": "selector", "dataName": "epcDesc", "limitFlag": "0,1,2,3", "placeholder": "详细描述"}, {"label": "selector", "dataName": "specification", "limitFlag": "0,1,2,3", "placeholder": "备注"}, {"label": "selector", "dataName": "subGroupName", "limitFlag": "0,1,2,3", "placeholder": "分组名称"}, {"label": "selector", "dataName": "mainGroupName", "limitFlag": "0,1,2,3", "placeholder": "主组EPC名称"}, {"label": "数量", "dataName": "installNum", "placeholder": "数量"}, {"label": "规则级别", "dataName": "level", "placeholder": "规则级别"}, {"label": "规则ID", "dataName": "ruleId", "placeholder": "规则ID"}, {"label": "创建人", "dataName": "doUser", "placeholder": "创建人"}, {"label": "创建时间", "dataName": "createTime", "placeholder": "创建时间"}]',
+        '[{"label": "规则ID", "dataName": "ruleId"}, {"label": "车型信息", "dataName": "carInfo"}, {"label": "目录号", "dataName": "dirList"}, {"label": "图号", "dataName": "imageCode"}, {"label": "位置号", "dataName": "position"}, {"label": "编码", "dataName": "partsCode"}, {"label": "主组EPC名称", "dataName": "mainGroupName"}, {"label": "分组名称", "dataName": "subGroupName"}, {"label": "EPC名称", "dataName": "epcName"}, {"label": "数量", "dataName": "installNum"}, {"label": "主名", "dataName": "btrPartsName"}]',
+        '[{"label": "规则ID", "dataName": "ruleId"}, {"label": "车型信息", "dataName": "carInfo"}, {"label": "目录号", "dataName": "dirList"}, {"label": "图ID", "dataName": "imageId"}, {"label": "图号", "dataName": "imageCode"}, {"label": "位置号", "dataName": "position"}, {"label": "编码", "dataName": "partsCode"}, {"label": "主组号", "dataName": "mainGroupNo"}, {"label": "主组EPC名称", "dataName": "mainGroupName"}, {"label": "分组号", "dataName": "subGroupNo"}, {"label": "分组名称", "dataName": "subGroupName"}, {"label": "EPC名称", "dataName": "epcName"}, {"label": "详细描述", "dataName": "epcDesc"}, {"label": "备注", "dataName": "specification"}, {"label": "数量", "dataName": "installNum"}, {"label": "主名", "dataName": "btrPartsName"}, {"label": "规则级别", "dataName": "level"}, {"label": "创建人", "dataName": "doUser"}, {"label": "创建时间", "dataName": "createTime"}]',
+        '[{"label": "规则ID", "dataName": "ruleId"}, {"label": "车型信息", "dataName": "carInfo"}, {"label": "目录号", "dataName": "dirList"}, {"label": "图ID", "dataName": "imageId"}, {"label": "图号", "dataName": "imageCode"}, {"label": "位置号", "dataName": "position"}, {"label": "编码", "dataName": "partsCode"}, {"label": "主组号", "dataName": "mainGroupNo"}, {"label": "主组EPC名称", "dataName": "mainGroupName"}, {"label": "分组号", "dataName": "subGroupNo"}, {"label": "分组名称", "dataName": "subGroupName"}, {"label": "EPC名称", "dataName": "epcName"}, {"label": "详细描述", "dataName": "epcDesc"}, {"label": "备注", "dataName": "specification"}, {"label": "数量", "dataName": "installNum"}, {"label": "主名", "dataName": "btrPartsName"}, {"label": "规则级别", "dataName": "level"}, {"label": "创建人", "dataName": "doUser"}, {"label": "创建时间", "dataName": "createTime"}]',
+        '[{"label": "图Id", "dataName": "imageId"}, {"label": "图号", "dataName": "imageCode"}, {"label": "位置号", "dataName": "position"}, {"label": "EPC备注", "dataName": "epcDesc"}, {"label": "特殊备注", "dataName": "specification"}, {"label": "主名", "dataName": "btrPartsName"}, {"label": "EPC备注标识", "dataName": "epcDescFlag"}]',
+        '["epcName", "partsCode", "position"]',
+        1);
+
+
+
+-- 不创建该表无法在主名映射平台执行配件查询操作
+CREATE TABLE partsmapping.`dc_parts_mapping_{{MANUFACTURER}}` (
+    `id` INT (11) UNSIGNED NOT NULL AUTO_INCREMENT,
+    `rule_id` VARCHAR (50) DEFAULT '' COMMENT '规则id',
+    `parts_id` VARCHAR (50) DEFAULT '' COMMENT '配件id',
+    `level` INT (11) NOT NULL DEFAULT '0',
+    `status` TINYINT (11) NOT NULL DEFAULT '1' COMMENT '状态 -1 删除 1 启用',
+    `last_modifier` VARCHAR (100) NOT NULL DEFAULT '' COMMENT '最后编辑人员',
+    `create_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `update_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    `is_max` TINYINT (4) NOT NULL DEFAULT '0',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `unique_rule_name_code` (`rule_id`, `parts_id`),
+    KEY `idx_partsid_status_isMax` (`parts_id`, `status`, `is_max`)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8 COMMENT = '主名映射表';
+
+-- 线上/线下 mysql 表：
+CREATE TABLE parts_mapping.`{{MANUFACTURER}}_parts_mapping_v2` (
+     `id` int(11) NOT NULL AUTO_INCREMENT,
+     `parts_id` char(32) NOT NULL DEFAULT '',
+     `parts_code` varchar(50) NOT NULL DEFAULT '',
+     `btr_parts_name` varchar(50) NOT NULL DEFAULT '' COMMENT '主名',
+     `status` int(11) NOT NULL DEFAULT '0' COMMENT '0 未应用 1 已应用',
+     `dir_list` varchar(64) NOT NULL DEFAULT '' COMMENT '车型目录',
+     `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+     `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+     PRIMARY KEY (`id`),
+     UNIQUE KEY `uk_partsId_btrPartsName` (`parts_id`,`btr_parts_name`) USING BTREE,
+     KEY `idx_btrPartsName_dirList` (`btr_parts_name`,`dir_list`),
+     KEY `idx_updateTime` (`update_time`),
+     KEY `idx_partscode_btrpartsname` (`parts_code`,`btr_parts_name`),
+     KEY `idx_partsid_dirlist` (`parts_id`,`dir_list`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='{{BRAND_CN}}主名映射表';
+
+-- 内网 mysql 表
+CREATE TABLE partsmapping.{{MANUFACTURER}}_parts_mapping_v2
+(
+    `id`             int(11)     NOT NULL AUTO_INCREMENT,
+    `parts_id`       char(120)   NOT NULL DEFAULT '' COMMENT '配件id',
+    `btr_parts_name` varchar(50) NOT NULL DEFAULT '' COMMENT '主名',
+    `status`         int(11)     NOT NULL DEFAULT '0' COMMENT '0 未应用 1 已应用',
+    `dir_list`       varchar(64) NOT NULL DEFAULT '' COMMENT '车型目录',
+    `create_time`    datetime    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `update_time`    datetime    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    `parts_code`     varchar(50) NOT NULL DEFAULT '',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `idx_partsCode_btrPartsName` (`parts_id`, `btr_parts_name`),
+    KEY `idx_updateTime` (`update_time`)
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4 COMMENT ='{{BRAND_CN}}主名映射表'
+;
+
+-- 内网图片和热点表
+CREATE TABLE `dc_parts_image_hotspot_{{MANUFACTURER}}`
+(
+    `image_id`       varchar(50) NOT NULL DEFAULT '' COMMENT '图ID',
+    `position`       varchar(50) NOT NULL DEFAULT '' COMMENT '位置号',
+    `top_left_x`     int(11)              DEFAULT NULL COMMENT '左上角x坐标',
+    `top_left_y`     int(11)              DEFAULT NULL COMMENT '左上角y坐标',
+    `bottom_right_x` int(11)              DEFAULT NULL COMMENT '右下角x坐标',
+    `bottom_right_y` int(11)              DEFAULT NULL COMMENT '右下角y坐标',
+    `status`         tinyint(11) NOT NULL DEFAULT '1' COMMENT '状态 -1 删除 1 启用',
+    `create_time`    datetime    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `update_time`    datetime    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    `id`             int(11)     NOT NULL AUTO_INCREMENT,
+    PRIMARY KEY (`id`),
+    KEY `idx_id` (`image_id`) USING BTREE
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4 COMMENT ='图片热点表';
+
+
+CREATE TABLE `dc_parts_image_{{MANUFACTURER}}`
+(
+    `id`          int(11) unsigned NOT NULL AUTO_INCREMENT,
+    `image_id`    varchar(50)      NOT NULL DEFAULT '' COMMENT '图ID',
+    `image_code`  varchar(50)      NOT NULL DEFAULT '' COMMENT '图号',
+    `image_url`   varchar(255)     NOT NULL DEFAULT '' COMMENT '图片路径',
+    `status`      tinyint(11)      NOT NULL DEFAULT '1' COMMENT '状态 -1 删除 1 启用',
+    `create_time` datetime         NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `update_time` datetime         NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `idx_imageid_url` (`image_id`, `image_url`),
+    KEY `idx_code` (`image_code`),
+    KEY `idx_image_id` (`image_id`)
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4 COMMENT ='配件图片表';
+
+-- 同步工单
+/usr/local/scripts/sync_to_online_new2.sh  192.168.0.150  {{BRAND_EN}}_evo epc_group,epc_group_parts,epc_image,epc_image_hotspot,epc_parts,epc_parts_id_epc_parts_id_relation,epc_vehicle,epc_vehicle_group,epc_vehicle_group_parts,epc_vehicle_id_btr_id_mj_relation
+
+/usr/local/scripts/sync_to_online_new2.sh  192.168.0.150  common_evo epc_vehicle_series_detail,epc_vehicle_series,epc_parts_lite,epc_parts_search_everything

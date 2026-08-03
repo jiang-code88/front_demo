@@ -1,0 +1,79 @@
+UPDATE raw_parts_data
+SET v2_parts_id=MD5(CONCAT_WS("_", catalog, group_path, parts_position, parts_code, parts_name, parts_remark));
+
+
+truncate dc_parts_info_{{BRAND_EN}};
+INSERT IGNORE INTO dc_parts_info_{{BRAND_EN}}(parts_id, brand, dir_list, image_code, image_id, position, parts_code,
+                                        sub_group_no, sub_group_name, sub_group_desc, main_group_no, main_group_name,
+                                        main_group_desc, epc_name, epc_desc, install_num, car_info, specification)
+SELECT p.v2_parts_id,
+       v.features ->> '$.brand',
+       p.catalog,
+       REPLACE(g.group_image_id, '.jpg', '') AS image_code,
+       g.group_image_id                      AS image_id,
+       p.parts_position,
+       p.parts_code,
+       eg.`code`,
+       eg.`name`,
+       eg.`desc`,
+       pg.`code`,
+       pg.`name`,
+       pg.`desc`,
+       parts_name,
+       parts_remark,
+       parts_quantity,
+       v.car_series,
+       ''
+FROM raw_parts_data p
+         LEFT JOIN raw_group_data g
+                   ON g.catalog = p.catalog
+                       AND g.group_path = p.group_path
+         LEFT JOIN epc_group eg
+                   ON g.group_id = eg.id
+         LEFT JOIN epc_group pg
+                   ON eg.parent_id = pg.id
+         LEFT JOIN epc_vehicle v
+                   ON p.catalog = v.vehicle_model
+WHERE p.parts_code != ''
+  AND p.v2_parts_id IS NOT NULL;
+
+
+DELETE
+FROM dc_parts_info_{{BRAND_EN}}
+WHERE LENGTH(parts_code) < 1;
+
+
+############################### 主名映射关系
+TRUNCATE epc_parts_id_epc_parts_id_relation;
+INSERT IGNORE INTO epc_parts_id_epc_parts_id_relation(parts_id, epc_parts_id, epc_vehicle_group_parts_id, dir_list)
+
+select distinct p.v2_parts_id,
+                p.epc_parts_id,
+                vgp.id,
+                p.catalog AS dir_list
+FROM raw_parts_data p
+         JOIN epc_vehicle_group_parts vgp
+              ON vgp.vehicle_model = p.catalog
+                  AND p.group_id = vgp.group_id
+                  AND p.epc_parts_id = vgp.parts_id
+WHERE p.parts_code != ''
+  AND p.v2_parts_id IS NOT NULL;;
+
+
+################################################### V2 平台 图片和热点数据 ###################################################
+TRUNCATE dc_parts_image_{{BRAND_EN}};
+INSERT INTO dc_parts_image_{{BRAND_EN}}(image_id, image_code, image_url)
+SELECT DISTINCT `name` AS image_id, REPLACE(`name`, '.jpg', '') AS image_code, uri
+FROM epc_image;
+
+TRUNCATE dc_parts_image_hotspot_{{BRAND_EN}};
+INSERT INTO dc_parts_image_hotspot_{{BRAND_EN}} (image_id, position, top_left_x, top_left_y, bottom_right_x, bottom_right_y)
+SELECT DISTINCT `name`,
+                parts_position,
+                top_left_x,
+                top_left_y,
+                bottom_right_x,
+                bottom_right_y
+from raw_hotspot_data h
+         JOIN epc_image i
+              ON h.image_id = i.id;

@@ -1,0 +1,5 @@
+python3 -m venv clean_env
+export PYTHONPATH="/data/workspace/btr-orch:$PYTHONPATH"
+export BASE_DIR=$(pwd)
+$BASE_DIR/clean_env/bin/pip install -r $BASE_DIR/requirements.txt -i https://mirrors.aliyun.com/pypi/simple
+$BASE_DIR/clean_env/bin/python3 -u $BASE_DIR/{{BRAND_EN}}.py process
