@@ -73,10 +73,17 @@
   //  常量定义
   // ════════════════════════════════════════════════════════════════════════
 
-  // GM 存储键名：脚本启用/禁用开关
+  // GM 存储键名：脚本启用/禁用开关（全局开关，不区分域名）
   var STORAGE_KEY_ENABLED = 'sql_hl_enabled';
-  // GM 存储键名：Tab 输入状态（SQL 文本/所选数据库/Tab 名称），不含查询结果
-  var STORAGE_KEY_TABS = 'sql_hl_tabs_v1';
+  // GM 存储键名：Tab 输入状态（SQL 文本/所选数据库/Tab 名称），不含查询结果。
+  // 按 hostname 拼接：vinops.qipeipu.net 与 ops.qipeipu.net 是两套独立部署，
+  // 数据库列表可能不同，共享同一份键会恢复出对方面板里不存在的数据库名。
+  // 注意：Tampermonkey 的 GM 存储按脚本（而非按域名）隔离，同名键在两个
+  // 域名下读写的是同一份数据，所以必须靠键名区分
+  var STORAGE_KEY_TABS = 'sqltool_tabs::' + location.hostname;
+  // 旧版（v2.1.0 之前）的共享键：不做自动迁移（里面的数据无法判断属于哪个
+  // 域名，迁移会把 vinops 的状态带回 ops），仅在"清除 Tab 数据"菜单里一并清理
+  var LEGACY_STORAGE_KEY_TABS = 'sql_hl_tabs_v1';
   // 持久化写入防抖延迟（打字期间高频触发时降低写入频率）
   var PERSIST_DEBOUNCE_MS = 400;
 
@@ -1731,6 +1738,8 @@
       persistTimer = null;
     }
     GM_deleteValue(STORAGE_KEY_TABS);
+    // 一并清掉旧版共享键（v2.1.0 之前），避免残留脏数据
+    GM_deleteValue(LEGACY_STORAGE_KEY_TABS);
     console.log('[SQL Editor] 已清除保存的 Tab 数据，刷新页面生效');
     location.reload();
   });
