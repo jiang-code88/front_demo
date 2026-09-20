@@ -1,10 +1,11 @@
 // ==UserScript==
 // @name         SQL Editor (CodeMirror 6)
 // @namespace    https://github.com/sql-highlight
-// @version      2.0.0
+// @version      2.1.0
 // @description  使用 CodeMirror 6 为 SQL 工具页面提供语法高亮、自动补全、语法诊断、多 Tab 独立查询
 // @author       You
 // @match        *://vinops.qipeipu.net/operate/sqltools*
+// @match        *://ops.qipeipu.net/operate/sqltools*
 // @match        file:///*test-sql-highlight.html
 // @include      *test-sql-highlight.html
 // @grant        GM_getValue
@@ -15,7 +16,8 @@
 // @run-at       document-idle
 // ==/UserScript==
 
-// @match        *://vinops.qipeipu.net/operate/sqltools*  // 匹配目标运维平台
+// @match        *://vinops.qipeipu.net/operate/sqltools*  // 匹配目标运维平台（vinops）
+// @match        *://ops.qipeipu.net/operate/sqltools*       // 匹配目标运维平台（ops，同一套平台的另一域名部署）
 // @match        file:///*test-sql-highlight.html           // 匹配本地测试页
 // @include      *test-sql-highlight.html                   // 兜底匹配（Tampermonkey @include 通配）
 // @grant        GM_getValue                                // 读取 Tampermonkey 存储（启用/禁用开关 + Tab 输入状态）
