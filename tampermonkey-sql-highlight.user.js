@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         SQL Editor (CodeMirror 6)
 // @namespace    https://github.com/sql-highlight
-// @version      2.1.0
+// @version      2.2.0
 // @description  使用 CodeMirror 6 为 SQL 工具页面提供语法高亮、自动补全、语法诊断、多 Tab 独立查询
 // @author       You
 // @match        *://vinops.qipeipu.net/operate/sqltools*
@@ -721,6 +721,10 @@
       customName: false,
       content: content || '',
       scrollTop: 0,
+      // 该 Tab 专属的 CM6 EditorState（含独立撤销栈）。运行态字段，仅会话
+      // 内存持有、不持久化；为 null 时首次激活由 createEditorState 从
+      // content 重建（刷新后撤销栈自然清空，与"历史不跨会话"语义一致）
+      state: null,
       // 与真实查询表单联动的字段（Tab 切换时保存/恢复）
       dbName: '',
       databaseSuffix: '',
@@ -833,6 +837,9 @@
 
     if (editor) {
       tab.content = editor.state.doc.toString();
+      // 记下当前 state 引用（含该 Tab 的撤销栈），切走后切回时经
+      // editor.setState 原样恢复，撤销/重做历史不丢
+      tab.state = editor.state;
 
       var scroller = editor.dom.querySelector('.cm-scroller');
       if (scroller) {
@@ -849,7 +856,7 @@
   }
 
   /**
-   * 将 Tab 的内容加载到编辑器（替换全文 + 恢复滚动位置），并联动：
+   * 换上该 Tab 自己的 EditorState（独立撤销栈 + 恢复滚动位置），并联动：
    * - 真实 #db_name / #database_suffix / #current_erp（触发 change 事件，
    *   让页面自带的 ERP 子库下拉逻辑与我们自己的补全缓存都能正常响应）
    * - 结果面板（渲染该 Tab 保存的查询结果）
@@ -858,11 +865,13 @@
     suppressSync = true;
 
     if (editor) {
-      // 替换编辑器全文内容
-      var docLen = editor.state.doc.length;
-      editor.dispatch({
-        changes: { from: 0, to: docLen, insert: tab.content || '' }
-      });
+      // 换上该 Tab 自己的 EditorState（含独立撤销栈）。EditorView.setState
+      // 不产生事务、不经过 history 扩展，切 Tab 不会混进撤销栈——此前用
+      // dispatch 全文替换，切换会被记录成一条可撤销事务，Ctrl+Z 就回退到
+      // 上一个 Tab 的内容了。首次激活的 Tab（新建/刷新后从持久化恢复）用
+      // content 新建 state
+      tab.state = tab.state || createEditorState(tab.content || '');
+      editor.setState(tab.state);
 
       // 恢复滚动位置
       var scroller = editor.dom.querySelector('.cm-scroller');
@@ -957,6 +966,122 @@
   function syncToTextarea() {
     if (!editor || !textarea) return;
     textarea.value = editor.state.doc.toString();
+  }
+
+  /**
+   * 创建一份新的 EditorState：所有 Tab 共用同一份扩展配置（CM6 的扩展是纯值，
+   * 可跨 state 复用；updateListener 监听的是 view 实例，换 state 后自动作用于
+   * 新 state），但每个 Tab 各持一份独立的 state——撤销/重做栈内嵌在 state 里，
+   * 这样各 Tab 的 Ctrl+Z 历史互不污染。
+   *
+   * 切 Tab 必须用 EditorView.setState() 整体换 state，而不是 dispatch 全文
+   * 替换：后者会产生事务、被 history 扩展记录成一条可撤销记录，导致在 Tab2
+   * 按 Ctrl+Z 回退到 Tab1 的内容（v2.1.0 及之前的实际缺陷）。
+   */
+  function createEditorState(docContent) {
+    return CM6.EditorState.create({
+      doc: docContent || '',
+      extensions: [
+        // 基础设置：行号、括号匹配、代码折叠、光标行高亮、历史记录等
+        CM6.basicSetup,
+
+        // SQL 语言支持（MySQL 方言，关键字大写）
+        CM6.sql({
+          dialect: CM6.MySQL,
+          upperCaseKeywords: true
+        }),
+
+        // 自动补全：官方关键字源 + 当前数据库的表/字段名源
+        // 注意：override 是"完全替换"语义，必须显式带上官方关键字源，
+        // 否则只放自定义源会导致关键字补全反而消失
+        CM6.autocompletion({
+          override: [
+            CM6.keywordCompletionSource(CM6.MySQL, true),
+            dbTokenCompletionSource
+          ]
+        }),
+
+        // SQL 语法诊断：真实 MySQL 方言解析（node-sql-parser），只做语法检查，
+        // 不启用依赖表结构 schema 的语义检查/hover/跳转（当前 dbTokensCache 是
+        // 扁平 token 列表，没有表-字段从属关系，做语义检查容易误报）
+        CM6.sqlExtension({
+          enableSemanticLinting: false,
+          enableHover: false,
+          enableNavigation: false,
+          enableGutterMarkers: false,
+          linterConfig: {
+            delay: 500,
+            parser: new CM6.NodeSqlParser({
+              getParserOptions: function () {
+                return { database: 'MySQL' };
+              }
+            })
+          }
+        }),
+
+        // 诊断行号栏图标（悬浮可看错误详情）
+        CM6.lintGutter(),
+
+        // 暗色主题（One Dark）
+        CM6.oneDark,
+
+        // Placeholder（复用原 textarea 的 placeholder）
+        CM6.placeholder(textarea.placeholder || '请写sql语句...'),
+
+        // 自动换行
+        CM6.EditorView.lineWrapping,
+
+        // 自定义主题（尺寸与字体适配）
+        CM6.EditorView.theme({
+          '&': {
+            height: '100%',
+            fontSize: '14px'
+          },
+          '.cm-scroller': {
+            overflow: 'auto',
+            fontFamily: '"Fira Code", "Consolas", "Monaco", monospace'
+          },
+          '.cm-content': {
+            fontFamily: '"Fira Code", "Consolas", "Monaco", monospace'
+          },
+          '&.cm-focused': {
+            outline: 'none'
+          }
+        }),
+
+        // 键盘快捷键
+        CM6.keymap.of([
+          {
+            // Ctrl+Enter / Cmd+Enter：提交查询
+            key: 'Ctrl-Enter',
+            mac: 'Cmd-Enter',
+            run: function () {
+              var btn = document.getElementById('check_submit');
+              if (btn) btn.click();
+              return true;
+            }
+          }
+        ]),
+
+        // 更新监听器：值与选区同步
+        CM6.EditorView.updateListener.of(function (update) {
+          if (suppressSync) return;
+          if (update.docChanged) {
+            syncToTextarea();
+            // Tab 数据模型里的 content 平时只在切换 Tab 时才更新，必须随
+            // 打字实时更新，否则持久化写入的会是滞后的旧内容
+            var activeTab = getActiveTab();
+            if (activeTab) {
+              activeTab.content = update.state.doc.toString();
+              persistTabsDebounced();
+            }
+          }
+          if (update.selectionSet) {
+            handleSelectionChange();
+          }
+        })
+      ]
+    });
   }
 
   /**
@@ -1513,115 +1638,14 @@
 
     // ── 创建 CodeMirror 6 编辑器 ──
     var EditorView = CM6.EditorView;
-    var EditorState = CM6.EditorState;
 
     try {
       editor = new EditorView({
-        state: EditorState.create({
-          doc: initialContent,
-          extensions: [
-            // 基础设置：行号、括号匹配、代码折叠、光标行高亮、历史记录等
-            CM6.basicSetup,
-
-            // SQL 语言支持（MySQL 方言，关键字大写）
-            CM6.sql({
-              dialect: CM6.MySQL,
-              upperCaseKeywords: true
-            }),
-
-            // 自动补全：官方关键字源 + 当前数据库的表/字段名源
-            // 注意：override 是"完全替换"语义，必须显式带上官方关键字源，
-            // 否则只放自定义源会导致关键字补全反而消失
-            CM6.autocompletion({
-              override: [
-                CM6.keywordCompletionSource(CM6.MySQL, true),
-                dbTokenCompletionSource
-              ]
-            }),
-
-            // SQL 语法诊断：真实 MySQL 方言解析（node-sql-parser），只做语法检查，
-            // 不启用依赖表结构 schema 的语义检查/hover/跳转（当前 dbTokensCache 是
-            // 扁平 token 列表，没有表-字段从属关系，做语义检查容易误报）
-            CM6.sqlExtension({
-              enableSemanticLinting: false,
-              enableHover: false,
-              enableNavigation: false,
-              enableGutterMarkers: false,
-              linterConfig: {
-                delay: 500,
-                parser: new CM6.NodeSqlParser({
-                  getParserOptions: function () {
-                    return { database: 'MySQL' };
-                  }
-                })
-              }
-            }),
-
-            // 诊断行号栏图标（悬浮可看错误详情）
-            CM6.lintGutter(),
-
-            // 暗色主题（One Dark）
-            CM6.oneDark,
-
-            // Placeholder（复用原 textarea 的 placeholder）
-            CM6.placeholder(textarea.placeholder || '请写sql语句...'),
-
-            // 自动换行
-            EditorView.lineWrapping,
-
-            // 自定义主题（尺寸与字体适配）
-            EditorView.theme({
-              '&': {
-                height: '100%',
-                fontSize: '14px'
-              },
-              '.cm-scroller': {
-                overflow: 'auto',
-                fontFamily: '"Fira Code", "Consolas", "Monaco", monospace'
-              },
-              '.cm-content': {
-                fontFamily: '"Fira Code", "Consolas", "Monaco", monospace'
-              },
-              '&.cm-focused': {
-                outline: 'none'
-              }
-            }),
-
-            // 键盘快捷键
-            CM6.keymap.of([
-              {
-                // Ctrl+Enter / Cmd+Enter：提交查询
-                key: 'Ctrl-Enter',
-                mac: 'Cmd-Enter',
-                run: function () {
-                  var btn = document.getElementById('check_submit');
-                  if (btn) btn.click();
-                  return true;
-                }
-              }
-            ]),
-
-            // 更新监听器：值与选区同步
-            EditorView.updateListener.of(function (update) {
-              if (suppressSync) return;
-              if (update.docChanged) {
-                syncToTextarea();
-                // Tab 数据模型里的 content 平时只在切换 Tab 时才更新，必须随
-                // 打字实时更新，否则持久化写入的会是滞后的旧内容
-                var activeTab = getActiveTab();
-                if (activeTab) {
-                  activeTab.content = update.state.doc.toString();
-                  persistTabsDebounced();
-                }
-              }
-              if (update.selectionSet) {
-                handleSelectionChange();
-              }
-            })
-          ]
-        }),
+        state: createEditorState(initialContent),
         parent: wrapperEl
       });
+      // 激活 Tab 记下自己的 state 引用（含独立撤销栈），切走再切回可原样恢复
+      if (activeTab) activeTab.state = editor.state;
     } catch (e) {
       console.error('[SQL Editor] 编辑器创建失败:', e);
       var errEl = document.createElement('div');
