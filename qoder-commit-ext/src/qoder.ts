@@ -176,10 +176,22 @@ export async function runQoderCli(
   });
 }
 
+/** native 结果按配置裁剪：nativeFirstLineOnly 开启时只保留第一行 */
+function maybeFirstLineOnly(text: string): string {
+  const firstLineOnly = vscode.workspace
+    .getConfiguration('qoderCommit')
+    .get<boolean>('nativeFirstLineOnly', true);
+  if (!firstLineOnly) {
+    return text;
+  }
+  return text.split(/\r?\n/, 1)[0].trim();
+}
+
 /**
  * 走 Qoder 内置提交信息管道（与原生按钮同一链路，使用 Qoder 自家模型，提示词为服务端内置）：
  * 1. 优先 vscode.aicoding RPC（git.generateCommitMessage，返回 message 由我们写入输入框）
  * 2. 回退执行内置命令（内置流程自己流式写入输入框）
+ * 是否只保留第一行由 qoderCommit.nativeFirstLineOnly 控制。
  */
 export async function runNativeGeneration(
   repo: GitRepositoryLike
@@ -190,7 +202,8 @@ export async function runNativeGeneration(
       const result = await aicoding.sendRequest('git.generateCommitMessage', {
         rootUri: repo.rootUri.toString(),
       });
-      const msg = typeof result?.message === 'string' ? cleanOutput(result.message) : '';
+      const msg =
+        typeof result?.message === 'string' ? maybeFirstLineOnly(cleanOutput(result.message)) : '';
       if (msg) {
         return { message: msg, wroteInputBox: false };
       }
@@ -207,5 +220,15 @@ export async function runNativeGeneration(
     'aicoding.command.generateCommitMessage',
     repo.rootUri
   );
+  // 开启裁剪时：原生流程在命令结束时才把最终文本防抖写入输入框，稍候再裁剪为第一行
+  if (
+    vscode.workspace.getConfiguration('qoderCommit').get<boolean>('nativeFirstLineOnly', true)
+  ) {
+    await new Promise(resolve => setTimeout(resolve, 600));
+    const current = repo.inputBox.value;
+    if (current.trim()) {
+      repo.inputBox.value = maybeFirstLineOnly(cleanOutput(current));
+    }
+  }
   return { message: '', wroteInputBox: true };
 }

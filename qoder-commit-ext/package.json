@@ -2,7 +2,7 @@
   "name": "qoder-custom-commit",
   "displayName": "Custom Commit Message (Qoder)",
   "description": "按自定义提示词生成 Git 提交信息：SCM 面板按钮，支持 IDE 内置模型或 OpenAI 兼容 API",
-  "version": "0.3.1",
+  "version": "0.3.3",
   "publisher": "baturu",
   "license": "MIT",
   "engines": {
@@ -64,6 +64,11 @@
           "type": "string",
           "default": "",
           "markdownDescription": "Qoder CLI 可执行文件路径。留空时自动探测：环境变量 `QODERCN_CLI_BIN` → `~/.qoder-cn/bin/qoderclicn/qoderclicn.exe` → PATH 上的 `qoderclicn.exe` / `qodercn.exe`。"
+        },
+        "qoderCommit.nativeFirstLineOnly": {
+          "type": "boolean",
+          "default": true,
+          "description": "native 通道（内置生成）只保留结果第一行（标题行）；关闭则保留完整提交信息（标题+正文）。"
         },
         "qoderCommit.cliTimeout": {
           "type": "number",
