@@ -1,0 +1,143 @@
+{
+  "name": "qoder-custom-commit",
+  "displayName": "Custom Commit Message (Qoder)",
+  "description": "按自定义提示词生成 Git 提交信息：SCM 面板按钮，支持 IDE 内置模型或 OpenAI 兼容 API",
+  "version": "0.3.1",
+  "publisher": "baturu",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "SCM Providers",
+    "AI"
+  ],
+  "main": "./out/extension.js",
+  "activationEvents": [],
+  "contributes": {
+    "commands": [
+      {
+        "command": "qoderCommit.generate",
+        "title": "生成提交信息（自定义提示词）",
+        "icon": "$(sparkle)"
+      },
+      {
+        "command": "qoderCommit.openPromptFile",
+        "title": "打开/创建提交信息提示词文件"
+      },
+      {
+        "command": "qoderCommit.setApiKey",
+        "title": "设置模型 API 密钥（安全存储）"
+      }
+    ],
+    "menus": {
+      "scm/title": [
+        {
+          "command": "qoderCommit.generate",
+          "when": "scmProvider == git",
+          "group": "navigation"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "qoderCommit.generate",
+        "key": "ctrl+alt+enter",
+        "mac": "cmd+alt+enter"
+      }
+    ],
+    "configuration": {
+      "title": "Custom Commit Message",
+      "properties": {
+        "qoderCommit.channel": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "qoder",
+            "native",
+            "external"
+          ],
+          "default": "auto",
+          "markdownDescription": "模型通道：\n- `auto`：优先 Qoder CLI，未安装时退回内置生成\n- `qoder`：Qoder CLI 无头模式（Qoder 自家模型 + 自定义提示词，需已安装并登录）\n- `native`：IDE 内置提交生成管道（Qoder 自家模型，服务端内置固定提示词，忽略自定义提示词）\n- `external`：OpenAI 兼容 API（自定义提示词，需密钥）"
+        },
+        "qoderCommit.cliPath": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Qoder CLI 可执行文件路径。留空时自动探测：环境变量 `QODERCN_CLI_BIN` → `~/.qoder-cn/bin/qoderclicn/qoderclicn.exe` → PATH 上的 `qoderclicn.exe` / `qodercn.exe`。"
+        },
+        "qoderCommit.cliTimeout": {
+          "type": "number",
+          "default": 180,
+          "description": "Qoder CLI 单次生成的超时时间（秒）。"
+        },
+        "qoderCommit.cliModel": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "CLI 通道使用的模型（传给 `qodercn -m`）。留空 = 账号默认（一般为 `auto` 智能路由）；可填具体模型名（如 `Qwen3.8-Max`，与 IDE 新对话页模型选择器一致，可用 `qodercn --list-models` 查看）；BYOK 自定义模型填其 modelID。"
+        },
+        "qoderCommit.promptFile": {
+          "type": "string",
+          "default": ".qoder/commit-prompt.md",
+          "markdownDescription": "提示词文件路径（相对工作区根目录）。文件存在时优先生效；不存在时依次回退到 `qoderCommit.prompt`、内置默认提示词。"
+        },
+        "qoderCommit.prompt": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "内联提示词（当提示词文件不存在时生效）。"
+        },
+        "qoderCommit.apiUrl": {
+          "type": "string",
+          "default": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+          "description": "OpenAI 兼容 API 基地址（外部模型回退通道）。"
+        },
+        "qoderCommit.model": {
+          "type": "string",
+          "default": "qwen-plus",
+          "description": "外部 API 使用的模型 ID。"
+        },
+        "qoderCommit.apiKey": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "外部 API 密钥。建议留空并使用环境变量 `DASHSCOPE_API_KEY`。"
+        },
+        "qoderCommit.maxDiffChars": {
+          "type": "number",
+          "default": 30000,
+          "description": "送入模型的 diff 最大字符数，超出部分截断。"
+        },
+        "qoderCommit.includeRecentCommits": {
+          "type": "number",
+          "default": 5,
+          "description": "附带最近 N 条提交记录供模型参考仓库风格（0 关闭）。"
+        },
+        "qoderCommit.ignoreFiles": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "package-lock.json",
+            "pnpm-lock.yaml",
+            "yarn.lock",
+            "*.lock",
+            "*.snap",
+            ".idea/**",
+            "**/.DS_Store"
+          ],
+          "description": "不参与生成的文件（简单 glob：* 匹配单层路径段、** 跨目录）。"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -w -p ./",
+    "package": "vsce package --allow-missing-repository"
+  },
+  "devDependencies": {
+    "@types/node": "^18.19.0",
+    "@types/vscode": "^1.85.0",
+    "@vscode/vsce": "^3.0.0",
+    "typescript": "^5.4.0"
+  }
+}
