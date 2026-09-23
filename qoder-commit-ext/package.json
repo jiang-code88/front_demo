@@ -2,7 +2,7 @@
   "name": "qoder-custom-commit",
   "displayName": "Custom Commit Message (Qoder)",
   "description": "按自定义提示词生成 Git 提交信息：SCM 面板按钮，支持 IDE 内置模型或 OpenAI 兼容 API",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "publisher": "baturu",
   "license": "MIT",
   "engines": {

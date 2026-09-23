@@ -3,9 +3,11 @@ import { pickRepository } from './git';
 import { generateCommitMessage } from './generator';
 import { openOrCreatePromptFile } from './prompt';
 import { initSecrets, promptAndStoreApiKey } from './llm';
+import { disposeLogChannel } from './qoder';
 
 export function activate(context: vscode.ExtensionContext): void {
   initSecrets(context.secrets);
+  context.subscriptions.push({ dispose: () => disposeLogChannel() });
 
   context.subscriptions.push(
     vscode.commands.registerCommand('qoderCommit.generate', async (arg?: unknown) => {
@@ -29,5 +31,5 @@ export function activate(context: vscode.ExtensionContext): void {
 }
 
 export function deactivate(): void {
-  // 无需清理
+  disposeLogChannel();
 }

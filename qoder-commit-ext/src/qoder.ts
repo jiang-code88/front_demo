@@ -176,6 +176,21 @@ export async function runQoderCli(
   });
 }
 
+/** 扩展日志通道：主路径/回退切换、异常详情可在此排查（输出面板 → Custom Commit Message） */
+let logChannel: vscode.OutputChannel | undefined;
+
+function log(line: string): void {
+  if (!logChannel) {
+    logChannel = vscode.window.createOutputChannel('Custom Commit Message');
+  }
+  logChannel.appendLine(`[${new Date().toLocaleTimeString()}] ${line}`);
+}
+
+export function disposeLogChannel(): void {
+  logChannel?.dispose();
+  logChannel = undefined;
+}
+
 /** native 结果按配置裁剪：nativeFirstLineOnly 开启时只保留第一行 */
 function maybeFirstLineOnly(text: string): string {
   const firstLineOnly = vscode.workspace
@@ -207,13 +222,24 @@ export async function runNativeGeneration(
       if (msg) {
         return { message: msg, wroteInputBox: false };
       }
+      log(`native 主路径返回空 message（result=${JSON.stringify(result).slice(0, 300)}），回退到内置命令`);
+      vscode.window.setStatusBarMessage(
+        'native 主路径返回为空，已自动回退到内置命令（详见输出面板 Custom Commit Message）',
+        8000
+      );
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       if (msg.includes('NOT_LOGGED_IN')) {
         throw new Error('Qoder 未登录，请先在 IDE 中登录 Qoder 账号');
       }
-      // 其他错误回退到内置命令再试一次
+      log(`native 主路径调用失败：${msg}，回退到内置命令`);
+      vscode.window.setStatusBarMessage(
+        'native 主路径失败，已自动回退到内置命令（详见输出面板 Custom Commit Message）',
+        8000
+      );
     }
+  } else {
+    log('native 主路径不可用（vscode.aicoding 或 sendRequest 不存在），使用内置命令');
   }
 
   await vscode.commands.executeCommand(
